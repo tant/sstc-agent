@@ -8,6 +8,7 @@ import { mastraModelProvider } from "../llm/provider";
 import { embedder } from "../embedding/provider";
 
 
+
 // persona is embedded below to allow admin-free runtime usage and safer loading
 
 // Không cần lấy model từ appConfig nữa, đã config trong provider
@@ -99,30 +100,13 @@ Mai always maintains a cheerful and friendly tone, even when dealing with diffic
 // The personality profile is used directly as the agent's instructions.
 // It is assumed to be managed by an admin, so sanitization is not required.
 
-
-
-
-
-
-
-// LLM provider chọn theo config trong provider.ts
-function getAgentModel() {
-  return mastraModelProvider;
-}
-
-// Embedding provider: dùng embedder object đúng chuẩn Mastra
-function getAgentEmbedder() {
-  return embedder;
-}
-
 // Remove stray object literal and ensure only a single valid export below
 export const maiSale = new Agent({
   name: "Mai Sale",
   instructions: EMBEDDED_PERSONALITY,
-  model: (getAgentModel() as unknown),
+  model: mastraModelProvider(),
   tools: {},
   memory: (() => {
-    const embedder = (getAgentEmbedder() as unknown);
     const db = getLibSQLConfig();
     return new Memory({
       storage: new LibSQLStore({
@@ -130,13 +114,16 @@ export const maiSale = new Agent({
         authToken: db.authToken,
       }),
       vector: chromaVector,
-      embedder: (embedder as unknown as any),
+      embedder: embedder,
       options: {
         lastMessages: 10,
         workingMemory: {
           enabled: true,
           scope: "resource",
-          template: `# User Profile\n- Name:\n- Interests:\n- Current Goal:`
+          template: `# User Profile
+- Name:
+- Interests:
+- Current Goal:`
         },
         semanticRecall: {
           topK: 3,

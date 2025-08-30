@@ -1,18 +1,6 @@
-// Minimal MastraLanguageModel interface for type compatibility
-export interface MastraLanguageModel {
-  // Add any required methods/properties if needed by Mastra agent
-}
-
-/**
- * This file creates the centralized LLM provider.
- * Instead of each agent creating its own provider, they all use this one.
- */
-/** biome-ignore-all assist/source/organizeImports: Không quan tâm */
-
-// Import the OpenAI-compatible provider factory
-import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
-
-
+// Import the OpenAI provider factory
+import { createOpenAI } from '@ai-sdk/openai';
+import { CoreMessage } from 'ai';
 
 // Read LLM config directly from environment variables
 const BASE_URL = process.env.VLLM_BASE_URL || process.env.OPENAI_API_BASE_URL || '';
@@ -24,21 +12,15 @@ console.log('[LLM Provider] apiKey:', API_KEY);
 console.log('[LLM Provider] model:', GENERATE_MODEL);
 
 /**
- * Creates a new OpenAI-compatible LLM provider instance.
+ * Creates a new OpenAI LLM provider instance with custom base URL.
  * Optionally accepts a model name to override the default.
  */
 export function createLLMProvider(modelName?: string) {
-  return createOpenAICompatible({
-    name: modelName || GENERATE_MODEL,
-  baseURL: BASE_URL,
+  return createOpenAI({
+    baseURL: BASE_URL,
     apiKey: API_KEY,
-    headers: {},
-    queryParams: {},
-  fetch: async (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
-  });
+  })(modelName || GENERATE_MODEL);
 }
-
-
 
 /**
  * Default LLM provider instance (uses GENERATE_MODEL from env)
@@ -48,7 +30,6 @@ export const llmProvider = createLLMProvider();
 /**
  * Mastra-compatible model provider for Agent: accepts ({ runtimeContext, mastra }) and returns llmProvider
  */
-// Use more permissive parameter types to match Mastra's DynamicArgument signature
-export function mastraModelProvider({ runtimeContext, mastra }: { runtimeContext: unknown; mastra?: unknown }): MastraLanguageModel | Promise<MastraLanguageModel> {
-  return createLLMProvider() as unknown as MastraLanguageModel;
+export function mastraModelProvider() {
+  return createLLMProvider();
 }

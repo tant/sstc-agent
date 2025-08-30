@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:llm-ready": "tsx scripts/test-llm-ready.ts",
     "dev": "mastra dev",
     "build": "mastra build",
     "start": "mastra start"
@@ -24,6 +25,9 @@
     "@mastra/libsql": "^0.13.7",
     "@mastra/loggers": "^0.10.9",
     "@mastra/memory": "^0.14.2",
+    "axios": "^1.11.0",
+    "dotenv": "^17.2.1",
+    "tsx": "^4.20.5",
     "zod": "^3.25.76"
   },
   "devDependencies": {

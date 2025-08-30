@@ -5,10 +5,28 @@
 
 
 import axios from 'axios';
-import 'dotenv/config';
+import dotenv from 'dotenv';
 import fs from 'node:fs';
 import path from 'node:path';
-import { getChromaVectorFromConfig } from '../src/mastra/app-config';
+
+// Load environment variables from .env file explicitly
+const envPath = path.resolve(process.cwd(), '.env');
+console.log('🔧  Loading .env from:', envPath);
+const result = dotenv.config({ path: envPath, override: true });
+
+if (result.error) {
+  console.error('❌  Failed to load .env file:', result.error);
+} else {
+  console.log('✅  Successfully loaded .env file');
+}
+
+// Debug CHROMA variables
+console.log('🔧  All CHROMA_ variables after dotenv load:');
+Object.keys(process.env).filter(key => key.startsWith('CHROMA')).forEach(key => {
+  console.log(`  ${key}: ${process.env[key]}`);
+});
+
+import { ChromaVector } from '@mastra/chroma';
 
 
 
@@ -64,8 +82,9 @@ async function testProviderApi() {
 
 
 async function testEmbedderApi() {
-  const baseUrl = process.env.EMBEDDER_BASE_URL;
+  let baseUrl = process.env.EMBEDDER_BASE_URL;
   const model = process.env.EMBEDDER_MODEL;
+  const apiKey = process.env.EMBEDDER_API_KEY;
   if (!baseUrl) {
     console.log('\x1b[33m⚠️  EMBEDDER_BASE_URL not set, skipping embedder test.\x1b[0m');
     return;
@@ -75,12 +94,28 @@ async function testEmbedderApi() {
   console.log('------------------------------');
   console.log(`🌐  Embedder URL: \x1b[36m${baseUrl}\x1b[0m`);
   if (model) console.log(`🧠  Embedder Model: \x1b[33m${model}\x1b[0m`);
+  if (apiKey) console.log('🔑  Embedder API Key: \x1b[32mFound\x1b[0m');
+  else console.log('🔑  Embedder API Key: \x1b[31mNot found (may not be required)\x1b[0m');
   console.log('==============================\n');
   try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    // Đảm bảo URL đúng cho embeddings API
+    // Nếu baseUrl đã kết thúc bằng /embeddings thì không thêm nữa
+    if (baseUrl.endsWith('/embeddings')) {
+      // Không làm gì, URL đã đúng
+    } else if (baseUrl.endsWith('/v1')) {
+      // Thêm /embeddings vào
+      baseUrl = baseUrl + '/embeddings';
+    } else {
+      // Thêm /v1/embeddings vào
+      baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/embeddings';
+    }
+    console.log(`🚀  Testing URL: ${baseUrl}`);
     const res = await axios.post(baseUrl, {
       input: ["hello from embedder test"],
       model,
-    }, { headers: { 'Content-Type': 'application/json' } });
+    }, { headers });
     if (res.data && Array.isArray(res.data.data) && res.data.data[0]?.embedding) {
       console.log(`✅  Embedder API response: embedding length = ${res.data.data[0].embedding.length}`);
       console.log('\x1b[32m🎉  Embedder API test PASSED!\x1b[0m\n');
@@ -99,19 +134,30 @@ async function testChromaDb() {
   console.log('🧪  [STEP 4] Testing ChromaDB (vector store)');
   console.log('------------------------------');
   try {
-    const vector = getChromaVectorFromConfig();
-    // Tạo index (collection) test nếu chưa có
+    // Tạo ChromaVector instance với config từ environment variables
+    const CHROMA_HOST = process.env.CHROMA_HOST || "localhost";
+    const CHROMA_PORT = process.env.CHROMA_PORT ? Number(process.env.CHROMA_PORT) : 8000;
+    const CHROMA_SSL = process.env.CHROMA_SSL === "true";
+    
+    console.log(`🌐  ChromaDB Host: ${CHROMA_HOST}`);
+    console.log(`🌐  ChromaDB Port: ${CHROMA_PORT}`);
+    console.log(`🌐  ChromaDB SSL: ${CHROMA_SSL}`);
+    
+    const chromaVector = new ChromaVector({
+      host: CHROMA_HOST,
+      port: CHROMA_PORT,
+      ssl: CHROMA_SSL,
+    });
+    
     const indexName = 'test-chroma-connection';
-    await vector.createIndex({ indexName, dimension: 3, metric: 'cosine' });
-    // Upsert vector
-    await vector.upsert({
+    await chromaVector.createIndex({ indexName, dimension: 3, metric: 'cosine' });
+    await chromaVector.upsert({
       indexName,
       vectors: [[1, 2, 3]],
       ids: ['vec1'],
       documents: ['test document'],
     });
-    // Query vector
-    const results = await vector.query({
+    const results = await chromaVector.query({
       indexName,
       queryVector: [1, 2, 3],
       topK: 1,
@@ -134,7 +180,7 @@ async function main() {
     console.log('\n==============================');
     console.log('🧪  [STEP 1] Environment Validation');
     console.log('------------------------------');
-    // Bước 1: validate env, nếu thiếu thì kiểm tra tiếp trong file .env
+    // Bước 1: validate env
     const required = [
       'VLLM_BASE_URL',
       'DATABASE_URL',
@@ -146,22 +192,9 @@ async function main() {
     ];
     let missing = required.filter(key => !process.env[key]);
     if (missing.length > 0) {
-      // Đọc file .env nếu tồn tại
-      const envPath = path.resolve(process.cwd(), '.env');
-      let envContent = '';
-      if (fs.existsSync(envPath)) {
-        envContent = fs.readFileSync(envPath, 'utf8');
-      }
-      // Kiểm tra từng biến còn thiếu có được khai báo trong .env không
-      missing = missing.filter(key => {
-        const regex = new RegExp(`^${key}=`, 'm');
-        return !regex.test(envContent);
-      });
-      if (missing.length > 0) {
-        console.error(`\x1b[41m❌  Missing required environment variables (not found in process.env or .env):\x1b[0m`, missing);
-        console.log('🔎  Please check your .env file and set the missing variables.');
-        process.exit(1);
-      }
+      console.error(`\x1b[41m❌  Missing required environment variables:\x1b[0m`, missing);
+      console.log('🔎  Please check your .env file and set the missing variables.');
+      process.exit(1);
     }
     console.log('\x1b[32m✅  Environment validation PASSED!\x1b[0m');
     console.log('==============================\n');
