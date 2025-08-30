@@ -22,9 +22,9 @@ export type LLMCallOptions = {
  * Type guard to check if an object is a ProviderClient
  */
 type ProviderClient = {
-  generate?: (opts: { messages: CoreMessage[] }) => Promise<unknown>;
-  doGenerate?: (opts: { messages: CoreMessage[] }) => Promise<unknown>;
-  createCompletion?: (opts: { messages: CoreMessage[] }) => Promise<unknown>;
+  generate?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
+  doGenerate?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
+  createCompletion?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
 };
 
 function isProviderClient(obj: unknown): obj is ProviderClient {
@@ -96,7 +96,7 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number): Promise<T> {
  */
 export async function callModel(
   modelName: string,              // Model name to call
-  messages: CoreMessage[],        // The conversation messages
+  messages: ModelMessage[],        // The conversation messages
   opts: LLMCallOptions = {}       // Custom options
 ): Promise<{ text: string; raw: unknown }> {
   // Extract options with defaults (matching your existing logic)

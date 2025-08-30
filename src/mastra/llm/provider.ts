@@ -1,47 +1,54 @@
+// Minimal MastraLanguageModel interface for type compatibility
+export interface MastraLanguageModel {
+  // Add any required methods/properties if needed by Mastra agent
+}
+
 /**
  * This file creates the centralized LLM provider.
  * Instead of each agent creating its own provider, they all use this one.
  */
 /** biome-ignore-all assist/source/organizeImports: Không quan tâm */
 
-// Import our configuration
-import { appConfig } from '../app-config';
-// Import the OpenAI provider from Mastra (works with vLLM too!)
-import { createOpenAI, type OpenAIProviderSettings } from '@ai-sdk/openai';
+// Import the OpenAI-compatible provider factory
+import { createOpenAICompatible } from '@ai-sdk/openai-compatible';
 
+
+
+// Read LLM config directly from environment variables
+const BASE_URL = process.env.VLLM_BASE_URL || process.env.OPENAI_API_BASE_URL || '';
+const API_KEY = process.env.VLLM_API_KEY || process.env.OPENAI_API_KEY || '';
+const GENERATE_MODEL = process.env.GENERATE_MODEL || 'gpt-oss-20b';
+
+console.log('[LLM Provider] baseUrl:', BASE_URL);
+console.log('[LLM Provider] apiKey:', API_KEY);
+console.log('[LLM Provider] model:', GENERATE_MODEL);
 
 /**
- * This function creates an LLM provider with the given configuration.
- * Think of it as a factory that makes LLM providers.
+ * Creates a new OpenAI-compatible LLM provider instance.
+ * Optionally accepts a model name to override the default.
  */
-export const createLLMProvider = (config: Partial<typeof appConfig.llm> = {}) => {
-  // Merge order: appConfig.llm (default) <- config (override)
-  const mergedConfig = {
-    ...(appConfig.llm || {}),
-    ...config
-  };
+export function createLLMProvider(modelName?: string) {
+  return createOpenAICompatible({
+    name: modelName || GENERATE_MODEL,
+  baseURL: BASE_URL,
+    apiKey: API_KEY,
+    headers: {},
+    queryParams: {},
+  fetch: async (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+  });
+}
 
-  // Create and return the OpenAI-compatible provider
-  // This works with vLLM because vLLM provides an OpenAI-compatible API
-  // Only include apiKey if defined, to match OpenAIProviderSettings type
-  // Đảm bảo baseURL luôn là string
-  const baseURL = mergedConfig.baseUrl || '';
-  const settings: OpenAIProviderSettings = mergedConfig.apiKey
-    ? { baseURL, apiKey: mergedConfig.apiKey }
-    : { baseURL };
-  return createOpenAI(settings);
-};
+
 
 /**
- * This is our default provider instance.
- * All agents will use this unless they need something special.
+ * Default LLM provider instance (uses GENERATE_MODEL from env)
  */
 export const llmProvider = createLLMProvider();
 
 /**
- * This function creates model instances from our provider.
- * For example: llmProviderFactory('gpt-oss-20b')
+ * Mastra-compatible model provider for Agent: accepts ({ runtimeContext, mastra }) and returns llmProvider
  */
-export const llmProviderFactory = (modelName: string) => {
-  return llmProvider(modelName);
-};
+// Use more permissive parameter types to match Mastra's DynamicArgument signature
+export function mastraModelProvider({ runtimeContext, mastra }: { runtimeContext: unknown; mastra?: unknown }): MastraLanguageModel | Promise<MastraLanguageModel> {
+  return createLLMProvider() as unknown as MastraLanguageModel;
+}
