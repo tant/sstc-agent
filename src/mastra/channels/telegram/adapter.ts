@@ -3,7 +3,7 @@
  * INTEGRATES with existing maiSale agent and message workflows
  */
 
-import { mastra } from '../../mastra';
+import { mastra } from '../../index';
 import { channelMessageWorkflow } from '../../workflows/message-processor';
 import { validateTelegramConfig, TelegramConfig } from './config';
 import { ChannelAdapter } from '../../core/channels/interface';
@@ -73,6 +73,26 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     this.bot.on('voice', this.handleVoiceMessage.bind(this));
     console.log('🎤 [Telegram] Voice message handler registered');
 
+    // Audio messages
+    this.bot.on('audio', this.handleAudioMessage.bind(this));
+    console.log('🎵 [Telegram] Audio message handler registered');
+
+    // Video messages
+    this.bot.on('video', this.handleVideoMessage.bind(this));
+    console.log('🎬 [Telegram] Video message handler registered');
+
+    // Animation messages (GIFs)
+    this.bot.on('animation', this.handleAnimationMessage.bind(this));
+    console.log('🎨 [Telegram] Animation message handler registered');
+
+    // Sticker messages
+    this.bot.on('sticker', this.handleStickerMessage.bind(this));
+    console.log('張貼 [Telegram] Sticker message handler registered');
+
+    // Video note messages
+    this.bot.on('video_note', this.handleVideoNoteMessage.bind(this));
+    console.log('📹 [Telegram] Video note message handler registered');
+
     // Error handling
     this.bot.on('polling_error', (error) => {
       console.error('❌ [Telegram] Polling error:', error);
@@ -87,9 +107,11 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
   /**
    * Normalize Telegram message to Mastra workflow format
+   * Handles all message types according to Telegram Bot API specification
    */
   private normalizeMessage(telegramMessage: TelegramBot.Message): {
     content: string;
+    contentType: string;
     senderId: string;
     timestamp: Date;
     messageId: string;
@@ -98,39 +120,217 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       type: string;
       url: string;
       filename?: string;
+      fileId?: string;
     }>;
   } {
     console.log('📝 [Telegram] Normalizing message', {
       messageId: telegramMessage.message_id,
+      messageType: this.getMessageType(telegramMessage),
       hasText: !!telegramMessage.text,
+      hasCaption: !!telegramMessage.caption,
       hasPhoto: !!telegramMessage.photo,
       hasDocument: !!telegramMessage.document,
-      hasVoice: !!telegramMessage.voice
+      hasAudio: !!telegramMessage.audio,
+      hasVideo: !!telegramMessage.video,
+      hasVoice: !!telegramMessage.voice,
+      hasSticker: !!telegramMessage.sticker,
+      hasContact: !!telegramMessage.contact,
+      hasLocation: !!telegramMessage.location
     });
 
+    // Determine content type and content text
+    let contentType = 'text';
+    let content = '';
+    
+    // Use caption for media messages if no text
+    const messageText = telegramMessage.text || telegramMessage.caption || '';
+    
+    // Determine primary content type based on message content
+    if (telegramMessage.text) {
+      contentType = 'text';
+      content = telegramMessage.text;
+    } else if (telegramMessage.photo) {
+      contentType = 'image';
+      content = messageText || '[Image message]';
+    } else if (telegramMessage.document) {
+      contentType = 'document';
+      content = messageText || '[Document message]';
+    } else if (telegramMessage.audio) {
+      contentType = 'audio';
+      content = messageText || '[Audio message]';
+    } else if (telegramMessage.video) {
+      contentType = 'video';
+      content = messageText || '[Video message]';
+    } else if (telegramMessage.animation) {
+      contentType = 'animation';
+      content = messageText || '[Animation message]';
+    } else if (telegramMessage.voice) {
+      contentType = 'voice';
+      content = messageText || '[Voice message]';
+    } else if (telegramMessage.video_note) {
+      contentType = 'video_note';
+      content = '[Video note message]';
+    } else if (telegramMessage.sticker) {
+      contentType = 'sticker';
+      content = messageText || '[Sticker message]';
+    } else if (telegramMessage.contact) {
+      contentType = 'contact';
+      content = '[Contact message]';
+    } else if (telegramMessage.location) {
+      contentType = 'location';
+      content = '[Location message]';
+    } else if (telegramMessage.venue) {
+      contentType = 'venue';
+      content = '[Venue message]';
+    } else if (telegramMessage.poll) {
+      contentType = 'poll';
+      content = '[Poll message]';
+    } else if (telegramMessage.dice) {
+      contentType = 'dice';
+      content = '[Dice message]';
+    } else {
+      contentType = 'unknown';
+      content = '[Unsupported message type]';
+    }
+
+    // Prepare attachments
+    let attachments: Array<{
+      type: string;
+      url: string;
+      filename?: string;
+      fileId?: string;
+    }> | undefined;
+
+    try {
+      // Note: We can't directly access bot token, so we'll use Telegram's file ID
+      // The actual file URL needs to be obtained through getFile API call
+      if (telegramMessage.photo) {
+        // Get the largest photo (last in array)
+        const photo = telegramMessage.photo[telegramMessage.photo.length - 1];
+        attachments = [{
+          type: 'photo',
+          // We'll need to get the actual file URL through bot.getFileLink(fileId)
+          url: photo.file_id, // Placeholder - will resolve actual URL when needed
+          filename: `telegram_photo_${photo.file_id}.jpg`,
+          fileId: photo.file_id
+        }];
+      } else if (telegramMessage.document) {
+        attachments = [{
+          type: 'document',
+          url: telegramMessage.document.file_id, // Placeholder
+          filename: telegramMessage.document.file_name || `document_${telegramMessage.document.file_id}`,
+          fileId: telegramMessage.document.file_id
+        }];
+      } else if (telegramMessage.audio) {
+        attachments = [{
+          type: 'audio',
+          url: telegramMessage.audio.file_id, // Placeholder
+          filename: `audio_${telegramMessage.audio.file_id}`, // Audio doesn't have file_name
+          fileId: telegramMessage.audio.file_id
+        }];
+      } else if (telegramMessage.video) {
+        attachments = [{
+          type: 'video',
+          url: telegramMessage.video.file_id, // Placeholder
+          filename: `video_${telegramMessage.video.file_id}`, // Video doesn't have file_name
+          fileId: telegramMessage.video.file_id
+        }];
+      } else if (telegramMessage.animation) {
+        attachments = [{
+          type: 'animation',
+          url: telegramMessage.animation.file_id, // Placeholder
+          filename: telegramMessage.animation.file_name || `animation_${telegramMessage.animation.file_id}`,
+          fileId: telegramMessage.animation.file_id
+        }];
+      } else if (telegramMessage.voice) {
+        attachments = [{
+          type: 'voice',
+          url: telegramMessage.voice.file_id, // Placeholder
+          fileId: telegramMessage.voice.file_id
+        }];
+      } else if (telegramMessage.video_note) {
+        attachments = [{
+          type: 'video_note',
+          url: telegramMessage.video_note.file_id, // Placeholder
+          fileId: telegramMessage.video_note.file_id
+        }];
+      } else if (telegramMessage.sticker) {
+        attachments = [{
+          type: 'sticker',
+          url: telegramMessage.sticker.file_id, // Placeholder
+          filename: `sticker_${telegramMessage.sticker.file_id}.webp`,
+          fileId: telegramMessage.sticker.file_id
+        }];
+      }
+    } catch (error) {
+      console.error('❌ [Telegram] Error preparing attachments:', error);
+    }
+
     const normalized = {
-      content: telegramMessage.text || '[Unsupported message type]',
+      content,
+      contentType,
       senderId: telegramMessage.from?.id.toString() || 'unknown',
       timestamp: new Date(telegramMessage.date * 1000),
       messageId: telegramMessage.message_id.toString(),
       chatId: telegramMessage.chat.id.toString(),
-      attachments: telegramMessage.photo ? [{
-        type: 'photo',
-        url: `https://api.telegram.org/file/bot${this.bot.token}/${telegramMessage.photo[0].file_id}`,
-        filename: `telegram_photo_${telegramMessage.photo[0].file_id}.jpg`
-      }] : telegramMessage.document ? [{
-        type: 'document',
-        url: `https://api.telegram.org/file/bot${this.bot.token}/${telegramMessage.document.file_id}`,
-        filename: telegramMessage.document.file_name
-      }] : undefined
+      attachments
     };
 
     console.log('✅ [Telegram] Message normalized', {
+      contentType: normalized.contentType,
       contentLength: normalized.content.length,
-      hasAttachments: !!normalized.attachments
+      hasAttachments: !!normalized.attachments,
+      attachmentTypes: normalized.attachments?.map(a => a.type) || []
     });
 
     return normalized;
+  }
+
+  /**
+   * Get actual file URL from Telegram file ID
+   * @param fileId Telegram file ID
+   * @returns Actual file URL
+   */
+  private async getFileUrl(fileId: string): Promise<string> {
+    try {
+      // If it's already a full URL, return it as is
+      if (fileId.startsWith('http')) {
+        return fileId;
+      }
+      
+      // Otherwise, it's a file ID, get the actual file path
+      const file = await this.bot.getFile(fileId);
+      if (!file.file_path) {
+        throw new Error('File path not available');
+      }
+      
+      // Construct the full URL
+      return `https://api.telegram.org/file/bot${this.config.token}/${file.file_path}`;
+    } catch (error) {
+      console.error('❌ [Telegram] Error getting file URL:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper method to determine message type
+   */
+  private getMessageType(message: TelegramBot.Message): string {
+    if (message.text) return 'text';
+    if (message.photo) return 'photo';
+    if (message.document) return 'document';
+    if (message.audio) return 'audio';
+    if (message.video) return 'video';
+    if (message.animation) return 'animation';
+    if (message.voice) return 'voice';
+    if (message.video_note) return 'video_note';
+    if (message.sticker) return 'sticker';
+    if (message.contact) return 'contact';
+    if (message.location) return 'location';
+    if (message.venue) return 'venue';
+    if (message.poll) return 'poll';
+    if (message.dice) return 'dice';
+    return 'unknown';
   }
 
   /**
@@ -185,7 +385,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       const standardizedMessage = {
         id: normalizedMessage.messageId,
         content: normalizedMessage.content,
-        contentType: 'text',
+        contentType: normalizedMessage.contentType,
         sender: {
           id: normalizedMessage.senderId,
           username: telegramMessage.from?.username,
@@ -197,10 +397,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           channelMessageId: normalizedMessage.messageId,
           metadata: {
             chatId: normalizedMessage.chatId,
-            messageType: telegramMessage.text ? 'text' : 
-                        telegramMessage.photo ? 'photo' : 
-                        telegramMessage.document ? 'document' : 
-                        telegramMessage.voice ? 'voice' : 'unknown'
+            messageType: this.getMessageType(telegramMessage)
           }
         },
         attachments: normalizedMessage.attachments
@@ -237,6 +434,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
   /**
    * Send response back through Telegram
+   * Handles various response types according to Telegram Bot API
    */
   private async sendResponse(response: any, originalMessage: TelegramBot.Message): Promise<void> {
     const chatId = originalMessage.chat.id.toString();
@@ -257,10 +455,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
         console.log('⌨️ [Telegram] Sending quick reply buttons');
         // Send message with quick replies (inline keyboard)
         const keyboard = {
-          inline_keyboard: response.quickReplies.map((reply: any) => [{
-            text: reply.title,
-            callback_data: reply.payload
-          }])
+          inline_keyboard: response.quickReplies.map((reply: any) => [{ text: reply.title, callback_data: reply.payload }])
         };
         
         await this.bot.sendMessage(chatId, response.response || response.text, {
@@ -269,17 +464,67 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       } else if (response.contentType === 'image' && response.attachments && response.attachments.length > 0) {
         console.log('🖼️ [Telegram] Sending image response');
         // Send image with caption
-        const imageUrl = response.attachments[0].url;
-        await this.bot.sendPhoto(chatId, imageUrl, {
-          caption: response.response || response.text
-        });
+        const fileIdOrUrl = response.attachments[0].url;
+        try {
+          // Try to get actual file link if it's a file ID
+          const actualUrl = await this.getFileUrl(fileIdOrUrl);
+          await this.bot.sendPhoto(chatId, actualUrl, {
+            caption: response.response || response.text
+          });
+        } catch (error) {
+          // If it's already a URL, send it directly
+          await this.bot.sendPhoto(chatId, fileIdOrUrl, {
+            caption: response.response || response.text
+          });
+        }
       } else if (response.contentType === 'document' && response.attachments && response.attachments.length > 0) {
         console.log('📄 [Telegram] Sending document response');
         // Send document with caption
-        const docUrl = response.attachments[0].url;
-        await this.bot.sendDocument(chatId, docUrl, {}, {
-          caption: response.response || response.text
-        });
+        const fileIdOrUrl = response.attachments[0].url;
+        try {
+          // Try to get actual file link if it's a file ID
+          const actualUrl = await this.getFileUrl(fileIdOrUrl);
+          await this.bot.sendDocument(chatId, actualUrl, {
+            caption: response.response || response.text
+          });
+        } catch (error) {
+          // If it's already a URL, send it directly
+          await this.bot.sendDocument(chatId, fileIdOrUrl, {
+            caption: response.response || response.text
+          });
+        }
+      } else if (response.contentType === 'audio' && response.attachments && response.attachments.length > 0) {
+        console.log('🎵 [Telegram] Sending audio response');
+        // Send audio with caption
+        const fileIdOrUrl = response.attachments[0].url;
+        try {
+          // Try to get actual file link if it's a file ID
+          const actualUrl = await this.getFileUrl(fileIdOrUrl);
+          await this.bot.sendAudio(chatId, actualUrl, {
+            caption: response.response || response.text
+          });
+        } catch (error) {
+          // If it's already a URL, send it directly
+          await this.bot.sendAudio(chatId, fileIdOrUrl, {
+            caption: response.response || response.text
+          });
+        }
+      } else if (response.contentType === 'video' && response.attachments && response.attachments.length > 0) {
+        console.log('🎬 [Telegram] Sending video response');
+        // Send video with caption
+        const fileIdOrUrl = response.attachments[0].url;
+        try {
+          // Try to get actual file link if it's a file ID
+          const actualUrl = await this.getFileUrl(fileIdOrUrl);
+          await this.bot.sendVideo(chatId, actualUrl, {
+            caption: response.response || response.text
+          });
+        } catch (error) {
+          // If it's already a URL, send it directly
+          await this.bot.sendVideo(chatId, fileIdOrUrl, {
+            caption: response.response || response.text
+          });
+        }
       } else {
         // Default text message
         const messageText = response.response || response.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.';
@@ -287,10 +532,18 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           textLength: messageText.length
         });
         
-        await this.bot.sendMessage(chatId, messageText, {
-          parse_mode: 'Markdown',
-          reply_to_message_id: originalMessage.message_id
-        });
+        // Try to send as Markdown first, fallback to plain text if it fails
+        try {
+          await this.bot.sendMessage(chatId, messageText, {
+            parse_mode: 'Markdown',
+            reply_to_message_id: originalMessage.message_id
+          });
+        } catch (markdownError) {
+          console.log('⚠️ [Telegram] Markdown parsing failed, sending as plain text');
+          await this.bot.sendMessage(chatId, messageText, {
+            reply_to_message_id: originalMessage.message_id
+          });
+        }
       }
       
       console.log(`✅ [Telegram] Response sent successfully to chat ${chatId}`);
@@ -319,6 +572,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
    * Handle photo messages
    */
   private async handlePhotoMessage(photo: TelegramBot.Message): Promise<void> {
+    console.log('📸 [Telegram] Received photo message');
     // Process photo message directly
     await this.handleTelegramMessage(photo);
   }
@@ -327,6 +581,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
    * Handle document messages
    */
   private async handleDocumentMessage(document: TelegramBot.Message): Promise<void> {
+    console.log('📄 [Telegram] Received document message');
     // Process document message directly
     await this.handleTelegramMessage(document);
   }
@@ -335,8 +590,54 @@ export class TelegramChannelAdapter implements ChannelAdapter {
    * Handle voice messages
    */
   private async handleVoiceMessage(voice: TelegramBot.Message): Promise<void> {
+    console.log('🎤 [Telegram] Received voice message');
     // Process voice message directly
     await this.handleTelegramMessage(voice);
+  }
+
+  /**
+   * Handle audio messages
+   */
+  private async handleAudioMessage(audio: TelegramBot.Message): Promise<void> {
+    console.log('🎵 [Telegram] Received audio message');
+    // Process audio message directly
+    await this.handleTelegramMessage(audio);
+  }
+
+  /**
+   * Handle video messages
+   */
+  private async handleVideoMessage(video: TelegramBot.Message): Promise<void> {
+    console.log('🎬 [Telegram] Received video message');
+    // Process video message directly
+    await this.handleTelegramMessage(video);
+  }
+
+  /**
+   * Handle animation messages (GIFs)
+   */
+  private async handleAnimationMessage(animation: TelegramBot.Message): Promise<void> {
+    console.log('🎨 [Telegram] Received animation message');
+    // Process animation message directly
+    await this.handleTelegramMessage(animation);
+  }
+
+  /**
+   * Handle sticker messages
+   */
+  private async handleStickerMessage(sticker: TelegramBot.Message): Promise<void> {
+    console.log('張貼 [Telegram] Received sticker message');
+    // Process sticker message directly
+    await this.handleTelegramMessage(sticker);
+  }
+
+  /**
+   * Handle video note messages
+   */
+  private async handleVideoNoteMessage(videoNote: TelegramBot.Message): Promise<void> {
+    console.log('📹 [Telegram] Received video note message');
+    // Process video note message directly
+    await this.handleTelegramMessage(videoNote);
   }
 
   /**
