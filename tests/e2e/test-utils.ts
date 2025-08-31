@@ -2,65 +2,152 @@ import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
 
-// Create logs directory if it doesn't exist
-const logsDir = path.join(__dirname, '..', 'logs');
+// Create logs directory structure
+const logsDir = path.join(__dirname, 'logs');
 const testResultsDir = path.join(logsDir, 'test-results');
 const conversationLogsDir = path.join(logsDir, 'conversation-logs');
 
-if (!fs.existsSync(logsDir)) {
-  fs.mkdirSync(logsDir, { recursive: true });
-}
-if (!fs.existsSync(testResultsDir)) {
-  fs.mkdirSync(testResultsDir, { recursive: true });
-}
-if (!fs.existsSync(conversationLogsDir)) {
-  fs.mkdirSync(conversationLogsDir, { recursive: true });
-}
+// Ensure directories exist
+[logsDir, testResultsDir, conversationLogsDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
 
-// Logger class to handle test logging
+// Enhanced Logger class with detailed logging capabilities
 export class TestLogger {
   private testName: string;
-  private logFile: string;
-  private conversationFile: string;
+  private startTime: number;
+  private logEntries: Array<{ 
+    timestamp: string; 
+    level: 'INFO' | 'ERROR' | 'DEBUG' | 'WARN'; 
+    message: string 
+  }> = [];
+  private conversationHistory: Array<{
+    timestamp: string;
+    input: { role: string; content: string }[];
+    output: any;
+  }> = [];
 
   constructor(testName: string) {
     this.testName = testName;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    this.logFile = path.join(testResultsDir, `${testName}-${timestamp}.log`);
-    this.conversationFile = path.join(conversationLogsDir, `${testName}-${timestamp}-conversation.json`);
+    this.startTime = Date.now();
+    this.log(`🔄 Test ${testName} started`, 'INFO');
   }
 
-  log(message: string, level: 'INFO' | 'ERROR' | 'DEBUG' = 'INFO') {
+  log(message: string, level: 'INFO' | 'ERROR' | 'DEBUG' | 'WARN' = 'INFO') {
     const timestamp = new Date().toISOString();
-    const logEntry = `[${timestamp}] [${level}] [${this.testName}] ${message}\n`;
-    fs.appendFileSync(this.logFile, logEntry);
-    console.log(logEntry.trim());
+    const logEntry = { timestamp, level, message };
+    this.logEntries.push(logEntry);
+    
+    // Log to console
+    console.log(`[${timestamp}] [${level}] [${this.testName}] ${message}`);
+    
+    // Log to file
+    this.saveLogToFile(logEntry);
   }
 
-  logConversation(messages: any[], response: any) {
-    const conversationLog = {
-      timestamp: new Date().toISOString(),
-      testName: this.testName,
-      input: messages,
-      output: response
-    };
-    fs.appendFileSync(this.conversationFile, JSON.stringify(conversationLog, null, 2) + ',\n');
+  private saveLogToFile(logEntry: { timestamp: string; level: string; message: string }) {
+    try {
+      const logFilename = `${this.testName}.log`;
+      const logFilePath = path.join(testResultsDir, logFilename);
+      
+      const logLine = `[${logEntry.timestamp}] [${logEntry.level}] [${this.testName}] ${logEntry.message}
+`;
+      fs.appendFileSync(logFilePath, logLine);
+    } catch (error) {
+      // Silent fail to avoid breaking tests
+    }
+  }
+
+  logConversation(input: { role: string; content: string }[], output: any) {
+    const timestamp = new Date().toISOString();
+    const conversationEntry = { timestamp, input, output };
+    this.conversationHistory.push(conversationEntry);
+    
+    // Save detailed conversation log
+    this.saveDetailedConversationLog(conversationEntry);
+  }
+
+  private saveDetailedConversationLog(conversationEntry: { 
+    timestamp: string; 
+    input: { role: string; content: string }[]; 
+    output: any 
+  }) {
+    try {
+      // Create detailed conversation log with timestamp
+      const timestampStr = conversationEntry.timestamp.replace(/[:.]/g, '-');
+      const logFilename = `${this.testName}-${timestampStr}-conversation.json`;
+      const logFilePath = path.join(conversationLogsDir, logFilename);
+      
+      const detailedLog = {
+        testName: this.testName,
+        timestamp: conversationEntry.timestamp,
+        conversation: {
+          input: conversationEntry.input,
+          output: conversationEntry.output,
+          metadata: {
+            inputMessageCount: conversationEntry.input.length,
+            outputTextLength: conversationEntry.output.text?.length || 0,
+            responseTime: new Date().getTime() - new Date(conversationEntry.timestamp).getTime(),
+            hasFiles: conversationEntry.output.files?.length > 0,
+            hasToolCalls: conversationEntry.output.toolCalls?.length > 0,
+            finishReason: conversationEntry.output.finishReason,
+            usage: conversationEntry.output.usage
+          }
+        }
+      };
+      
+      fs.writeFileSync(logFilePath, JSON.stringify(detailedLog, null, 2));
+      this.log(`📄 Detailed conversation log saved: ${logFilename}`, 'DEBUG');
+    } catch (error) {
+      this.log(`❌ Failed to save detailed conversation log: ${(error as Error).message}`, 'ERROR');
+    }
   }
 
   logTestResult(passed: boolean, errorMessage?: string) {
-    const result = {
+    const endTime = Date.now();
+    const duration = endTime - this.startTime;
+    
+    const testResult = {
       testName: this.testName,
-      timestamp: new Date().toISOString(),
+      startTime: new Date(this.startTime).toISOString(),
+      endTime: new Date(endTime).toISOString(),
+      duration: `${duration}ms`,
       passed,
-      errorMessage
+      errorMessage,
+      summary: {
+        totalLogEntries: this.logEntries.length,
+        totalConversations: this.conversationHistory.length
+      },
+      logEntries: this.logEntries,
+      conversationHistory: this.conversationHistory
     };
-    const resultFile = path.join(testResultsDir, `${this.testName}-result.json`);
-    fs.writeFileSync(resultFile, JSON.stringify(result, null, 2));
+
+    try {
+      // Save test result
+      const timestampStr = new Date().toISOString().replace(/[:.]/g, '-');
+      const resultFilename = `${this.testName}-result-${timestampStr}.json`;
+      const resultFilePath = path.join(testResultsDir, resultFilename);
+      fs.writeFileSync(resultFilePath, JSON.stringify(testResult, null, 2));
+      this.log(`📊 Test result saved: ${resultFilename}`, 'INFO');
+      
+      if (passed) {
+        this.log(`✅ Test PASSED in ${duration}ms`, 'INFO');
+      } else {
+        this.log(`❌ Test FAILED in ${duration}ms`, 'ERROR');
+        if (errorMessage) {
+          this.log(`❗ Error: ${errorMessage}`, 'ERROR');
+        }
+      }
+    } catch (error) {
+      this.log(`❌ Failed to save test result: ${(error as Error).message}`, 'ERROR');
+    }
   }
 }
 
-// Enhanced sendMessage function with logging
-export const sendMessage = async (
+// Enhanced sendMessage function with comprehensive logging
+export const sendLoggedMessage = async (
   messages: { role: string; content: string }[],
   testName: string,
   logger: TestLogger
@@ -69,9 +156,10 @@ export const sendMessage = async (
   const API_KEY = process.env.MASTRA_API_KEY || 'test-key';
   
   try {
-    logger.log(`Sending ${messages.length} messages to agent`);
-    logger.log(`Messages: ${JSON.stringify(messages)}`, 'DEBUG');
+    logger.log(`📤 Sending ${messages.length} messages to agent`, 'INFO');
+    logger.log(`📨 Messages content: ${JSON.stringify(messages.map(m => m.content))}`, 'DEBUG');
     
+    const startTime = Date.now();
     const response = await axios.post(
       `${BASE_URL}/api/agents/maiSale/generate`,
       { messages },
@@ -82,64 +170,21 @@ export const sendMessage = async (
         }
       }
     );
+    const endTime = Date.now();
     
-    logger.log(`Received response in ${response.status} status`);
-    logger.log(`Response text length: ${response.data.text?.length || 0}`, 'DEBUG');
+    logger.log(`📥 Received response in ${endTime - startTime}ms`, 'INFO');
+    logger.log(`📏 Response text length: ${response.data.text?.length || 0} characters`, 'DEBUG');
     
-    // Log the conversation
+    // Log the conversation with full details
     logger.logConversation(messages, response.data);
     
     return response.data;
   } catch (error: any) {
-    logger.log(`Error sending message: ${error.message}`, 'ERROR');
+    logger.log(`💥 Error sending message: ${error.message}`, 'ERROR');
     if (error.response) {
-      logger.log(`Response status: ${error.response.status}`, 'ERROR');
-      logger.log(`Response data: ${JSON.stringify(error.response.data)}`, 'ERROR');
+      logger.log(`📡 Response status: ${error.response.status}`, 'ERROR');
+      logger.log(`📦 Response data: ${JSON.stringify(error.response.data)}`, 'ERROR');
     }
     throw error;
   }
-};
-
-// Utility function to save test conversation history
-export const saveTestConversation = (
-  testName: string,
-  messages: any[],
-  response: any
-) => {
-  const conversation = {
-    testName,
-    timestamp: new Date().toISOString(),
-    messages: [...messages, { role: 'assistant', content: response.text }],
-    response
-  };
-  
-  const filename = path.join(
-    conversationLogsDir,
-    `${testName}-conversation-${new Date().getTime()}.json`
-  );
-  
-  fs.writeFileSync(filename, JSON.stringify(conversation, null, 2));
-  return filename;
-};
-
-// Utility function to generate test report
-export const generateTestReport = (
-  testName: string,
-  passed: boolean,
-  details: any
-) => {
-  const report = {
-    testName,
-    timestamp: new Date().toISOString(),
-    passed,
-    details
-  };
-  
-  const filename = path.join(
-    testResultsDir,
-    `${testName}-report-${new Date().getTime()}.json`
-  );
-  
-  fs.writeFileSync(filename, JSON.stringify(report, null, 2));
-  return filename;
 };

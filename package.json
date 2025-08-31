@@ -8,6 +8,7 @@
     "test:llm-ready": "tsx scripts/test-llm-ready.ts",
     "test:e2e": "tsx scripts/run-e2e-tests.ts",
     "test:logs": "tsx scripts/view-test-logs.ts",
+    "test:analyze": "tsx scripts/analyze-test-conversations.ts",
     "dev": "mastra dev",
     "build": "mastra build",
     "start": "mastra start"
