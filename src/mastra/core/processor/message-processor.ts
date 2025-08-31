@@ -4,8 +4,7 @@
  */
 
 import type { NormalizedMessage, ProcessedResponse } from '../models/message';
-
-
+import { channelMessageWorkflow } from '../../workflows/message-processor';
 
 export class CentralMessageProcessor {
   private processingQueue: Array<{
@@ -15,24 +14,117 @@ export class CentralMessageProcessor {
   }> = [];
   
   private isProcessing: boolean = false;
+  private processedMessageIds: Set<string> = new Set(); // Thêm để deduplicate
 
   /**
    * Process a normalized message and return a response
    * THIS IS WHERE ALL YOUR BUSINESS LOGIC GOES
    */
   async processMessage(message: NormalizedMessage): Promise<ProcessedResponse> {
-    // Example: Just echo the message content for now
-    return {
-      content: `Echo: ${message.content}`,
-      contentType: 'text',
-      metadata: { channel: message.channel.channelId }
-    };
+    const messageKey = `${message.channel.channelId}-${message.id}`;
+    
+    // Kiểm tra nếu message đã được xử lý
+    if (this.processedMessageIds.has(messageKey)) {
+      console.log('🔄 [Processor] Message already processed, skipping', {
+        messageId: message.id,
+        channelId: message.channel.channelId
+      });
+      // Trả về response mặc định
+      return {
+        content: 'Message already processed',
+        contentType: 'text',
+        metadata: { 
+          processedBy: 'processor-duplicate-check',
+          channelId: message.channel.channelId,
+          originalMessageId: message.id
+        }
+      };
+    }
+    
+    // Đánh dấu message đã được xử lý
+    this.processedMessageIds.add(messageKey);
+    console.log('🔄 [Processor] Processing message', {
+      channelId: message.channel.channelId,
+      messageId: message.id,
+      content: message.content.substring(0, 50) + '...'
+    });
+    
+    // Xóa message key sau 5 phút để tránh memory leak
+    setTimeout(() => {
+      this.processedMessageIds.delete(messageKey);
+    }, 5 * 60 * 1000);
+    
+    try {
+      // Use the Mastra workflow for processing
+      console.log('🔄 Creating workflow run for message processing');
+      const run = await channelMessageWorkflow.createRunAsync();
+      
+      const workflowResult = await run.start({
+        inputData: {
+          channelId: message.channel.channelId as 'telegram' | 'whatsapp' | 'web' | 'zalo',
+          message: {
+            content: message.content,
+            senderId: message.sender.id,
+            timestamp: message.timestamp,
+            attachments: message.attachments?.map(att => ({
+              type: att.type,
+              url: att.url,
+              filename: att.filename
+            }))
+          }
+        }
+      });
+
+      console.log('📊 Workflow result status:', workflowResult.status);
+      
+      if (workflowResult.status === 'success') {
+        const result = workflowResult.result;
+        console.log('✅ Message processed successfully via workflow');
+        
+        return {
+          content: result.response || result.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.',
+          contentType: result.contentType || 'text',
+          metadata: {
+            ...result.metadata,
+            processedBy: 'workflow',
+            channelId: message.channel.channelId
+          }
+        };
+      } else {
+        console.error('❌ Workflow processing failed:', workflowResult.error);
+        return {
+          content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
+          contentType: 'text',
+          metadata: {
+            error: workflowResult.error,
+            processedBy: 'workflow-error',
+            channelId: message.channel.channelId
+          }
+        };
+      }
+    } catch (error) {
+      console.error('❌ Error in processMessage:', error);
+      return {
+        content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
+        contentType: 'text',
+        metadata: {
+          error: error instanceof Error ? error.message : String(error),
+          processedBy: 'processor-error',
+          channelId: message.channel.channelId
+        }
+      };
+    }
   }
 
   /**
    * Queue message for processing (for high-volume scenarios)
    */
   async queueMessage(message: NormalizedMessage): Promise<ProcessedResponse> {
+    console.log('📥 [Processor] Queuing message', {
+      channelId: message.channel.channelId,
+      messageId: message.id
+    });
+    
     return new Promise((resolve, reject) => {
       this.processingQueue.push({ message, resolve, reject });
       this.processQueue();
@@ -47,23 +139,33 @@ export class CentralMessageProcessor {
       return;
     }
 
+    console.log('🔄 [Processor] Starting queue processing');
     this.isProcessing = true;
 
     while (this.processingQueue.length > 0) {
       const item = this.processingQueue.shift();
       if (!item) continue;
       const { message, resolve, reject } = item;
+      
       try {
+        console.log('🔄 Processing queued message', {
+          channelId: message.channel.channelId,
+          queueLength: this.processingQueue.length
+        });
+        
         const response = await this.processMessage(message);
         resolve(response);
       } catch (error) {
+        console.error('❌ Error processing queued message:', error);
         reject(error instanceof Error ? error : new Error(String(error)));
       }
+      
       // Add small delay to prevent overwhelming the system
       await new Promise(res => setTimeout(res, 10));
     }
 
     this.isProcessing = false;
+    console.log('✅ [Processor] Queue processing completed');
   }
 }
 

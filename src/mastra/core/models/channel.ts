@@ -54,7 +54,7 @@ export const CHANNEL_CONFIGS: Record<ChannelType, ChannelConfig> = {
   },
   web: {
     type: 'web',
-    name: 'Web',
+    name: 'Web Chat',
     supports: {
       text: true,
       images: true,
@@ -72,13 +72,13 @@ export const CHANNEL_CONFIGS: Record<ChannelType, ChannelConfig> = {
     supports: {
       text: true,
       images: true,
-      documents: true,
+      documents: false,
       audio: true,
       video: true,
       quickReplies: true,
-      carousel: false
+      carousel: true
     },
-    maxMessageLength: 1000
+    maxMessageLength: 2000
   },
   facebook: {
     type: 'facebook',
@@ -86,7 +86,7 @@ export const CHANNEL_CONFIGS: Record<ChannelType, ChannelConfig> = {
     supports: {
       text: true,
       images: true,
-      documents: true,
+      documents: false,
       audio: true,
       video: true,
       quickReplies: true,

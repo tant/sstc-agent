@@ -1,34 +1,69 @@
 /**
- * ChannelRegistry manages all channel adapters
- * Allows registration and lookup of adapters by channelId
+ * Channel registry for managing active channels
+ * This keeps track of which channels are currently active
  */
 
-import type { ChannelAdapter } from './interface';
+import { ChannelAdapter } from './interface';
 
 export class ChannelRegistry {
-  private adapters: Map<string, ChannelAdapter> = new Map();
+  private adapters = new Map<string, ChannelAdapter>();
 
-  registerAdapter(adapter: ChannelAdapter): void {
-    if (this.adapters.has(adapter.channelId)) {
-      throw new Error(`Adapter for channelId '${adapter.channelId}' already registered.`);
-    }
-    this.adapters.set(adapter.channelId, adapter);
+  /**
+   * Register a channel adapter
+   */
+  register(channelId: string, adapter: ChannelAdapter): void {
+    this.adapters.set(channelId, adapter);
+    console.log(`✅ Registered channel: ${channelId}`);
   }
 
-  getAdapter(channelId: string): ChannelAdapter | undefined {
+  /**
+   * Get a channel adapter by ID
+   */
+  get(channelId: string): ChannelAdapter | undefined {
     return this.adapters.get(channelId);
   }
 
-  getAllAdapters(): ChannelAdapter[] {
-    return Array.from(this.adapters.values());
+  /**
+   * Remove a channel adapter
+   */
+  unregister(channelId: string): boolean {
+    const removed = this.adapters.delete(channelId);
+    if (removed) {
+      console.log(`📤 Unregistered channel: ${channelId}`);
+    }
+    return removed;
   }
 
+  /**
+   * List all registered channels
+   */
+  listChannels(): string[] {
+    return Array.from(this.adapters.keys());
+  }
+
+  /**
+   * Check if a channel is registered
+   */
+  has(channelId: string): boolean {
+    return this.adapters.has(channelId);
+  }
+
+  /**
+   * Shutdown all channels gracefully
+   */
   async shutdownAll(): Promise<void> {
-    for (const adapter of this.adapters.values()) {
+    console.log('🛑 Shutting down all channels...');
+    const shutdownPromises: Promise<void>[] = [];
+
+    for (const [channelId, adapter] of this.adapters) {
       if (adapter.shutdown) {
-        await adapter.shutdown();
+        shutdownPromises.push(adapter.shutdown());
       }
     }
+
+    await Promise.all(shutdownPromises);
+    this.adapters.clear();
+    console.log('✅ All channels shut down');
   }
 }
 
