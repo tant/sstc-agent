@@ -133,11 +133,17 @@ export const channelMessageWorkflow = createWorkflow({
           responseLength: result.text.length
         });
         
+        // Log user profile nếu có trong result
+        if (result.metadata) {
+          console.log('📋 [Workflow] Agent metadata:', JSON.stringify(result.metadata, null, 2));
+        }
+        
         return {
           response: result.text,
           text: result.text,
           channelId,
           metadata: {
+            ...result.metadata,
             processedBy: 'workflow-agent',
             timestamp: new Date().toISOString()
           }

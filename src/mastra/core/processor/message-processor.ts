@@ -59,7 +59,7 @@ export class CentralMessageProcessor {
       console.log('🔄 Creating workflow run for message processing');
       const run = await channelMessageWorkflow.createRunAsync();
       
-      const workflowResult = await run.start({
+      const workflowInput = {
         inputData: {
           channelId: message.channel.channelId as 'telegram' | 'whatsapp' | 'web' | 'zalo',
           message: {
@@ -73,13 +73,24 @@ export class CentralMessageProcessor {
             }))
           }
         }
-      });
+      };
+      
+      console.log('📤 [Processor] Workflow input:', workflowInput);
+      const workflowResult = await run.start(workflowInput);
 
-      console.log('📊 Workflow result status:', workflowResult.status);
+      console.log('📊 [Processor] Workflow result status:', workflowResult.status);
       
       if (workflowResult.status === 'success') {
         const result = workflowResult.result;
-        console.log('✅ Message processed successfully via workflow');
+        console.log('✅ [Processor] Message processed successfully via workflow');
+        
+        // Hiển thị user profile nếu có
+        if (result.metadata && typeof result.metadata === 'object') {
+          const userProfile = (result.metadata as any).userProfile;
+          if (userProfile) {
+            console.log('👤 [Processor] User Profile:', JSON.stringify(userProfile, null, 2));
+          }
+        }
         
         return {
           content: result.response || result.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.',
@@ -91,7 +102,7 @@ export class CentralMessageProcessor {
           }
         };
       } else {
-        console.error('❌ Workflow processing failed:', workflowResult.error);
+        console.error('❌ [Processor] Workflow processing failed:', workflowResult.error);
         return {
           content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
           contentType: 'text',
@@ -103,7 +114,7 @@ export class CentralMessageProcessor {
         };
       }
     } catch (error) {
-      console.error('❌ Error in processMessage:', error);
+      console.error('❌ [Processor] Error in processMessage:', error);
       return {
         content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
         contentType: 'text',
