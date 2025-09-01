@@ -6,7 +6,7 @@
 import { validateTelegramConfig, type TelegramConfig } from './config';
 import type { ChannelAdapter } from '../../core/channels/interface';
 import { messageProcessor } from '../../core/processor/message-processor';
-import TelegramBot from '../../../lib/node-telegram-bot-api/index.js';
+import TelegramBot from 'node-telegram-bot-api';
 
 export class TelegramChannelAdapter implements ChannelAdapter {
   private bot: any;

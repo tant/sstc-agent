@@ -3,6 +3,8 @@ import { PinoLogger } from '@mastra/loggers';
 import { LibSQLStore } from '@mastra/libsql';
 import { channelMessageWorkflow } from './workflows/message-processor';
 import { maiSale } from './agents/mai-agent';
+import { anDataAnalyst } from './agents/an-data-analyst';
+import { intentAnalyzerTool } from './tools/intent-analyzer';
 import { TelegramChannelAdapter } from './channels/telegram';
 import { ZaloChannelAdapter } from './channels/zalo';
 import { channelRegistry } from './core/channels/registry';
@@ -12,14 +14,20 @@ export const mastra = new Mastra({
   workflows: {
     channelMessageWorkflow
   },
-  agents: { maiSale },
+  agents: { 
+    maiSale,
+    anDataAnalyst 
+  },
+  tools: {
+    intentAnalyzer: intentAnalyzerTool
+  },
   storage: new LibSQLStore({
     // stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db
     url: ":memory:",
   }),
   logger: new PinoLogger({
     name: 'Mastra',
-    level: 'info',
+    level: 'debug',
   }),
 });
 

@@ -6,7 +6,7 @@
 import { validateZaloConfig, type ZaloConfig } from './config';
 import type { ChannelAdapter } from '../../core/channels/interface';
 import { messageProcessor } from '../../core/processor/message-processor';
-import { Zalo } from '../../../lib/zca-js/src/zalo.js';
+import { Zalo } from 'zca-js';
 
 export class ZaloChannelAdapter implements ChannelAdapter {
   private zalo: any;
@@ -57,7 +57,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
         imeiLength: this.config.imei?.length || 0,
         userAgentLength: this.config.userAgent?.length || 0
       });
-      
+
       this.api = await this.zalo.login({
         cookie: this.config.cookie,
         imei: this.config.imei,
@@ -68,7 +68,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 
       // Set up message handlers
       this.setupMessageHandlers();
-      
+
       console.log('✅ [Zalo] Adapter started successfully');
     } catch (error) {
       console.error('❌ [Zalo] Error starting adapter:', error);
@@ -114,14 +114,88 @@ export class ZaloChannelAdapter implements ChannelAdapter {
       filename?: string;
     }>;
   } {
-    console.log('📝 [Zalo] Normalizing message', {
+    // Validate message structure
+    if (!zaloMessage) {
+      console.log('⚠️ [Zalo] Cannot normalize message: null or undefined');
+      return {
+        content: '[Invalid message]',
+        contentType: 'unknown',
+        senderId: 'unknown',
+        timestamp: new Date(),
+        messageId: Date.now().toString(),
+        threadId: 'unknown'
+      };
+    }
+    
+    // Handle new message structure (with data object)
+    if (zaloMessage.data) {
+      console.log('📝 [Zalo] Normalizing message (new structure)', {
+        messageId: zaloMessage.data.msgId,
+        messageType: zaloMessage.type,
+        hasContent: !!zaloMessage.data.content,
+        senderId: zaloMessage.data.uidFrom,
+        senderName: zaloMessage.data.dName
+      });
+
+      // Determine content type and content text
+      let contentType = 'text';
+      let content = zaloMessage.data.content || '';
+      
+      // For new structure, we only have text content for now
+      if (!content) {
+        contentType = 'unknown';
+        content = '[Empty message]';
+      }
+
+      const normalized = {
+        content,
+        contentType,
+        senderId: zaloMessage.data.uidFrom?.toString() || 'unknown',
+        timestamp: new Date(parseInt(zaloMessage.data.ts) || Date.now()),
+        messageId: zaloMessage.data.msgId?.toString() || Date.now().toString(),
+        threadId: zaloMessage.threadId?.toString() || zaloMessage.data.uidFrom?.toString() || 'unknown',
+        attachments: undefined
+      };
+
+      console.log('✅ [Zalo] Message normalized (new structure)', {
+        contentType: normalized.contentType,
+        contentLength: normalized.content.length,
+        hasAttachments: !!normalized.attachments,
+        timestamp: normalized.timestamp.toISOString()
+      });
+
+      return normalized;
+    }
+    
+    // Handle old message structure (with sender object)
+    // Validate that we have a sender
+    if (!zaloMessage.sender) {
+      console.log('⚠️ [Zalo] Cannot normalize message: missing sender information');
+      console.log('📄 [Zalo] Message structure:', {
+        hasMessage: !!zaloMessage,
+        hasSender: !!(zaloMessage && zaloMessage.sender),
+        availableKeys: zaloMessage ? Object.keys(zaloMessage) : []
+      });
+      
+      // Return a minimal normalized message to avoid crashes
+      return {
+        content: '[Invalid message]',
+        contentType: 'unknown',
+        senderId: 'unknown',
+        timestamp: new Date(),
+        messageId: Date.now().toString(),
+        threadId: 'unknown'
+      };
+    }
+    
+    console.log('📝 [Zalo] Normalizing message (old structure)', {
       messageId: zaloMessage.id,
       messageType: zaloMessage.type,
       hasBody: !!zaloMessage.body,
       hasText: !!zaloMessage.text,
       hasAttachments: !!(zaloMessage.attachments || zaloMessage.photo || zaloMessage.file),
-      senderId: zaloMessage.sender.id,
-      senderName: zaloMessage.sender.name
+      senderId: zaloMessage.sender?.id,
+      senderName: zaloMessage.sender?.name
     });
 
     // Determine content type and content text
@@ -149,14 +223,14 @@ export class ZaloChannelAdapter implements ChannelAdapter {
     const normalized = {
       content,
       contentType,
-      senderId: zaloMessage.sender.id.toString(),
+      senderId: zaloMessage.sender?.id?.toString() || 'unknown',
       timestamp: new Date(zaloMessage.timestamp || Date.now()),
       messageId: zaloMessage.id?.toString() || Date.now().toString(),
-      threadId: (zaloMessage.threadID || zaloMessage.sender.id).toString(),
+      threadId: (zaloMessage.threadID || zaloMessage.sender?.id || 'unknown').toString(),
       attachments: undefined
     };
 
-    console.log('✅ [Zalo] Message normalized', {
+    console.log('✅ [Zalo] Message normalized (old structure)', {
       contentType: normalized.contentType,
       contentLength: normalized.content.length,
       hasAttachments: !!normalized.attachments,
@@ -170,20 +244,71 @@ export class ZaloChannelAdapter implements ChannelAdapter {
    * Handle Zalo message through Mastra Workflow
    */
   private async handleZaloMessage(zaloMessage: any): Promise<void> {
-    console.log('📥 [Zalo] Received message:', {
-      messageId: zaloMessage.id,
-      messageType: zaloMessage.type,
-      hasBody: !!zaloMessage.body,
-      hasText: !!zaloMessage.text,
-      hasPhoto: !!zaloMessage.photo,
-      hasFile: !!zaloMessage.file,
-      sender: {
-        id: zaloMessage.sender.id,
-        name: zaloMessage.sender.name
-      },
-      textPreview: `${zaloMessage.body?.substring(0, 50)}...` || `${zaloMessage.text?.substring(0, 50)}...`,
-      timestamp: new Date(zaloMessage.timestamp || Date.now()).toISOString()
+    // Debug log: Display raw Zalo message
+    console.log('🔍 [Zalo] RAW MESSAGE RECEIVED:', JSON.stringify(zaloMessage, null, 2));
+
+    // Validate message structure
+    if (!zaloMessage) {
+      console.log('⚠️ [Zalo] Received invalid message: null or undefined');
+      return;
+    }
+
+    // Debug log to inspect message structure safely
+    console.log('🔍 [Zalo] DEBUG - Message structure:', {
+      keys: Object.keys(zaloMessage || {}),
+      hasData: !!zaloMessage?.data,
+      dataKeys: zaloMessage?.data ? Object.keys(zaloMessage.data) : null,
+      messageId: zaloMessage?.data?.msgId,
+      messageType: zaloMessage?.type,
+      hasContent: !!zaloMessage?.data?.content
     });
+
+    // Check if this is the new message structure (with data object)
+    if (zaloMessage.data) {
+      console.log('📥 [Zalo] Received message (new structure):', {
+        messageId: zaloMessage.data.msgId,
+        messageType: zaloMessage.type,
+        hasContent: !!zaloMessage.data.content,
+        sender: {
+          id: zaloMessage.data.uidFrom || 'unknown',
+          name: zaloMessage.data.dName || 'Unknown Sender'
+        },
+        textPreview: zaloMessage.data.content ? `${zaloMessage.data.content.substring(0, 50)}...` : '[No content]',
+        timestamp: new Date(parseInt(zaloMessage.data.ts) || Date.now()).toISOString()
+      });
+    } else {
+      // Fallback to old structure
+      console.log('📥 [Zalo] Received message (old structure):', {
+        messageId: zaloMessage.id,
+        messageType: zaloMessage.type,
+        hasBody: !!zaloMessage.body,
+        hasText: !!zaloMessage.text,
+        hasPhoto: !!zaloMessage.photo,
+        hasFile: !!zaloMessage.file,
+        sender: {
+          id: zaloMessage.sender?.id || 'unknown',
+          name: zaloMessage.sender?.name || 'Unknown Sender'
+        },
+        textPreview: `${zaloMessage.body?.substring(0, 50)}...` || `${zaloMessage.text?.substring(0, 50)}...`,
+        timestamp: new Date(zaloMessage.timestamp || Date.now()).toISOString()
+      });
+    }
+
+    // Validate that we have the minimum required information
+    const hasValidSender = (zaloMessage.data && zaloMessage.data.uidFrom) || 
+                           (zaloMessage.sender && zaloMessage.sender.id);
+
+    if (!hasValidSender) {
+      console.log('⚠️ [Zalo] Message missing valid sender information, skipping processing');
+      console.log('📄 [Zalo] Message preview:', {
+        id: zaloMessage.data?.msgId || zaloMessage.id,
+        type: zaloMessage.type,
+        availableKeys: Object.keys(zaloMessage),
+        hasData: !!zaloMessage.data,
+        hasSender: !!zaloMessage.sender
+      });
+      return;
+    }
 
     try {
       // Normalize message using shared types
@@ -205,15 +330,41 @@ export class ZaloChannelAdapter implements ChannelAdapter {
       console.log('✅ [Zalo] Message validation passed');
 
       // Create standardized message format
+      // Handle both new and old message structures
+      let senderInfo = {
+        id: 'unknown',
+        username: 'Unknown Sender',
+        displayName: 'Unknown User'
+      };
+      
+      if (zaloMessage.data) {
+        // New message structure
+        senderInfo = {
+          id: zaloMessage.data.uidFrom || normalizedMessage.senderId || 'unknown',
+          username: zaloMessage.data.dName || 'Unknown Sender',
+          displayName: zaloMessage.data.dName || 'Unknown User'
+        };
+      } else if (zaloMessage.sender) {
+        // Old message structure
+        senderInfo = {
+          id: zaloMessage.sender?.id || normalizedMessage.senderId || 'unknown',
+          username: zaloMessage.sender?.name || 'Unknown Sender',
+          displayName: zaloMessage.sender?.name || 'Unknown User'
+        };
+      } else {
+        // Fallback to normalized message data
+        senderInfo = {
+          id: normalizedMessage.senderId || 'unknown',
+          username: 'Unknown Sender',
+          displayName: 'Unknown User'
+        };
+      }
+
       const standardizedMessage = {
         id: normalizedMessage.messageId,
         content: normalizedMessage.content,
         contentType: normalizedMessage.contentType,
-        sender: {
-          id: normalizedMessage.senderId,
-          username: zaloMessage.sender.name,
-          displayName: zaloMessage.sender.name || 'Unknown User'
-        },
+        sender: senderInfo,
         timestamp: normalizedMessage.timestamp,
         channel: {
           channelId: 'zalo',
@@ -235,7 +386,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 
       // Process through central message processor
       const response = await messageProcessor.processMessage(standardizedMessage);
-      
+
       console.log('📤 [Zalo] Received response from processor:', {
         contentType: response.contentType,
         contentLength: response.content.length,
@@ -267,7 +418,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
    */
   private async sendResponse(response: any, originalMessage: any): Promise<void> {
     const threadId = originalMessage.threadId;
-    
+
     if (!threadId) {
       throw new Error('No thread ID found for Zalo response');
     }
@@ -286,10 +437,10 @@ export class ZaloChannelAdapter implements ChannelAdapter {
         textLength: messageText.length,
         textPreview: `${messageText.substring(0, 50)}...`
       });
-      
+
       // Send message through Zalo API
       await this.api.sendMessage(messageText, threadId);
-      
+
       console.log(`✅ [Zalo] Response sent successfully to thread ${threadId}`);
     } catch (error) {
       console.error(`❌ [Zalo] Error sending response to thread ${threadId}:`, {
@@ -362,7 +513,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
       console.log('⚠️ [Zalo] Adapter already shut down, skipping...');
       return;
     }
-    
+
     console.log('🛑 [Zalo] Shutting down adapter...');
     try {
       // Stop listener
@@ -371,10 +522,10 @@ export class ZaloChannelAdapter implements ChannelAdapter {
         this.api.listener.stop();
         console.log('✅ [Zalo] Listener stopped successfully');
       }
-      
+
       // Mark as shutdown
       this._isShutdown = true;
-      
+
       console.log('✅ [Zalo] Adapter shut down successfully');
     } catch (error) {
       console.error('❌ [Zalo] Error shutting down adapter:', {
