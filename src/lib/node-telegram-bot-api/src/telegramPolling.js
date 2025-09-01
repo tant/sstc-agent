@@ -1,8 +1,8 @@
 const errors = require('./errors');
 const debug = require('debug')('node-telegram-bot-api');
 const deprecate = require('./utils').deprecate;
-const ANOTHER_WEB_HOOK_USED = 409;
 
+const ANOTHER_WEB_HOOK_USED = 409;
 
 class TelegramBotPolling {
   /**
@@ -41,9 +41,7 @@ class TelegramBotPolling {
       return this.stop({
         cancel: true,
         reason: 'Polling restart',
-      }).then(() => {
-        return this._polling();
-      });
+      }).then(() => this._polling());
     }
     return this._polling();
   }
@@ -100,10 +98,10 @@ class TelegramBotPolling {
   _polling() {
     this._lastRequest = this
       ._getUpdates()
-      .then(updates => {
+      .then((updates) => {
         this._lastUpdate = Date.now();
         debug('polling data %j', updates);
-        updates.forEach(update => {
+        updates.forEach((update) => {
           this.options.params.offset = update.update_id + 1;
           debug('updated offset: %s', this.options.params.offset);
           try {
@@ -115,7 +113,7 @@ class TelegramBotPolling {
         });
         return null;
       })
-      .catch(err => {
+      .catch((err) => {
         debug('polling error: %s', err.message);
         if (!err._processing) {
           return this._error(err);
@@ -139,9 +137,7 @@ class TelegramBotPolling {
           limit: 1,
           timeout: 0,
         };
-        return this.bot.getUpdates(opts).then(() => {
-          return this._error(err);
-        }).catch(requestErr => {
+        return this.bot.getUpdates(opts).then(() => this._error(err)).catch((requestErr) => {
           /*
            * We have been unable to handle this error.
            * We have to log this to stderr to ensure devops
@@ -188,11 +184,9 @@ class TelegramBotPolling {
   _getUpdates() {
     debug('polling with options: %j', this.options.params);
     return this.bot.getUpdates(this.options.params)
-      .catch(err => {
+      .catch((err) => {
         if (err.response && err.response.statusCode === ANOTHER_WEB_HOOK_USED) {
-          return this._unsetWebHook().then(() => {
-            return this.bot.getUpdates(this.options.params);
-          });
+          return this._unsetWebHook().then(() => this.bot.getUpdates(this.options.params));
         }
         throw err;
       });

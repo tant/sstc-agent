@@ -21,6 +21,8 @@ Node.js module to interact with the official [Telegram Bot API](https://core.tel
 npm i node-telegram-bot-api
 ```
 
+**Note**: This library requires Node.js version 12 or higher.
+
 <br/>
 
 > ✍️ **Note:** If you use Typescript you can install this package that contains type definitions for this library

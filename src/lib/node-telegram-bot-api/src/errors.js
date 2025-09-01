@@ -10,6 +10,7 @@ exports.BaseError = class BaseError extends Error {
     super(`${code}: ${message}`);
     this.code = code;
   }
+
   toJSON() {
     return {
       code: this.code,
@@ -17,7 +18,6 @@ exports.BaseError = class BaseError extends Error {
     };
   }
 };
-
 
 exports.FatalError = class FatalError extends exports.BaseError {
   /**
@@ -37,7 +37,6 @@ exports.FatalError = class FatalError extends exports.BaseError {
   }
 };
 
-
 exports.ParseError = class ParseError extends exports.BaseError {
   /**
    * Error during parsing. Error code is `"EPARSE"`.
@@ -51,7 +50,6 @@ exports.ParseError = class ParseError extends exports.BaseError {
     this.response = response;
   }
 };
-
 
 exports.TelegramError = class TelegramError extends exports.BaseError {
   /**

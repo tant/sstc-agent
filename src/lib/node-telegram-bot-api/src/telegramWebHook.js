@@ -72,7 +72,7 @@ class TelegramBotWebHook {
       return Promise.resolve();
     }
     return new Promise((resolve, reject) => {
-      this._webServer.close(error => {
+      this._webServer.close((error) => {
         if (error) return reject(error);
         this._open = false;
         return resolve();
