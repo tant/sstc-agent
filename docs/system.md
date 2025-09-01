@@ -1,75 +1,96 @@
- Core Components
+ # SSTC Agent System Architecture
 
-  1. Mastra Framework Setup
-   - File: src/mastra/index.ts
-   - The main Mastra instance is configured with:
-     - A workflow for message processing (channelMessageWorkflow)
-     - An AI agent (maiSale)
-     - LibSQL storage for persistence
-     - Pino logger for logging
+## Core Components
 
-  2. Message Processing Pipeline
-   - Central Processor: src/mastra/core/processor/message-processor.ts
-     - Handles all incoming messages through a standardized workflow
-     - Deduplicates messages to prevent double processing
-     - Uses Mastra workflows for business logic
+### 1. Mastra Framework Setup
+- File: src/mastra/index.ts
+- The main Mastra instance is configured with:
+  - A workflow for message processing (channelMessageWorkflow)
+  - An AI agent (maiSale)
+  - LibSQL storage for persistence (using in-memory storage by default)
+  - Pino logger for logging
 
-  3. Workflow System
-   - File: src/mastra/workflows/message-processor.ts
-   - Implements a two-step workflow:
-     1. Intent analysis (placeholder implementation)
-     2. Response generation using the maiSale agent
+### 2. Message Processing Pipeline
+- Central Processor: src/mastra/core/processor/message-processor.ts
+  - Handles all incoming messages through a standardized workflow
+  - Deduplicates messages using a Set to track processed message IDs, with automatic cleanup after 5 minutes
+  - Uses Mastra workflows for business logic
 
-  4. AI Agent (maiSale)
-   - File: src/mastra/agents/mai-agent.ts
-   - A sales assistant agent with a detailed personality profile
-   - Uses LibSQL for memory storage
-   - Integrates with Chroma vector database for semantic search
-   - Has a comprehensive personality defining communication style, behavior patterns, and session management
+### 3. Workflow System
+- File: src/mastra/workflows/message-processor.ts
+- Implements a two-step workflow:
+  1. Intent analysis (currently a placeholder implementation with fixed values)
+  2. Response generation using the maiSale agent
 
-  5. Channel System
-   - Interface: src/mastra/core/channels/interface.ts
-   - Registry: src/mastra/core/channels/registry.ts
-   - Supports multiple channels with a standardized adapter pattern
-   - Telegram channel is currently implemented with singleton pattern to prevent conflicts
+### 4. AI Agent (maiSale)
+- File: src/mastra/agents/mai-agent.ts
+- A sales assistant agent with a detailed personality profile embedded directly in the code
+- Uses LibSQL for memory storage
+- Integrates with Chroma vector database for semantic search
+- Has a comprehensive personality defining communication style, behavior patterns, and session management
+- Manages user profiles with confidence scoring for stored information
 
-  6. Telegram Channel Implementation
-   - Adapter: src/mastra/channels/telegram/adapter.ts
-   - Implements the ChannelAdapter interface
-   - Uses polling to receive messages
-   - Handles various message types (text, images, documents, voice, etc.)
-   - Converts Telegram messages to standardized format
-   - Sends responses back through Telegram with appropriate formatting
+### 5. Channel System
+- Interface: src/mastra/core/channels/interface.ts
+- Registry: src/mastra/core/channels/registry.ts
+- Supports multiple channels with a standardized adapter pattern
+- Telegram channel is currently implemented with singleton pattern to prevent conflicts
 
-  7. Data Models
-   - Messages: src/mastra/core/models/message.ts
-     - Defines NormalizedMessage and ProcessedResponse interfaces
-     - Standardized format for all channels
-   - User Profile: src/mastra/core/models/user-profile-schema.ts
-     - Zod schema for user profile with confidence scoring
+### 6. Telegram Channel Implementation
+- Adapter: src/mastra/channels/telegram/adapter.ts
+- Implements the ChannelAdapter interface
+- Uses polling by default to receive messages (configurable interval)
+- Handles various message types including:
+  - Text messages
+  - Photo messages
+  - Document messages
+  - Voice messages
+  - Audio messages
+  - Video messages
+  - Animation messages (GIFs)
+  - Sticker messages
+  - Video note messages
+  - Contact messages
+  - Location messages
+- Converts Telegram messages to standardized format with proper attachment handling
+- Sends responses back through Telegram with appropriate formatting including:
+  - Plain text with Markdown support
+  - Quick reply buttons
+  - Images with captions
+  - Documents with captions
+  - Audio with captions
+  - Video with captions
 
-  8. External Services Integration
-   - Database: LibSQL configuration in src/mastra/database/libsql.ts
-   - Vector Storage: Chroma integration in src/mastra/vector/chroma.ts
-   - Embedding: OpenAI-compatible embedding provider in src/mastra/embedding/provider.ts
-   - LLM: OpenAI-compatible LLM provider in src/mastra/llm/provider.ts
+### 7. Data Models
+- Messages: src/mastra/core/models/message.ts
+  - Defines NormalizedMessage and ProcessedResponse interfaces
+  - Standardized format for all channels with support for attachments and metadata
+- User Profile: src/mastra/core/models/user-profile-schema.ts
+  - Zod schema for user profile with confidence scoring for interests, goals, and pain points
+  - Includes fields for name, language, location, timezone, interests, preferences, goals, last interaction, email, phone, and pain points
 
-  Key Features
+### 8. External Services Integration
+- Database: LibSQL configuration in src/mastra/database/libsql.ts
+- Vector Storage: Chroma integration in src/mastra/vector/chroma.ts
+- Embedding: OpenAI-compatible embedding provider in src/mastra/embedding/provider.ts
+- LLM: OpenAI-compatible LLM provider in src/mastra/llm/provider.ts
 
-   1. Multi-channel Support: Designed to work with Telegram, WhatsApp, Web, and other channels
-   2. Singleton Pattern: Telegram adapter uses singleton to prevent multiple instances with the same token
-   3. Message Deduplication: Prevents processing the same message multiple times
-   4. Rich Media Support: Handles various Telegram message types
-   5. Session Management: Tracks conversation state and user profiles
-   6. Error Handling: Comprehensive error handling for all components
-   7. Configurable: Uses environment variables for all external service configuration
+## Key Features
 
-  Architecture Patterns
+1. Multi-channel Support: Designed to work with Telegram, WhatsApp, Web, and other channels
+2. Singleton Pattern: Telegram adapter uses singleton to prevent multiple instances with the same token
+3. Message Deduplication: Prevents processing the same message multiple times using message ID tracking with automatic cleanup
+4. Rich Media Support: Handles various Telegram message types with proper attachment processing
+5. Session Management: Tracks conversation state and user profiles through the maiSale agent's personality profile
+6. Error Handling: Comprehensive error handling for all components including graceful shutdown procedures
+7. Configurable: Uses environment variables for all external service configuration (TELEGRAM_BOT_TOKEN)
 
-   1. Adapter Pattern: For channel integration
-   2. Singleton Pattern: For Telegram adapter instances
-   3. Workflow Pattern: For message processing
-   4. Registry Pattern: For managing active channels
-   5. Factory Pattern: For creating LLM and embedding providers
+## Architecture Patterns
 
-  This is a well-structured system that follows modern software architecture principles and is designed for extensibility to support additional channels in the future.
+1. Adapter Pattern: For channel integration
+2. Singleton Pattern: For Telegram adapter instances
+3. Workflow Pattern: For message processing
+4. Registry Pattern: For managing active channels
+5. Factory Pattern: For creating LLM and embedding providers
+
+This is a well-structured system that follows modern software architecture principles and is designed for extensibility to support additional channels in the future.
