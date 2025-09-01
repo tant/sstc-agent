@@ -19,11 +19,8 @@ async function runE2Etests() {
       stdio: 'pipe'
     });
     
-    let agentRunning = false;
-    
     agentCheck.on('close', (code) => {
       if (code === 0) {
-        agentRunning = true;
         console.log('✅ Agent is running');
         runTests();
       } else {

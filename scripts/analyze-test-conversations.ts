@@ -13,23 +13,7 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-interface ConversationLog {
-  testName: string;
-  timestamp: string;
-  conversation: {
-    input: { role: string; content: string }[];
-    output: any;
-    metadata: {
-      inputMessageCount: number;
-      outputTextLength: number;
-      responseTime: number;
-      hasFiles: boolean;
-      hasToolCalls: boolean;
-      finishReason: string;
-      usage: any;
-    };
-  };
-}
+
 
 interface TestResult {
   testName: string;
@@ -172,7 +156,7 @@ async function analyzeTestConversations() {
       console.log(`🕐 Timestamp: ${new Date(log.timestamp).toLocaleString()}`);
       
       console.log('\n💬 Conversation:');
-      log.conversation.input.forEach((msg: { role: string; content: string }, index: number) => {
+      log.conversation.input.forEach((msg: { role: string; content: string }) => {
         const roleEmoji = msg.role === 'user' ? '👤' : '🤖';
         console.log(`  ${roleEmoji} ${msg.role}: ${msg.content}`);
       });

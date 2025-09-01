@@ -1,12 +1,8 @@
 /**
  * Unified test script: validate env, test agent, test LLM connection
  */
-/** biome-ignore-all assist/source/organizeImports: <Không quan tâm> */
-
-
 import axios from 'axios';
 import dotenv from 'dotenv';
-import fs from 'node:fs';
 import path from 'node:path';
 
 // Load environment variables from .env file explicitly
@@ -99,17 +95,17 @@ async function testEmbedderApi() {
   console.log('==============================\n');
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
+    if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
     // Đảm bảo URL đúng cho embeddings API
     // Nếu baseUrl đã kết thúc bằng /embeddings thì không thêm nữa
     if (baseUrl.endsWith('/embeddings')) {
       // Không làm gì, URL đã đúng
     } else if (baseUrl.endsWith('/v1')) {
       // Thêm /embeddings vào
-      baseUrl = baseUrl + '/embeddings';
+      baseUrl = `${baseUrl}/embeddings`;
     } else {
       // Thêm /v1/embeddings vào
-      baseUrl = baseUrl.replace(/\/+$/, '') + '/v1/embeddings';
+      baseUrl = `${baseUrl.replace(/\/+$/, '')}/v1/embeddings`;
     }
     console.log(`🚀  Testing URL: ${baseUrl}`);
     const res = await axios.post(baseUrl, {
@@ -190,7 +186,7 @@ async function main() {
       'CHROMA_PORT',
       'CHROMA_SSL',
     ];
-    let missing = required.filter(key => !process.env[key]);
+    const missing = required.filter(key => !process.env[key]);
     if (missing.length > 0) {
       console.error(`\x1b[41m❌  Missing required environment variables:\x1b[0m`, missing);
       console.log('🔎  Please check your .env file and set the missing variables.');
