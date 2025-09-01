@@ -1,6 +1,8 @@
 /**
  * Telegram channel adapter for Mastra framework
  * INTEGRATES with existing maiSale agent and message workflows
+ * 
+ * Implements singleton pattern to ensure only one instance per bot token
  */
 
 import { mastra } from '../../index';
@@ -12,20 +14,33 @@ import { messageProcessor } from '../../core/processor/message-processor';
 import TelegramBot from 'node-telegram-bot-api';
 
 export class TelegramChannelAdapter implements ChannelAdapter {
+  private static instances: Map<string, TelegramChannelAdapter> = new Map();
   private bot: TelegramBot;
   private config: TelegramConfig;
 
   channelId = 'telegram';
 
   constructor(config: Partial<TelegramConfig>) {
+    // Validate config first to ensure we have a token
+    const validatedConfig = validateTelegramConfig(config);
+    
+    // Create a unique key based on the token
+    const tokenKey = this.generateTokenKey(validatedConfig.token);
+    
+    // Check if an instance already exists for this token
+    if (TelegramChannelAdapter.instances.has(tokenKey)) {
+      console.log(`⚠️ [Telegram] Instance already exists for token prefix ${tokenKey}, returning existing instance`);
+      return TelegramChannelAdapter.instances.get(tokenKey)!;
+    }
+
     console.log('🔧 [Telegram] Initializing adapter with config', {
-      hasToken: !!config.token,
-      polling: config.polling ?? true,
-      pollingInterval: config.pollingInterval
+      hasToken: !!validatedConfig.token,
+      polling: validatedConfig.polling ?? true,
+      pollingInterval: validatedConfig.pollingInterval
     });
 
     // Use existing validation function
-    this.config = validateTelegramConfig(config);
+    this.config = validatedConfig;
 
     // Initialize Telegram bot
     const botOptions: TelegramBot.ConstructorOptions = {
@@ -44,6 +59,9 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     // Set up message handlers
     this.setupMessageHandlers();
 
+    // Store this instance
+    TelegramChannelAdapter.instances.set(tokenKey, this);
+    
     console.log('✅ [Telegram] Adapter initialized successfully');
   }
 
@@ -731,6 +749,10 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       // Delete webhook if exists
       await this.bot.deleteWebHook();
       
+      // Remove this instance from the registry
+      const tokenKey = this.generateTokenKey(this.config.token);
+      TelegramChannelAdapter.instances.delete(tokenKey);
+      
       console.log('✅ [Telegram] Adapter shut down successfully');
     } catch (error) {
       console.error('❌ [Telegram] Error shutting down adapter:', error);
@@ -756,6 +778,21 @@ export class TelegramChannelAdapter implements ChannelAdapter {
    */
   async getBotInfo(): Promise<TelegramBot.User> {
     return await this.bot.getMe();
+  }
+
+  /**
+   * Check if a token is already in use by an existing instance
+   */
+  static isTokenInUse(token: string): boolean {
+    const tokenKey = token.substring(0, 10);
+    return this.instances.has(tokenKey);
+  }
+
+  /**
+   * Get all active instances
+   */
+  static getActiveInstances(): string[] {
+    return Array.from(this.instances.keys());
   }
 
   /**

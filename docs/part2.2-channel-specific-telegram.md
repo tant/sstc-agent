@@ -120,6 +120,8 @@ Update `src/mastra/channels/telegram/adapter.ts`:
 /**
  * Telegram channel adapter for Mastra framework
  * INTEGRATES with existing maiSale agent and message workflows
+ * 
+ * Implements singleton pattern to ensure only one instance per bot token
  */
 
 import { mastra } from '../../../mastra'; // Import existing Mastra instance
@@ -131,14 +133,27 @@ import TelegramBot from 'node-telegram-bot-api';
 import { NormalizedMessage, ProcessedResponse } from '../../../core/models/message';
 
 export class TelegramChannelAdapter implements ChannelAdapter {
+  private static instances: Map<string, TelegramChannelAdapter> = new Map();
   private bot: TelegramBot;
   private config: TelegramConfig;
 
   channelId = 'telegram';
 
   constructor(config: Partial<TelegramConfig>) {
+    // Validate config first to ensure we have a token
+    const validatedConfig = validateTelegramConfig(config);
+    
+    // Create a unique key based on the token
+    const tokenKey = this.generateTokenKey(validatedConfig.token);
+    
+    // Check if an instance already exists for this token
+    if (TelegramChannelAdapter.instances.has(tokenKey)) {
+      console.log(`⚠️ [Telegram] Instance already exists for token prefix ${tokenKey}, returning existing instance`);
+      return TelegramChannelAdapter.instances.get(tokenKey)!;
+    }
+
     // ✅ Use existing validation function
-    this.config = validateTelegramConfig(config);
+    this.config = validatedConfig;
     
     // Initialize Telegram bot
     const botOptions: TelegramBot.ConstructorOptions = {
@@ -155,6 +170,9 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     
     // Set up message handlers
     this.setupMessageHandlers();
+    
+    // Store this instance
+    TelegramChannelAdapter.instances.set(tokenKey, this);
     
     console.log('✅ Telegram adapter initialized for Mastra');
   }
@@ -438,12 +456,38 @@ export class TelegramChannelAdapter implements ChannelAdapter {
   }
 
   /**
+   * Generate a unique key for a token to identify instances
+   * Uses first 10 characters of token for identification while keeping it secure
+   */
+  private generateTokenKey(token: string): string {
+    return token.substring(0, 10);
+  }
+
+  /**
    * Cleanup method for graceful shutdown
    */
   async shutdown(): Promise<void> {
     console.log('🛑 Shutting down Telegram adapter...');
     this.bot.stopPolling();
+    // Remove this instance from the registry
+    const tokenKey = this.generateTokenKey(this.config.token);
+    TelegramChannelAdapter.instances.delete(tokenKey);
     console.log('✅ Telegram adapter shut down');
+  }
+
+  /**
+   * Check if a token is already in use by an existing instance
+   */
+  static isTokenInUse(token: string): boolean {
+    const tokenKey = token.substring(0, 10);
+    return this.instances.has(tokenKey);
+  }
+
+  /**
+   * Get all active instances
+   */
+  static getActiveInstances(): string[] {
+    return Array.from(this.instances.keys());
   }
 
   /**
@@ -528,6 +572,19 @@ Ensure your project's `package.json` includes the required dependencies:
   }
 }
 ```
+
+## Singleton Pattern Implementation
+
+The Telegram adapter now implements a singleton pattern to ensure only one instance exists per bot token. This prevents conflicts that could occur when multiple instances try to receive messages from the same Telegram bot.
+
+### Key Features:
+
+1. **Token-based Instance Management**: Each bot token can only have one active adapter instance
+2. **Automatic Instance Reuse**: If an adapter is requested with an existing token, the existing instance is returned
+3. **Proper Cleanup**: Instances are properly removed from the registry when shut down
+4. **Conflict Prevention**: Prevents multiple instances from trying to poll or receive webhooks for the same bot
+
+This implementation ensures compliance with Telegram's API requirements while maintaining the flexibility of the Mastra framework.
 
 ## Step 7: Create Documentation
 

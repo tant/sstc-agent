@@ -14,6 +14,18 @@ This module provides a Telegram channel adapter that integrates seamlessly with 
 - ✅ Graceful shutdown
 - ✅ Configuration validation
 - ✅ Mastra framework integration
+- ✅ Singleton pattern implementation (one instance per bot token)
+
+## Singleton Pattern Implementation
+
+The Telegram adapter implements a singleton pattern to ensure only one instance exists per bot token. This prevents conflicts that could occur when multiple instances try to receive messages from the same Telegram bot.
+
+### Key Features:
+
+1. **Token-based Instance Management**: Each bot token can only have one active adapter instance
+2. **Automatic Instance Reuse**: If an adapter is requested with an existing token, the existing instance is returned
+3. **Proper Cleanup**: Instances are properly removed from the registry when shut down
+4. **Conflict Prevention**: Prevents multiple instances from trying to poll or receive webhooks for the same bot
 
 ## Installation
 
@@ -85,6 +97,8 @@ new TelegramChannelAdapter(config: Partial<TelegramConfig>, processor: CentralMe
 - `deleteWebhook()` - Delete webhook
 - `shutdown()` - Gracefully shut down the adapter
 - `handleMessage(message)` - Handle incoming message manually
+- `isTokenInUse(token)` - Check if a token is already in use (static method)
+- `getActiveInstances()` - Get all active instances (static method)
 
 ### Events
 
