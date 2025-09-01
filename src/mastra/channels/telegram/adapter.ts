@@ -9,13 +9,21 @@ import { validateTelegramConfig, TelegramConfig } from './config';
 import { ChannelAdapter } from '../../core/channels/interface';
 import { NormalizedMessage, ProcessedResponse } from '../../core/models/message';
 import { messageProcessor } from '../../core/processor/message-processor';
-import TelegramBot from 'node-telegram-bot-api';
+const TelegramBot = require('node-telegram-bot-api');
 
 export class TelegramChannelAdapter implements ChannelAdapter {
   private bot: TelegramBot;
   private config: TelegramConfig;
+  private _isShutdown: boolean = false;
 
   channelId = 'telegram';
+
+  /**
+   * Check if adapter is shutdown
+   */
+  isShutdown(): boolean {
+    return this._isShutdown;
+  }
 
   constructor(config: Partial<TelegramConfig>) {
     console.log('🔧 [Telegram] Initializing adapter with config', {
@@ -32,6 +40,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       polling: this.config.polling ?? true,
       // Force IPv4 only to avoid connection issues
       request: {
+        url: '',
         family: 4
       }
     };
@@ -43,7 +52,8 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     }
 
     console.log(`🔍 [Telegram] Creating bot with token: ${this.config.token.substring(0, 5)}...`);
-    this.bot = new TelegramBot(this.config.token, botOptions);
+    // @ts-ignore - TelegramBot default export issue
+    this.bot = new (TelegramBot as any)(this.config.token, botOptions);
 
     // Set up message handlers
     this.setupMessageHandlers();
@@ -727,6 +737,12 @@ export class TelegramChannelAdapter implements ChannelAdapter {
    * Cleanup method for graceful shutdown
    */
   async shutdown(): Promise<void> {
+    // Check if already shutdown
+    if (this._isShutdown) {
+      console.log('⚠️ [Telegram] Adapter already shut down, skipping...');
+      return;
+    }
+    
     console.log('🛑 [Telegram] Shutting down adapter...');
     try {
       // Stop polling
@@ -735,9 +751,14 @@ export class TelegramChannelAdapter implements ChannelAdapter {
       // Delete webhook if exists
       await this.bot.deleteWebHook();
       
+      // Mark as shutdown
+      this._isShutdown = true;
+      
       console.log('✅ [Telegram] Adapter shut down successfully');
     } catch (error) {
       console.error('❌ [Telegram] Error shutting down adapter:', error);
+      // Still mark as shutdown to prevent repeated attempts
+      this._isShutdown = true;
     }
   }
 

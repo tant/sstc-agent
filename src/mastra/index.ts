@@ -5,6 +5,7 @@ import { channelMessageWorkflow } from './workflows/message-processor';
 import { maiSale } from './agents/mai-agent';
 import { TelegramChannelAdapter } from './channels/telegram';
 import { channelRegistry } from './core/channels/registry';
+import { signalHandlerManager } from './core/signals/manager';
 
 export const mastra = new Mastra({
   workflows: {
@@ -49,16 +50,29 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 // Graceful shutdown
-process.on('SIGINT', async () => {
-  console.log('\n🛑 Received SIGINT, shutting down gracefully...');
+const shutdownHandler = async () => {
+  // Check if shutdown is already in progress
+  if (signalHandlerManager.isShutdownInProgress()) {
+    console.log('⚠️ Shutdown already in progress, skipping...');
+    return;
+  }
+  
+  console.log('\n🛑 Shutting down gracefully...');
+  signalHandlerManager.setShutdownInProgress();
+  
   try {
     // Cleanup Telegram if it was initialized
     if (telegramCleanup) {
+      console.log('🧹 Cleaning up Telegram channel...');
       await telegramCleanup();
     }
     
     // Shutdown all channels in registry
+    console.log('🔌 Shutting down all channels...');
     await channelRegistry.shutdownAll();
+    
+    // Remove all signal handlers
+    signalHandlerManager.removeAllHandlers();
     
     console.log('✅ All channels shut down');
     process.exit(0);
@@ -66,23 +80,8 @@ process.on('SIGINT', async () => {
     console.error('❌ Error during shutdown:', error);
     process.exit(1);
   }
-});
+};
 
-process.on('SIGTERM', async () => {
-  console.log('\n🛑 Received SIGTERM, shutting down gracefully...');
-  try {
-    // Cleanup Telegram if it was initialized
-    if (telegramCleanup) {
-      await telegramCleanup();
-    }
-    
-    // Shutdown all channels in registry
-    await channelRegistry.shutdownAll();
-    
-    console.log('✅ All channels shut down');
-    process.exit(0);
-  } catch (error) {
-    console.error('❌ Error during shutdown:', error);
-    process.exit(1);
-  }
-});
+// Register signal handlers with manager
+signalHandlerManager.registerHandler('SIGINT', shutdownHandler);
+signalHandlerManager.registerHandler('SIGTERM', shutdownHandler);

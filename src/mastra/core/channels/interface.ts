@@ -9,4 +9,5 @@ export interface ChannelAdapter {
   channelId: string;
   handleMessage: (rawMessage: any) => Promise<void>;
   shutdown?: () => Promise<void>;
+  isShutdown?: () => boolean;
 }

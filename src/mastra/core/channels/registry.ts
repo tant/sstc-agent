@@ -55,8 +55,15 @@ export class ChannelRegistry {
     console.log('🛑 Shutting down all channels...');
     const shutdownPromises: Promise<void>[] = [];
 
-    for (const [channelId, adapter] of this.adapters) {
+    for (const [channelId, adapter] of Array.from(this.adapters.entries())) {
+      // Check if adapter has isShutdown method and is already shutdown
+      if (adapter.isShutdown && adapter.isShutdown()) {
+        console.log(`⚠️ Channel ${channelId} already shutdown, skipping...`);
+        continue;
+      }
+      
       if (adapter.shutdown) {
+        console.log(`🔄 Shutting down channel: ${channelId}`);
         shutdownPromises.push(adapter.shutdown());
       }
     }
