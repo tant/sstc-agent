@@ -1,4 +1,3 @@
-// @ts-nocheck - Disable TypeScript checking for this file due to module import issues
 /**
  * Telegram channel adapter for Mastra framework
  * INTEGRATES with existing maiSale agent and message workflows
@@ -10,12 +9,10 @@ import { validateTelegramConfig, TelegramConfig } from './config';
 import { ChannelAdapter } from '../../core/channels/interface';
 import { NormalizedMessage, ProcessedResponse } from '../../core/models/message';
 import { messageProcessor } from '../../core/processor/message-processor';
-// @ts-ignore - Handle different module systems
-const TelegramBot = require('node-telegram-bot-api');
-import type * as TelegramBotTypes from 'node-telegram-bot-api';
+import TelegramBot from 'node-telegram-bot-api';
 
 export class TelegramChannelAdapter implements ChannelAdapter {
-  private bot: TelegramBotTypes.TelegramBot;
+  private bot: any;
   private config: TelegramConfig;
   private _isShutdown: boolean = false;
 
@@ -55,7 +52,8 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     }
 
     console.log(`🔍 [Telegram] Creating bot with token: ${this.config.token.substring(0, 5)}...`);
-    this.bot = new TelegramBot(this.config.token, botOptions);
+    // @ts-ignore - TelegramBot default export issue
+    this.bot = new (TelegramBot as any)(this.config.token, botOptions);
 
     // Set up message handlers
     this.setupMessageHandlers();
@@ -110,11 +108,11 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     console.log('📹 [Telegram] Video note message handler registered');
 
     // Error handling
-    this.bot.on('polling_error', (error) => {
+    this.bot.on('polling_error', (error: any) => {
       console.error('❌ [Telegram] Polling error:', error);
     });
 
-    this.bot.on('webhook_error', (error) => {
+    this.bot.on('webhook_error', (error: any) => {
       console.error('❌ [Telegram] Webhook error:', error);
     });
 
