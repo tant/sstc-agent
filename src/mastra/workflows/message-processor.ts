@@ -70,6 +70,13 @@ export const channelMessageWorkflow = createWorkflow({
       })
     }),
     execute: async ({ inputData }) => {
+      console.log('🔍 [Workflow] Starting intent analysis', {
+        channelId: inputData.channelId,
+        messageLength: inputData.message.content.length,
+        senderId: inputData.message.senderId,
+        hasAttachments: !!inputData.message.attachments?.length
+      });
+      
       // Use existing intent analyzer tool (will create in Part 2)
       // For now, pass through with basic analysis
       const intentAnalysis = {
@@ -78,6 +85,11 @@ export const channelMessageWorkflow = createWorkflow({
         entities: []
       };
 
+      console.log('✅ [Workflow] Intent analysis completed', {
+        intent: intentAnalysis.intent,
+        confidence: intentAnalysis.confidence
+      });
+      
       return { ...inputData, intent: intentAnalysis };
     }
   })
@@ -119,18 +131,34 @@ export const channelMessageWorkflow = createWorkflow({
       console.log('🔄 [Workflow] Generating response with agent', {
         channelId: inputData.channelId,
         messageLength: inputData.message.content.length,
-        senderId: inputData.message.senderId
+        senderId: inputData.message.senderId,
+        intent: inputData.intent.intent,
+        confidence: inputData.intent.confidence
       });
       
       // Use the actual maiSale agent
       const { message, channelId } = inputData;
       const agent = mastra.getAgent('maiSale');
       
+      console.log('🔍 [Workflow] Agent details', {
+        agentName: agent.name,
+        hasModel: !!agent.model,
+        hasTools: Object.keys(agent.tools || {}).length
+      });
+      
       try {
-        console.log('🤖 [Workflow] Calling agent.generate');
+        console.log('🤖 [Workflow] Calling agent.generate with message:', {
+          contentLength: message.content.length,
+          contentPreview: message.content.substring(0, 50) + '...'
+        });
+        
         const result = await agent.generate([{ role: 'user', content: message.content }]);
-        console.log('✅ [Workflow] Agent response generated', {
-          responseLength: result.text.length
+        
+        console.log('✅ [Workflow] Agent response generated successfully', {
+          responseLength: result.text.length,
+          responsePreview: result.text.substring(0, 50) + '...',
+          hasMetadata: !!result.metadata,
+          metadataKeys: result.metadata ? Object.keys(result.metadata) : []
         });
         
         return {
@@ -139,11 +167,15 @@ export const channelMessageWorkflow = createWorkflow({
           channelId,
           metadata: {
             processedBy: 'workflow-agent',
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            ...result.metadata
           }
         };
       } catch (error) {
-        console.error('❌ [Workflow] Error generating response with agent:', error);
+        console.error('❌ [Workflow] Error generating response with agent:', {
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined
+        });
         return {
           response: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
           text: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',

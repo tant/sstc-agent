@@ -23,9 +23,19 @@ export class CentralMessageProcessor {
   async processMessage(message: NormalizedMessage): Promise<ProcessedResponse> {
     const messageKey = `${message.channel.channelId}-${message.id}`;
     
+    console.log('🔄 [Processor] Starting message processing', {
+      messageKey,
+      channelId: message.channel.channelId,
+      messageId: message.id,
+      senderId: message.sender.id,
+      contentType: message.contentType,
+      contentLength: message.content.length
+    });
+    
     // Kiểm tra nếu message đã được xử lý
     if (this.processedMessageIds.has(messageKey)) {
       console.log('🔄 [Processor] Message already processed, skipping', {
+        messageKey,
         messageId: message.id,
         channelId: message.channel.channelId
       });
@@ -44,20 +54,25 @@ export class CentralMessageProcessor {
     // Đánh dấu message đã được xử lý
     this.processedMessageIds.add(messageKey);
     console.log('🔄 [Processor] Processing message', {
+      messageKey,
       channelId: message.channel.channelId,
       messageId: message.id,
+      senderId: message.sender.id,
+      contentType: message.contentType,
       content: message.content.substring(0, 50) + '...'
     });
     
     // Xóa message key sau 5 phút để tránh memory leak
     setTimeout(() => {
+      console.log('🗑️ [Processor] Removing message from processed cache', { messageKey });
       this.processedMessageIds.delete(messageKey);
     }, 5 * 60 * 1000);
     
     try {
       // Use the Mastra workflow for processing
-      console.log('🔄 Creating workflow run for message processing');
+      console.log('🔄 [Processor] Creating workflow run for message processing');
       const run = await channelMessageWorkflow.createRunAsync();
+      console.log('✅ [Processor] Workflow run created successfully');
       
       const workflowInput = {
         inputData: {
@@ -75,14 +90,28 @@ export class CentralMessageProcessor {
         }
       };
       
-      console.log('📤 [Processor] Workflow input:', workflowInput);
+      console.log('📤 [Processor] Starting workflow with input:', {
+        channelId: workflowInput.inputData.channelId,
+        messageLength: workflowInput.inputData.message.content.length,
+        hasAttachments: !!workflowInput.inputData.message.attachments?.length,
+        attachmentCount: workflowInput.inputData.message.attachments?.length || 0
+      });
+      
       const workflowResult = await run.start(workflowInput);
 
-      console.log('📊 [Processor] Workflow result status:', workflowResult.status);
+      console.log('📊 [Processor] Workflow execution completed', {
+        status: workflowResult.status,
+        hasResult: !!workflowResult.result,
+        hasError: !!workflowResult.error
+      });
       
       if (workflowResult.status === 'success') {
         const result = workflowResult.result;
-        console.log('✅ [Processor] Message processed successfully via workflow');
+        console.log('✅ [Processor] Message processed successfully via workflow', {
+          responseLength: (result.response || result.text)?.length || 0,
+          hasMetadata: !!result.metadata,
+          metadataKeys: result.metadata ? Object.keys(result.metadata) : []
+        });
         
         // Hiển thị user profile nếu có
         if (result.metadata && typeof result.metadata === 'object') {
@@ -92,8 +121,14 @@ export class CentralMessageProcessor {
           }
         }
         
+        const responseContent = result.response || result.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.';
+        console.log('📤 [Processor] Final response prepared', {
+          contentLength: responseContent.length,
+          contentType: result.contentType || 'text'
+        });
+        
         return {
-          content: result.response || result.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.',
+          content: responseContent,
           contentType: result.contentType || 'text',
           metadata: {
             ...result.metadata,
@@ -102,7 +137,10 @@ export class CentralMessageProcessor {
           }
         };
       } else {
-        console.error('❌ [Processor] Workflow processing failed:', workflowResult.error);
+        console.error('❌ [Processor] Workflow processing failed:', {
+          error: workflowResult.error,
+          status: workflowResult.status
+        });
         return {
           content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
           contentType: 'text',
@@ -114,7 +152,10 @@ export class CentralMessageProcessor {
         };
       }
     } catch (error) {
-      console.error('❌ [Processor] Error in processMessage:', error);
+      console.error('❌ [Processor] Error in processMessage:', {
+        errorMessage: error instanceof Error ? error.message : String(error),
+        errorStack: error instanceof Error ? error.stack : undefined
+      });
       return {
         content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
         contentType: 'text',
