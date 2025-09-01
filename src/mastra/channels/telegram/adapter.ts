@@ -9,7 +9,7 @@ import { validateTelegramConfig, TelegramConfig } from './config';
 import { ChannelAdapter } from '../../core/channels/interface';
 import { NormalizedMessage, ProcessedResponse } from '../../core/models/message';
 import { messageProcessor } from '../../core/processor/message-processor';
-import TelegramBot from 'node-telegram-bot-api';
+import TelegramBot from '../../../lib/node-telegram-bot-api/index.js';
 
 export class TelegramChannelAdapter implements ChannelAdapter {
   private bot: any;

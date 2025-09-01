@@ -4,6 +4,7 @@ import { LibSQLStore } from '@mastra/libsql';
 import { channelMessageWorkflow } from './workflows/message-processor';
 import { maiSale } from './agents/mai-agent';
 import { TelegramChannelAdapter } from './channels/telegram';
+import { ZaloChannelAdapter } from './channels/zalo';
 import { channelRegistry } from './core/channels/registry';
 import { signalHandlerManager } from './core/signals/manager';
 
@@ -49,6 +50,49 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
   }
 }
 
+// Initialize Zalo channel when Mastra starts (if credentials are provided)
+let zaloCleanup: (() => Promise<void>) | null = null;
+let zaloAdapter: ZaloChannelAdapter | null = null;
+
+if (process.env.ZALO_COOKIE && process.env.ZALO_IMEI && process.env.ZALO_USER_AGENT) {
+  try {
+    console.log('🔍 Attempting to initialize Zalo channel...');
+    // Check if Zalo channel is already registered
+    if (channelRegistry.has('zalo')) {
+      console.log('⚠️ Zalo channel already registered, skipping initialization');
+    } else {
+      zaloAdapter = new ZaloChannelAdapter({
+        cookie: process.env.ZALO_COOKIE,
+        imei: process.env.ZALO_IMEI,
+        userAgent: process.env.ZALO_USER_AGENT,
+        selfListen: process.env.ZALO_SELF_LISTEN === 'true',
+        checkUpdate: process.env.ZALO_CHECK_UPDATE !== 'false',
+        logging: process.env.ZALO_LOGGING !== 'false'
+      });
+      
+      // Start the Zalo adapter
+      zaloAdapter.start()
+        .then(() => {
+          channelRegistry.register('zalo', zaloAdapter!);
+          console.log('✅ Zalo channel registered in Mastra');
+        })
+        .catch((error) => {
+          console.error('❌ Failed to start Zalo adapter:', error);
+        });
+      
+      // Store cleanup function for graceful shutdown
+      zaloCleanup = async () => {
+        console.log('🧹 Cleaning up Zalo channel...');
+        if (zaloAdapter) {
+          await zaloAdapter.shutdown();
+        }
+      };
+    }
+  } catch (error) {
+    console.error('❌ Failed to initialize Zalo channel:', error);
+  }
+}
+
 // Graceful shutdown
 const shutdownHandler = async () => {
   // Check if shutdown is already in progress
@@ -65,6 +109,12 @@ const shutdownHandler = async () => {
     if (telegramCleanup) {
       console.log('🧹 Cleaning up Telegram channel...');
       await telegramCleanup();
+    }
+    
+    // Cleanup Zalo if it was initialized
+    if (zaloCleanup) {
+      console.log('🧹 Cleaning up Zalo channel...');
+      await zaloCleanup();
     }
     
     // Shutdown all channels in registry

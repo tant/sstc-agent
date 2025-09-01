@@ -100,15 +100,13 @@ export class CentralMessageProcessor {
       const workflowResult = await run.start(workflowInput);
 
       console.log('📊 [Processor] Workflow execution completed', {
-        status: workflowResult.status,
-        hasResult: !!workflowResult.result,
-        hasError: !!workflowResult.error
+        status: workflowResult.status
       });
       
       if (workflowResult.status === 'success') {
         const result = workflowResult.result;
         console.log('✅ [Processor] Message processed successfully via workflow', {
-          responseLength: (result.response || result.text)?.length || 0,
+          responseLength: (result.response)?.length || 0,
           hasMetadata: !!result.metadata,
           metadataKeys: result.metadata ? Object.keys(result.metadata) : []
         });
@@ -121,22 +119,21 @@ export class CentralMessageProcessor {
           }
         }
         
-        const responseContent = result.response || result.text || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.';
+        const responseContent = result.response || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.';
         console.log('📤 [Processor] Final response prepared', {
-          contentLength: responseContent.length,
-          contentType: result.contentType || 'text'
+          contentLength: responseContent.length
         });
         
         return {
           content: responseContent,
-          contentType: result.contentType || 'text',
+          contentType: 'text',
           metadata: {
             ...result.metadata,
             processedBy: 'workflow',
             channelId: message.channel.channelId
           }
         };
-      } else {
+      } else if (workflowResult.status === 'failed') {
         console.error('❌ [Processor] Workflow processing failed:', {
           error: workflowResult.error,
           status: workflowResult.status
@@ -145,7 +142,20 @@ export class CentralMessageProcessor {
           content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
           contentType: 'text',
           metadata: {
-            error: workflowResult.error,
+            error: workflowResult.error?.message || String(workflowResult.error),
+            processedBy: 'workflow-error',
+            channelId: message.channel.channelId
+          }
+        };
+      } else {
+        console.error('❌ [Processor] Workflow processing failed with unknown status:', {
+          status: workflowResult.status
+        });
+        return {
+          content: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
+          contentType: 'text',
+          metadata: {
+            error: 'Unknown workflow status',
             processedBy: 'workflow-error',
             channelId: message.channel.channelId
           }

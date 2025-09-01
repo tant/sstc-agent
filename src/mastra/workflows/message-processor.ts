@@ -136,6 +136,22 @@ export const channelMessageWorkflow = createWorkflow({
         confidence: inputData.intent.confidence
       });
       
+      // Check if repeat mode is enabled
+      const isRepeatMode = process.env.AGENT_REPEAT_MODE === 'true';
+      
+      if (isRepeatMode) {
+        console.log('🔄 [Workflow] Repeat mode enabled, returning user message');
+        return {
+          response: `Bạn vừa nói: "${inputData.message.content}"`,
+          channelId: inputData.channelId,
+          metadata: {
+            processedBy: 'workflow-repeat-mode',
+            timestamp: new Date().toISOString(),
+            repeatMode: true
+          }
+        };
+      }
+      
       // Use the actual maiSale agent
       const { message, channelId } = inputData;
       const agent = mastra.getAgent('maiSale');
@@ -156,19 +172,15 @@ export const channelMessageWorkflow = createWorkflow({
         
         console.log('✅ [Workflow] Agent response generated successfully', {
           responseLength: result.text.length,
-          responsePreview: result.text.substring(0, 50) + '...',
-          hasMetadata: !!result.metadata,
-          metadataKeys: result.metadata ? Object.keys(result.metadata) : []
+          responsePreview: result.text.substring(0, 50) + '...'
         });
         
         return {
           response: result.text,
-          text: result.text,
           channelId,
           metadata: {
             processedBy: 'workflow-agent',
-            timestamp: new Date().toISOString(),
-            ...result.metadata
+            timestamp: new Date().toISOString()
           }
         };
       } catch (error) {
@@ -178,7 +190,6 @@ export const channelMessageWorkflow = createWorkflow({
         });
         return {
           response: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
-          text: 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn. Vui lòng thử lại sau.',
           channelId,
           metadata: {
             error: error instanceof Error ? error.message : String(error),

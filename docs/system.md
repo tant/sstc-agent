@@ -34,11 +34,12 @@
 - Interface: src/mastra/core/channels/interface.ts
 - Registry: src/mastra/core/channels/registry.ts
 - Supports multiple channels with a standardized adapter pattern
-- Telegram channel is currently implemented with singleton pattern to prevent conflicts
+- Telegram and Zalo channels are currently implemented with proper configuration
 
 ### 6. Telegram Channel Implementation
 - Adapter: src/mastra/channels/telegram/adapter.ts
 - Implements the ChannelAdapter interface
+- Uses local copy of node-telegram-bot-api library to avoid dependency conflicts
 - Uses polling by default to receive messages (configurable interval)
 - Handles various message types including:
   - Text messages
@@ -60,8 +61,21 @@
   - Documents with captions
   - Audio with captions
   - Video with captions
+- Implements singleton pattern to prevent multiple instances
+- Graceful shutdown procedure to clean up resources
 
-### 7. Data Models
+### 7. Zalo Channel Implementation
+- Adapter: src/mastra/channels/zalo/adapter.ts
+- Implements the ChannelAdapter interface
+- Uses local copy of zca-js library to avoid dependency conflicts
+- Uses cookie-based authentication with IMEI and user agent
+- Handles text messages from Zalo users
+- Converts Zalo messages to standardized format
+- Sends responses back through Zalo with appropriate formatting
+- Implements singleton pattern to prevent multiple instances
+- Graceful shutdown procedure to clean up resources
+
+### 8. Data Models
 - Messages: src/mastra/core/models/message.ts
   - Defines NormalizedMessage and ProcessedResponse interfaces
   - Standardized format for all channels with support for attachments and metadata
@@ -69,7 +83,7 @@
   - Zod schema for user profile with confidence scoring for interests, goals, and pain points
   - Includes fields for name, language, location, timezone, interests, preferences, goals, last interaction, email, phone, and pain points
 
-### 8. External Services Integration
+### 9. External Services Integration
 - Database: LibSQL configuration in src/mastra/database/libsql.ts
 - Vector Storage: Chroma integration in src/mastra/vector/chroma.ts
 - Embedding: OpenAI-compatible embedding provider in src/mastra/embedding/provider.ts
@@ -77,20 +91,19 @@
 
 ## Key Features
 
-1. Multi-channel Support: Designed to work with Telegram, WhatsApp, Web, and other channels
-2. Singleton Pattern: Telegram adapter uses singleton to prevent multiple instances with the same token
+1. Multi-channel Support: Designed to work with Telegram, Zalo, WhatsApp, Web, and other channels
+2. Singleton Pattern: Channel adapters use proper initialization to prevent conflicts
 3. Message Deduplication: Prevents processing the same message multiple times using message ID tracking with automatic cleanup
-4. Rich Media Support: Handles various Telegram message types with proper attachment processing
+4. Rich Media Support: Handles various message types with proper attachment processing
 5. Session Management: Tracks conversation state and user profiles through the maiSale agent's personality profile
 6. Error Handling: Comprehensive error handling for all components including graceful shutdown procedures
-7. Configurable: Uses environment variables for all external service configuration (TELEGRAM_BOT_TOKEN)
+7. Configurable: Uses environment variables for all external service configuration (TELEGRAM_BOT_TOKEN, ZALO_COOKIE, etc.)
 
 ## Architecture Patterns
 
 1. Adapter Pattern: For channel integration
-2. Singleton Pattern: For Telegram adapter instances
-3. Workflow Pattern: For message processing
-4. Registry Pattern: For managing active channels
-5. Factory Pattern: For creating LLM and embedding providers
+2. Workflow Pattern: For message processing
+3. Registry Pattern: For managing active channels
+4. Factory Pattern: For creating LLM and embedding providers
 
 This is a well-structured system that follows modern software architecture principles and is designed for extensibility to support additional channels in the future.
