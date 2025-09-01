@@ -3,10 +3,8 @@
  * INTEGRATES with existing maiSale agent and message workflows
  */
 
-import { mastra } from '../../index';
-import { channelMessageWorkflow } from '../../workflows/message-processor';
-import { validateZaloConfig, ZaloConfig } from './config';
-import { ChannelAdapter } from '../../core/channels/interface';
+import { validateZaloConfig, type ZaloConfig } from './config';
+import type { ChannelAdapter } from '../../core/channels/interface';
 import { messageProcessor } from '../../core/processor/message-processor';
 import { Zalo } from '../../../lib/zca-js/src/zalo.js';
 
@@ -131,7 +129,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
     let content = '';
     
     // Use text content (body has higher priority than text)
-    const messageText = zaloMessage.body || zaloMessage.text || '';
+    const _messageText = zaloMessage.body || zaloMessage.text || '';
     
     // Determine primary content type based on message content
     if (zaloMessage.body || zaloMessage.text) {
@@ -183,7 +181,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
         id: zaloMessage.sender.id,
         name: zaloMessage.sender.name
       },
-      textPreview: zaloMessage.body?.substring(0, 50) + '...' || zaloMessage.text?.substring(0, 50) + '...',
+      textPreview: `${zaloMessage.body?.substring(0, 50)}...` || `${zaloMessage.text?.substring(0, 50)}...`,
       timestamp: new Date(zaloMessage.timestamp || Date.now()).toISOString()
     });
 
@@ -286,7 +284,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
       const messageText = response.response || 'Xin lỗi, tôi không thể xử lý yêu cầu của bạn.';
       console.log('💬 [Zalo] Sending text response', {
         textLength: messageText.length,
-        textPreview: messageText.substring(0, 50) + '...'
+        textPreview: `${messageText.substring(0, 50)}...`
       });
       
       // Send message through Zalo API
@@ -368,7 +366,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
     console.log('🛑 [Zalo] Shutting down adapter...');
     try {
       // Stop listener
-      if (this.api && this.api.listener) {
+      if (this.api?.listener) {
         console.log('🔄 [Zalo] Stopping listener...');
         this.api.listener.stop();
         console.log('✅ [Zalo] Listener stopped successfully');

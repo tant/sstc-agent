@@ -1,4 +1,3 @@
-import { TelegramChannelAdapter } from '../adapter';
 import { validateTelegramConfig } from '../config';
 
 describe('TelegramChannelAdapter', () => {

@@ -17,7 +17,7 @@ export function validateZaloConfig(config: Partial<ZaloConfig>): ZaloConfig {
   if (typeof config.cookie === 'string') {
     try {
       parsedCookie = JSON.parse(config.cookie);
-    } catch (e) {
+    } catch (_e) {
       throw new Error('Invalid cookie format. Must be a valid JSON string.');
     }
   }

@@ -3,7 +3,7 @@
  * This keeps track of which channels are currently active
  */
 
-import { ChannelAdapter } from './interface';
+import type { ChannelAdapter } from './interface';
 
 export class ChannelRegistry {
   private adapters = new Map<string, ChannelAdapter>();
@@ -57,7 +57,7 @@ export class ChannelRegistry {
 
     for (const [channelId, adapter] of Array.from(this.adapters.entries())) {
       // Check if adapter has isShutdown method and is already shutdown
-      if (adapter.isShutdown && adapter.isShutdown()) {
+      if (adapter.isShutdown?.()) {
         console.log(`⚠️ Channel ${channelId} already shutdown, skipping...`);
         continue;
       }

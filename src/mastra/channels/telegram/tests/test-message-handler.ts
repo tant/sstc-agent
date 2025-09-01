@@ -1,5 +1,5 @@
 // Test script for Telegram message handler
-import TelegramBot from 'node-telegram-bot-api';
+import type TelegramBot from 'node-telegram-bot-api';
 
 // Mock message objects for testing
 const mockTextMessage: TelegramBot.Message = {

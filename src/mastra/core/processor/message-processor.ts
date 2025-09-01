@@ -59,7 +59,7 @@ export class CentralMessageProcessor {
       messageId: message.id,
       senderId: message.sender.id,
       contentType: message.contentType,
-      content: message.content.substring(0, 50) + '...'
+      content: `${message.content.substring(0, 50)}...`
     });
     
     // Xóa message key sau 5 phút để tránh memory leak

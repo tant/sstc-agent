@@ -73,8 +73,10 @@ if (process.env.ZALO_COOKIE && process.env.ZALO_IMEI && process.env.ZALO_USER_AG
       // Start the Zalo adapter
       zaloAdapter.start()
         .then(() => {
-          channelRegistry.register('zalo', zaloAdapter!);
-          console.log('✅ Zalo channel registered in Mastra');
+          if (zaloAdapter) {
+            channelRegistry.register('zalo', zaloAdapter);
+            console.log('✅ Zalo channel registered in Mastra');
+          }
         })
         .catch((error) => {
           console.error('❌ Failed to start Zalo adapter:', error);

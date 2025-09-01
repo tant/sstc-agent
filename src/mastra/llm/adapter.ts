@@ -3,12 +3,6 @@
  * This builds upon the existing working adapter with better features.
  */
 
-// Import types from Mastra
-import type { CoreMessage } from "@mastra/core";
-
-// Import our provider factory (this should match your existing import)
-import { createLLMProvider } from "./provider"; // Or from your agent file
-
 /**
  * Options for LLM calls with better defaults
  */

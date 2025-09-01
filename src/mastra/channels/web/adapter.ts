@@ -3,7 +3,7 @@
  * Allows interaction with agents through the Mastra Playground
  */
 
-import { ChannelAdapter } from '../../core/channels/interface';
+import type { ChannelAdapter } from '../../core/channels/interface';
 import { messageProcessor } from '../../core/processor/message-processor';
 
 export class WebChannelAdapter implements ChannelAdapter {

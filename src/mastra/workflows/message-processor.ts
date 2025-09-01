@@ -5,7 +5,6 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { NormalizedMessage, ProcessedResponse } from "../core/models/message";
 
 export const channelMessageWorkflow = createWorkflow({
   id: 'channel-message-processor',
@@ -165,14 +164,14 @@ export const channelMessageWorkflow = createWorkflow({
       try {
         console.log('🤖 [Workflow] Calling agent.generate with message:', {
           contentLength: message.content.length,
-          contentPreview: message.content.substring(0, 50) + '...'
+          contentPreview: `${message.content.substring(0, 50)}...`
         });
         
         const result = await agent.generate([{ role: 'user', content: message.content }]);
         
         console.log('✅ [Workflow] Agent response generated successfully', {
           responseLength: result.text.length,
-          responsePreview: result.text.substring(0, 50) + '...'
+          responsePreview: `${result.text.substring(0, 50)}...`
         });
         
         return {

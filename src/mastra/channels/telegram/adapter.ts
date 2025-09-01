@@ -3,11 +3,8 @@
  * INTEGRATES with existing maiSale agent and message workflows
  */
 
-import { mastra } from '../../index';
-import { channelMessageWorkflow } from '../../workflows/message-processor';
-import { validateTelegramConfig, TelegramConfig } from './config';
-import { ChannelAdapter } from '../../core/channels/interface';
-import { NormalizedMessage, ProcessedResponse } from '../../core/models/message';
+import { validateTelegramConfig, type TelegramConfig } from './config';
+import type { ChannelAdapter } from '../../core/channels/interface';
 import { messageProcessor } from '../../core/processor/message-processor';
 import TelegramBot from '../../../lib/node-telegram-bot-api/index.js';
 
@@ -52,7 +49,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
     }
 
     console.log(`🔍 [Telegram] Creating bot with token: ${this.config.token.substring(0, 5)}...`);
-    // @ts-ignore - TelegramBot default export issue
+    // @ts-expect-error - TelegramBot default export issue
     this.bot = new (TelegramBot as any)(this.config.token, botOptions);
 
     // Set up message handlers
@@ -359,7 +356,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
         username: telegramMessage.from?.username,
         firstName: telegramMessage.from?.first_name
       },
-      text: telegramMessage.text?.substring(0, 50) + '...',
+      text: `${telegramMessage.text?.substring(0, 50)}...`,
       timestamp: new Date(telegramMessage.date * 1000).toISOString()
     });
 
@@ -485,7 +482,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           await this.bot.sendPhoto(chatId, actualUrl, {
             caption: response.response || response.text
           });
-        } catch (error) {
+        } catch (_error) {
           // If it's already a URL, send it directly
           await this.bot.sendPhoto(chatId, fileIdOrUrl, {
             caption: response.response || response.text
@@ -501,7 +498,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           await this.bot.sendDocument(chatId, actualUrl, {
             caption: response.response || response.text
           });
-        } catch (error) {
+        } catch (_error) {
           // If it's already a URL, send it directly
           await this.bot.sendDocument(chatId, fileIdOrUrl, {
             caption: response.response || response.text
@@ -517,7 +514,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           await this.bot.sendAudio(chatId, actualUrl, {
             caption: response.response || response.text
           });
-        } catch (error) {
+        } catch (_error) {
           // If it's already a URL, send it directly
           await this.bot.sendAudio(chatId, fileIdOrUrl, {
             caption: response.response || response.text
@@ -533,7 +530,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
           await this.bot.sendVideo(chatId, actualUrl, {
             caption: response.response || response.text
           });
-        } catch (error) {
+        } catch (_error) {
           // If it's already a URL, send it directly
           await this.bot.sendVideo(chatId, fileIdOrUrl, {
             caption: response.response || response.text
@@ -552,7 +549,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
             parse_mode: 'Markdown',
             reply_to_message_id: originalMessage.message_id
           });
-        } catch (markdownError) {
+        } catch (_markdownError) {
           console.log('⚠️ [Telegram] Markdown parsing failed, sending as plain text');
           await this.bot.sendMessage(chatId, messageText, {
             reply_to_message_id: originalMessage.message_id

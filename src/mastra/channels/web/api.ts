@@ -3,7 +3,6 @@
  * This route allows the Mastra Playground to communicate with our agent
  */
 
-import { mastra } from '../../index';
 import { channelRegistry } from '../../core/channels/registry';
 
 export async function handleWebMessage(request: Request): Promise<Response> {
@@ -12,7 +11,7 @@ export async function handleWebMessage(request: Request): Promise<Response> {
     const rawMessage = await request.json();
     
     console.log('📥 [Web API] Received message from playground:', {
-      content: rawMessage.content?.substring(0, 50) + '...',
+      content: `${rawMessage.content?.substring(0, 50)}...`,
       senderId: rawMessage.senderId
     });
 
