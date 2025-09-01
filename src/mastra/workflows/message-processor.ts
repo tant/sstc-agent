@@ -113,7 +113,7 @@ export const channelMessageWorkflow = createWorkflow({
           });
         })();
 
-        // Create a mock resource and thread for memory access
+        // Create user-specific resource for memory access using real sender data
         const resource = `user_${(inputData as any).message.senderId}`;
         const thread = `${(inputData as any).channelId}_thread`;
 
