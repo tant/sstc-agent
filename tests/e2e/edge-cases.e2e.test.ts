@@ -97,7 +97,7 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'What capacity do you recommend?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -123,8 +123,8 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'SSD giá bao nhiêu?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
-      let responses: any[] = [];
+      const messages: { role: string; content: string }[] = [];
+      const responses: any[] = [];
       
       for (const msg of repetitiveQuestions) {
         messages.push(msg);
@@ -150,7 +150,7 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'GPU nào tốt?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of circularConversation) {
@@ -179,8 +179,8 @@ describe('Edge Cases and Special Scenarios', () => {
         'PSU 1000W hiệu suất cao?'
       ];
       
-      let messages: { role: string; content: string }[] = [];
-      let responses: any[] = [];
+      const messages: { role: string; content: string }[] = [];
+      const responses: any[] = [];
       
       for (let i = 0; i < rapidQuestions.length; i++) {
         const question = rapidQuestions[i];
@@ -219,7 +219,7 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'Tổng kết lại và ước tính tổng cost?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of complexConversation) {
@@ -246,7 +246,7 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'Không, tôi là gamer, nhưng tôi dùng console' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of confusingInput) {
@@ -272,7 +272,7 @@ describe('Edge Cases and Special Scenarios', () => {
         { role: 'user', content: 'À cuối cùng là workstation cho CAD' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of changingRequirements) {

@@ -130,7 +130,7 @@ describe('Advanced SSTC Agent Scenarios', () => {
         { role: 'user', content: 'Mainboard tương thích?' }
       ];
       
-      let responses: any[] = [];
+      const responses: any[] = [];
       
       for (const question of rapidQuestions) {
         const response = await sendLoggedMessage([question], 'rapid-questions', logger);

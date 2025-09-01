@@ -26,7 +26,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'À không, tôi cũng chơi game nữa' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -53,7 +53,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'Cấu hình laptop là i7-1250H, 16GB RAM' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -78,7 +78,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'Tôi muốn nâng cấp VGA' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -108,7 +108,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'À, nhân tiện bạn có tư vấn bảo trì PC không?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -133,7 +133,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'PSU nào phù hợp với case của tôi?' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {
@@ -166,7 +166,7 @@ describe('Memory and Context Tests', () => {
         'PSU cho hệ thống cao cấp'
       ];
       
-      let messages: { role: string; content: string }[] = [
+      const messages: { role: string; content: string }[] = [
         { role: 'user', content: 'Tôi tên là Long, tôi là streamer và editor' }
       ];
       
@@ -200,7 +200,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'Budget cho mỗi máy khoảng 2 triệu, tổng 6 triệu' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of detailedConversation) {
@@ -229,8 +229,8 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'Tôi cần laptop cấu hình mạnh để chạy model' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
-      let responses: any[] = [];
+      const messages: { role: string; content: string }[] = [];
+      const responses: any[] = [];
       
       for (const msg of conversation) {
         messages.push(msg);
@@ -263,7 +263,7 @@ describe('Memory and Context Tests', () => {
         { role: 'user', content: 'À bạn nhớ là tôi không làm văn phòng nhé, chỉ chơi game thôi' }
       ];
       
-      let messages: { role: string; content: string }[] = [];
+      const messages: { role: string; content: string }[] = [];
       let response: any;
       
       for (const msg of conversation) {

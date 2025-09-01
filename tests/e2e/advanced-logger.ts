@@ -80,7 +80,7 @@ export class AdvancedTestLogger {
       
       const logLine = `[${logEntry.timestamp}] [${logEntry.level}] [${this.testName}] ${logEntry.message}\n`;
       fs.appendFileSync(logFilePath, logLine);
-    } catch (error) {
+    } catch (_error) {
       // Silent fail to avoid breaking tests
     }
   }
@@ -162,7 +162,7 @@ export class AdvancedTestLogger {
 // Enhanced sendMessage function with comprehensive logging
 export const sendLoggedMessage = async (
   messages: { role: string; content: string }[],
-  testName: string,
+  _testName: string,
   logger: AdvancedTestLogger
 ) => {
   const BASE_URL = 'http://localhost:4111';

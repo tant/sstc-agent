@@ -55,7 +55,7 @@ export class TestLogger {
       const logLine = `[${logEntry.timestamp}] [${logEntry.level}] [${this.testName}] ${logEntry.message}
 `;
       fs.appendFileSync(logFilePath, logLine);
-    } catch (error) {
+    } catch (_error) {
       // Silent fail to avoid breaking tests
     }
   }
@@ -89,7 +89,7 @@ export class TestLogger {
           metadata: {
             inputMessageCount: conversationEntry.input.length,
             outputTextLength: conversationEntry.output.text?.length || 0,
-            responseTime: new Date().getTime() - new Date(conversationEntry.timestamp).getTime(),
+            responseTime: Date.now() - new Date(conversationEntry.timestamp).getTime(),
             hasFiles: conversationEntry.output.files?.length > 0,
             hasToolCalls: conversationEntry.output.toolCalls?.length > 0,
             finishReason: conversationEntry.output.finishReason,
@@ -149,7 +149,7 @@ export class TestLogger {
 // Enhanced sendMessage function with comprehensive logging
 export const sendLoggedMessage = async (
   messages: { role: string; content: string }[],
-  testName: string,
+  _testName: string,
   logger: TestLogger
 ) => {
   const BASE_URL = 'http://localhost:4111';

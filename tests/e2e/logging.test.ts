@@ -112,7 +112,7 @@ export class EnhancedTestLogger {
 // Enhanced sendMessage function with logging
 export const sendLoggedMessage = async (
   messages: { role: string; content: string }[],
-  testName: string,
+  _testName: string,
   logger: EnhancedTestLogger
 ) => {
   const BASE_URL = 'http://localhost:4111';
