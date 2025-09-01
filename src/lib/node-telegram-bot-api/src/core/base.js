@@ -1,19 +1,19 @@
 // shims
 require('array.prototype.findindex').shim(); // for Node.js v0.x
 
-const errors = require('../errors');
 const debug = require('debug')('node-telegram-bot-api');
 const EventEmitter = require('eventemitter3');
 const fileType = require('file-type');
-const request = require('@cypress/request-promise');
-const streamedRequest = require('@cypress/request');
-const qs = require('querystring');
-const stream = require('stream');
+const fs = require('fs');
 const mime = require('mime');
 const path = require('path');
-const URL = require('url');
-const fs = require('fs');
 const pump = require('pump');
+const qs = require('querystring');
+const stream = require('stream');
+const URL = require('url');
+const request = require('@cypress/request-promise');
+const streamedRequest = require('@cypress/request');
+const errors = require('../errors');
 const TelegramBotPolling = require('../telegramPolling');
 const TelegramBotWebHook = require('../telegramWebHook');
 const deprecate = require('../utils').deprecate;

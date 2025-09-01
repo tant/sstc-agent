@@ -1,6 +1,5 @@
 const {
   errors,
-  debug,
   EventEmitter,
   TelegramBotPolling,
   TelegramBotWebHook,

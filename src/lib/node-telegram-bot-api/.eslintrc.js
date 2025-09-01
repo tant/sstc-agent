@@ -26,5 +26,6 @@ module.exports = {
     'no-use-before-define': 'off',
     'no-shadow': 'off',
     'default-param-last': 'off',
+    'max-len': ['error', { code: 150 }],
   },
 };

@@ -1,9 +1,9 @@
-const errors = require('./errors');
-const debug = require('debug')('node-telegram-bot-api');
-const https = require('https');
-const http = require('http');
-const fs = require('fs');
 const bl = require('bl');
+const debug = require('debug')('node-telegram-bot-api');
+const fs = require('fs');
+const http = require('http');
+const https = require('https');
+const errors = require('./errors');
 
 class TelegramBotWebHook {
   /**

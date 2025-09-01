@@ -12,7 +12,7 @@ const {
   pump,
   streamedRequest,
   stringify,
-  deprecate
+  deprecate,
 } = require('./base');
 
 class TelegramBotRequest {
@@ -95,7 +95,7 @@ class TelegramBotRequest {
    * @see https://core.telegram.org/bots/api#sendmessage
    */
   _fixReplyParameters(obj) {
-    if (obj.hasOwnProperty('reply_parameters') && typeof obj.reply_parameters !== 'string') {
+    if (Object.prototype.hasOwnProperty.call(obj, 'reply_parameters') && typeof obj.reply_parameters !== 'string') {
       obj.reply_parameters = stringify(obj.reply_parameters);
     }
   }
@@ -136,7 +136,8 @@ class TelegramBotRequest {
       .then((resp) => {
         let data;
         try {
-          data = resp.body = JSON.parse(resp.body);
+          resp.body = JSON.parse(resp.body);
+          data = resp.body;
         } catch (err) {
           throw new errors.ParseError(`Error parsing response: ${resp.body}`, resp);
         }

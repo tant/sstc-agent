@@ -7,7 +7,7 @@ class TelegramBotBasicMessages {
 
   /**
    * Send text message.
-   * @param {Number|String} chatId Unique identifier for the target chat or username of the target channel (in the format `@channelusername`)
+   * @param {Number|String} chatId Unique identifier for the target chat or username of the target channel
    * @param {String} text Text of the message to be sent
    * @param {Object} [options] Additional Telegram query options
    * @return {Promise} On success, the sent [Message](https://core.telegram.org/bots/api#message) object is returned
