@@ -10,6 +10,6 @@ PORT=${CHROMA_PORT:-8000}
 
 # Chạy docker chromadb
 exec docker run -d \
-  -p ${PORT}:8000 \
+  -p ${PORT}:7978 \
   --name chromadb \
   ghcr.io/chroma-core/chroma:latest
