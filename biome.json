@@ -9,7 +9,8 @@
 		"ignoreUnknown": false,
 		"includes": [
 			"**/*",
-			"!.mastra/.build"
+			"!.mastra/.build",
+			"!src/lib"
 		]
 	},
 	"formatter": {
@@ -40,5 +41,20 @@
 				"organizeImports": "on"
 			}
 		}
-	}
+	},
+	"overrides": [
+		{
+			"includes": [
+				"tests/**/*.ts",
+				"tests/**/*.js"
+			],
+			"linter": {
+				"rules": {
+					"suspicious": {
+						"noExportsInTest": "off"
+					}
+				}
+			}
+		}
+	]
 }
