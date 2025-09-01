@@ -95,7 +95,7 @@ class TelegramBotRequest {
    * @see https://core.telegram.org/bots/api#sendmessage
    */
   _fixReplyParameters(obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, 'reply_parameters') && typeof obj.reply_parameters !== 'string') {
+    if (Object.hasOwn(obj, 'reply_parameters') && typeof obj.reply_parameters !== 'string') {
       obj.reply_parameters = stringify(obj.reply_parameters);
     }
   }

@@ -11,8 +11,9 @@ const pump = require('pump');
 const qs = require('querystring');
 const stream = require('stream');
 const URL = require('url');
-const request = require('@cypress/request-promise');
-const streamedRequest = require('@cypress/request');
+const axios = require('axios');
+const https = require('https');
+const http = require('http');
 const errors = require('../errors');
 const TelegramBotPolling = require('../telegramPolling');
 const TelegramBotWebHook = require('../telegramWebHook');
@@ -75,6 +76,98 @@ function stringify(data) {
   }
   return JSON.stringify(data);
 }
+
+// Create agents for keep-alive connections
+const httpsAgent = new https.Agent({ keepAlive: true });
+const httpAgent = new http.Agent({ keepAlive: true });
+
+// Create a wrapper for axios to mimic request-promise behavior
+const request = (options) => {
+  const axiosOptions = {
+    method: options.method,
+    url: options.url,
+    httpsAgent: httpsAgent,
+    httpAgent: httpAgent,
+    // Transform options to axios format
+  };
+
+  // Handle form data
+  if (options.form) {
+    const formData = new URLSearchParams();
+    for (const key in options.form) {
+      formData.append(key, options.form[key]);
+    }
+    axiosOptions.data = formData.toString();
+    axiosOptions.headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+    };
+  }
+
+  // Handle query string
+  if (options.qs) {
+    axiosOptions.params = options.qs;
+  }
+
+  // Handle multipart form data (files)
+  if (options.formData) {
+    const formData = new (require('form-data'))();
+    for (const key in options.formData) {
+      const value = options.formData[key];
+      if (value.value && value.options) {
+        formData.append(key, value.value, value.options);
+      } else {
+        formData.append(key, value);
+      }
+    }
+    axiosOptions.data = formData;
+    axiosOptions.headers = formData.getHeaders();
+  }
+
+  // Handle JSON data
+  if (options.json && typeof options.json !== 'boolean') {
+    axiosOptions.data = options.json;
+    axiosOptions.headers = {
+      'Content-Type': 'application/json',
+    };
+  }
+
+  // Add any additional headers
+  if (options.headers) {
+    axiosOptions.headers = { ...axiosOptions.headers, ...options.headers };
+  }
+
+  return axios(axiosOptions)
+    .then((resp) => {
+      // Mimic request-promise response structure
+      return {
+        body: typeof resp.data === 'object' ? JSON.stringify(resp.data) : resp.data,
+        statusCode: resp.status,
+        headers: resp.headers,
+      };
+    });
+};
+
+// Create a wrapper for streamed requests
+const streamedRequest = (options) => {
+  const axiosOptions = {
+    method: 'GET',
+    url: options.uri || options.url,
+    responseType: 'stream',
+    httpsAgent: httpsAgent,
+    httpAgent: httpAgent,
+  };
+
+  // Add any additional headers
+  if (options.headers) {
+    axiosOptions.headers = options.headers;
+  }
+
+  return axios(axiosOptions)
+    .then((resp) => resp.data)
+    .catch((error) => {
+      throw error;
+    });
+};
 
 module.exports = {
   errors,

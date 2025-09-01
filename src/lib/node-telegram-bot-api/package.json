@@ -29,9 +29,8 @@
     "node": ">=12"
   },
   "dependencies": {
-    "@cypress/request": "^3.0.8",
-    "@cypress/request-promise": "^5.0.0",
     "array.prototype.findindex": "^2.0.2",
+    "axios": "^1.11.0",
     "bl": "^5.0.0",
     "debug": "^4.3.4",
     "eventemitter3": "^5.0.1",
@@ -43,8 +42,8 @@
     "@babel/cli": "^7.28.3",
     "@babel/core": "^7.28.3",
     "@babel/preset-env": "^7.28.3",
+    "@biomejs/biome": "^2.2.2",
     "concat-stream": "^2.0.0",
-    "eslint": "^8.0.0",
     "eslint-config-airbnb": "^19.0.4",
     "eslint-plugin-mocha": "^10.0.0",
     "is-ci": "^3.0.1",

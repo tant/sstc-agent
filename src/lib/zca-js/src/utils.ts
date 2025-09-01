@@ -18,7 +18,7 @@ import type { AttachmentSource } from "./models/Attachment.js";
 export const isBun = typeof Bun !== "undefined";
 
 export function hasOwn(obj: Record<string, unknown>, key: string): key is keyof typeof obj {
-    return Object.prototype.hasOwnProperty.call(obj, key);
+    return  Object.hasOwn(obj, key);
 }
 
 /**
