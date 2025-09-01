@@ -5,14 +5,13 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "test:llm-ready": "tsx scripts/test-llm-ready.ts",
+    "check:system": "tsx scripts/test-llm-ready.ts",
     "test:e2e": "tsx scripts/run-e2e-tests.ts",
     "test:logs": "tsx scripts/view-test-logs.ts",
     "test:analyze": "tsx scripts/analyze-test-conversations.ts",
     "dev": "mastra dev",
     "build": "mastra build",
-    "start": "mastra start",
-    "telegram": "tsx telegram-bot.ts"
+    "start": "mastra start"
   },
   "keywords": [],
   "author": "",

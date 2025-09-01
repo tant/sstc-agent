@@ -128,22 +128,16 @@ export const channelMessageWorkflow = createWorkflow({
       
       try {
         console.log('🤖 [Workflow] Calling agent.generate');
-        const result = await agent.generate(message.content);
+        const result = await agent.generate([{ role: 'user', content: message.content }]);
         console.log('✅ [Workflow] Agent response generated', {
           responseLength: result.text.length
         });
-        
-        // Log user profile nếu có trong result
-        if (result.metadata) {
-          console.log('📋 [Workflow] Agent metadata:', JSON.stringify(result.metadata, null, 2));
-        }
         
         return {
           response: result.text,
           text: result.text,
           channelId,
           metadata: {
-            ...result.metadata,
             processedBy: 'workflow-agent',
             timestamp: new Date().toISOString()
           }

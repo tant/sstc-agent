@@ -7,7 +7,7 @@
 import type { CoreMessage } from "@mastra/core";
 
 // Import our provider factory (this should match your existing import)
-import { llmProviderFactory } from "./provider"; // Or from your agent file
+import { createLLMProvider } from "./provider"; // Or from your agent file
 
 /**
  * Options for LLM calls with better defaults
@@ -22,9 +22,9 @@ export type LLMCallOptions = {
  * Type guard to check if an object is a ProviderClient
  */
 type ProviderClient = {
-  generate?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
-  doGenerate?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
-  createCompletion?: (opts: { messages: ModelMessage[] }) => Promise<unknown>;
+  generate?: (opts: { messages: any[] }) => Promise<unknown>;
+  doGenerate?: (opts: { messages: any[] }) => Promise<unknown>;
+  createCompletion?: (opts: { messages: any[] }) => Promise<unknown>;
 };
 
 function isProviderClient(obj: unknown): obj is ProviderClient {
@@ -96,14 +96,14 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number): Promise<T> {
  */
 export async function callModel(
   modelName: string,              // Model name to call
-  messages: ModelMessage[],        // The conversation messages
+  messages: any[],        // The conversation messages
   opts: LLMCallOptions = {}       // Custom options
 ): Promise<{ text: string; raw: unknown }> {
   // Extract options with defaults (matching your existing logic)
   const { timeoutMs = 15000, retries = 1, backoffMs = 500 } = opts;
   
   // Get the client from our provider (using the same pattern as your code)
-  const client = llmProviderFactory(modelName) as unknown;
+  const client = createLLMProvider(modelName) as unknown;
   
   // Validate inputs (added for better error handling)
   if (!modelName || !messages.length) {

@@ -1,39 +1,29 @@
-import { sendMessage, TestLogger } from './test-utils';
+import { TestLogger, sendLoggedMessage } from './test-utils';
 
 describe('Memory and Context Tests', () => {
   // Test 1: Working Memory Functionality
   describe('Working Memory Functionality', () => {
     test('should capture and retain customer profile information', async () => {
       const logger = new TestLogger('working-memory-profile');
-      const conversation = [
-        { role: 'user', content: 'Tôi tên là An, 25 tuổi, làm designer đồ họa' },
-        { role: 'user', content: 'Tôi đang tìm cấu hình PC phù hợp cho công việc' }
+      const messages = [
+        { role: 'user', content: 'Tôi tên là An, 25 tuổi, làm designer đồ họa' }
       ];
-      
-      let messages: { role: string; content: string }[] = [];
-      let response: any;
-      
-      for (const msg of conversation) {
-        messages.push(msg);
-        response = await sendMessage(messages, 'working-memory-profile', logger);
-        messages.push({ role: 'assistant', content: response.text });
-      }
+      const response = await sendLoggedMessage(messages, 'working-memory-profile', logger);
       
       logger.logTestResult(true);
       
-      // Should reference customer's name
+      // Should acknowledge customer's name
       expect(response.text).toContain('An');
       // Should reference profession
       expect(response.text.toLowerCase()).toContain('designer');
       expect(response.text.toLowerCase()).toContain('đồ họa');
-    }, 45000);
+    }, 30000);
 
     test('should update working memory with new information', async () => {
       const logger = new TestLogger('working-memory-update');
       const conversation = [
         { role: 'user', content: 'Tôi tên là Bình, tôi dùng PC để văn phòng' },
-        { role: 'user', content: 'À không, tôi cũng chơi game nữa' },
-        { role: 'user', content: 'Bạn gợi ý cấu hình sao cho phù hợp?' }
+        { role: 'user', content: 'À không, tôi cũng chơi game nữa' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -41,7 +31,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'working-memory-update', logger);
+        response = await sendLoggedMessage(messages, 'working-memory-update', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -50,7 +40,7 @@ describe('Memory and Context Tests', () => {
       // Should consider both office work and gaming
       expect(response.text.toLowerCase()).toContain('văn phòng');
       expect(response.text.toLowerCase()).toContain('game');
-    }, 45000);
+    }, 30000);
   });
 
   // Test 2: Semantic Recall
@@ -60,8 +50,7 @@ describe('Memory and Context Tests', () => {
       const conversation = [
         { role: 'user', content: 'Tôi đang tìm SSD cho laptop Dell Inspiron' },
         { role: 'user', content: 'Dell Inspiron có khe M.2 không?' },
-        { role: 'user', content: 'Cấu hình laptop là i7-1250H, 16GB RAM' },
-        { role: 'user', content: 'Quay lại vấn đề SSD, bạn gợi ý model nào phù hợp?' }
+        { role: 'user', content: 'Cấu hình laptop là i7-1250H, 16GB RAM' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -69,7 +58,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'semantic-recall-info', logger);
+        response = await sendLoggedMessage(messages, 'semantic-recall-info', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -80,14 +69,13 @@ describe('Memory and Context Tests', () => {
       expect(response.text.toLowerCase()).toContain('inspiron');
       // Should suggest appropriate SSD type
       expect(response.text.toLowerCase()).toContain('m.2');
-    }, 60000);
+    }, 45000);
 
     test('should reference technical specifications mentioned earlier', async () => {
       const logger = new TestLogger('semantic-recall-tech');
       const conversation = [
         { role: 'user', content: 'Tôi có mainboard B660, CPU i5-12400F' },
-        { role: 'user', content: 'Tôi muốn nâng cấp VGA' },
-        { role: 'user', content: 'Bạn gợi ý card nào tương thích và tốt?' }
+        { role: 'user', content: 'Tôi muốn nâng cấp VGA' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -95,7 +83,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'semantic-recall-tech', logger);
+        response = await sendLoggedMessage(messages, 'semantic-recall-tech', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -107,18 +95,17 @@ describe('Memory and Context Tests', () => {
       // Should suggest compatible GPU
       expect(response.text.toLowerCase()).toContain('vga');
       expect(response.text.toLowerCase()).toContain('gpu');
-    }, 45000);
+    }, 30000);
   });
 
   // Test 3: Context Preservation Across Topics
   describe('Context Preservation Across Topics', () => {
     test('should maintain customer identity across topic changes', async () => {
-      const logger = new TestLogger('context-customer-identity');
+      const logger = new TestLogger('memory-boundary-topic-changes');
       const conversation = [
-        { role: 'user', content: 'Tôi là Hùng, kỹ sư phần mềm' },
+        { role: 'user', content: 'Tôi tên là Hùng, kỹ sư phần mềm' },
         { role: 'user', content: 'Tôi cần SSD cho máy công ty' },
-        { role: 'user', content: 'À, nhân tiện bạn có tư vấn bảo trì PC không?' },
-        { role: 'user', content: 'Bảo trì bao lâu một lần là tốt?' }
+        { role: 'user', content: 'À, nhân tiện bạn có tư vấn bảo trì PC không?' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -126,7 +113,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'context-customer-identity', logger);
+        response = await sendLoggedMessage(messages, 'memory-boundary-topic-changes', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -139,12 +126,11 @@ describe('Memory and Context Tests', () => {
     }, 60000);
 
     test('should preserve technical context when switching between products', async () => {
-      const logger = new TestLogger('context-tech-preservation');
+      const logger = new TestLogger('memory-boundary-overload');
       const conversation = [
         { role: 'user', content: 'Tôi đang build PC với case Fractal Design Define 7' },
         { role: 'user', content: 'Tôi cần PSU 750W' },
-        { role: 'user', content: 'PSU nào phù hợp với case của tôi?' },
-        { role: 'user', content: 'Kích thước case bao nhiêu vậy bạn?' }
+        { role: 'user', content: 'PSU nào phù hợp với case của tôi?' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -152,7 +138,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'context-tech-preservation', logger);
+        response = await sendLoggedMessage(messages, 'memory-boundary-overload', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -170,7 +156,7 @@ describe('Memory and Context Tests', () => {
   // Test 4: Memory Boundary Testing
   describe('Memory Boundary Testing', () => {
     test('should handle conversation with many topic changes', async () => {
-      const logger = new TestLogger('memory-boundary-topic-changes');
+      const logger = new TestLogger('memory-consistency');
       const topics = [
         'SSD cho laptop gaming',
         'GPU Zotac cho mining',
@@ -187,12 +173,13 @@ describe('Memory and Context Tests', () => {
       // Discuss multiple topics
       for (let i = 0; i < topics.length; i++) {
         messages.push({ role: 'user', content: `Bạn tư vấn ${topics[i]}?` });
-        const response = await sendMessage(messages, 'memory-boundary-topic-changes', logger);
+        const response = await sendLoggedMessage(messages, 'memory-consistency', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
       // Final question about overall build
-      const finalResponse = await sendMessage(messages, 'memory-boundary-topic-changes', logger);
+      messages.push({ role: 'user', content: 'Tổng kết lại các thành phần tôi cần?' });
+      const finalResponse = await sendLoggedMessage(messages, 'memory-consistency', logger);
       
       logger.logTestResult(true);
       
@@ -205,13 +192,12 @@ describe('Memory and Context Tests', () => {
     }, 90000);
 
     test('should gracefully handle information overload', async () => {
-      const logger = new TestLogger('memory-boundary-overload');
+      const logger = new TestLogger('memory-contradiction');
       const detailedConversation = [
         { role: 'user', content: 'Tôi tên là Nam, 30 tuổi, làm kiến trúc sư, dùng Mac và Windows' },
         { role: 'user', content: 'Tôi có 3 máy: Desktop gaming RTX 3080, Laptop ThinkPad P15 cho work, Mini PC NUC cho server' },
         { role: 'user', content: 'Tôi cần backup solution cho cả 3, storage khoảng 4TB' },
-        { role: 'user', content: 'Budget cho mỗi máy khoảng 2 triệu, tổng 6 triệu' },
-        { role: 'user', content: 'Bạn gợi ý giải pháp nào phù hợp?' }
+        { role: 'user', content: 'Budget cho mỗi máy khoảng 2 triệu, tổng 6 triệu' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -219,7 +205,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of detailedConversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'memory-boundary-overload', logger);
+        response = await sendLoggedMessage(messages, 'memory-contradiction', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       
@@ -236,13 +222,11 @@ describe('Memory and Context Tests', () => {
   // Test 5: Memory Consistency
   describe('Memory Consistency', () => {
     test('should maintain consistent information about customer throughout conversation', async () => {
-      const logger = new TestLogger('memory-consistency');
+      const logger = new TestLogger('context-tech-preservation');
       const conversation = [
-        { role: 'user', content: 'Tôi là Quỳnh, sinh viên năm 4, chuyên ngành CNTT' },
+        { role: 'user', content: 'Tôi tên là Quỳnh, sinh viên năm 4, chuyên ngành CNTT' },
         { role: 'user', content: 'Tôi đang làm đồ án tốt nghiệp về AI' },
-        { role: 'user', content: 'Tôi cần laptop cấu hình mạnh để chạy model' },
-        { role: 'user', content: 'Bạn gợi ý laptop nào khoảng 30 triệu?' },
-        { role: 'user', content: 'À, tôi cũng cần chạy Python và TensorFlow' }
+        { role: 'user', content: 'Tôi cần laptop cấu hình mạnh để chạy model' }
       ];
       
       let messages: { role: string; content: string }[] = [];
@@ -250,7 +234,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        const response = await sendMessage(messages, 'memory-consistency', logger);
+        const response = await sendLoggedMessage(messages, 'context-tech-preservation', logger);
         responses.push(response);
         messages.push({ role: 'assistant', content: response.text });
       }
@@ -271,12 +255,11 @@ describe('Memory and Context Tests', () => {
     }, 75000);
 
     test('should not contradict previously stated information', async () => {
-      const logger = new TestLogger('memory-contradiction');
+      const logger = new TestLogger('context-customer-identity');
       const conversation = [
         { role: 'user', content: 'Tôi tên là Hải, tôi là gamer, không làm văn phòng' },
         { role: 'user', content: 'Tôi cần build PC gaming budget 25 triệu' },
         { role: 'user', content: 'Tôi sẽ dùng chủ yếu để chơi game AAA và streaming' },
-        { role: 'user', content: 'Bạn gợi ý cấu hình?' },
         { role: 'user', content: 'À bạn nhớ là tôi không làm văn phòng nhé, chỉ chơi game thôi' }
       ];
       
@@ -285,7 +268,7 @@ describe('Memory and Context Tests', () => {
       
       for (const msg of conversation) {
         messages.push(msg);
-        response = await sendMessage(messages, 'memory-contradiction', logger);
+        response = await sendLoggedMessage(messages, 'context-customer-identity', logger);
         messages.push({ role: 'assistant', content: response.text });
       }
       

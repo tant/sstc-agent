@@ -7,8 +7,7 @@
 export { callModel } from './adapter';
 
 // Export the provider functions
-export { createLLMProvider, llmProviderFactory } from './provider';
+export { createLLMProvider } from './provider';
 
-// Export the types và config từ app-config
+// Export the types
 export type { LLMCallOptions } from './adapter';
-export type { LLMConfig } from '../app-config';

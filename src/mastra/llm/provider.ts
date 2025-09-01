@@ -1,6 +1,5 @@
 // Import the OpenAI provider factory
 import { createOpenAI } from '@ai-sdk/openai';
-import { CoreMessage } from 'ai';
 
 // Read LLM config directly from environment variables
 const BASE_URL = process.env.VLLM_BASE_URL || process.env.OPENAI_API_BASE_URL || '';
