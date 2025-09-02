@@ -5,16 +5,11 @@
 
 import { createWorkflow, createStep } from "@mastra/core/workflows";
 import { z } from "zod";
-import { Memory } from "@mastra/memory";
-import { LibSQLStore } from "@mastra/libsql";
-import { chromaVector } from "../vector/chroma";
-import { embedder } from "../embedding/provider";
-import { userProfileSchema } from "../core/models/user-profile-schema";
-import { getLibSQLConfig } from "../database/libsql";
 import { purchaseAgent } from "../agents/purchase-agent";
 import { warrantyAgent } from "../agents/warranty-agent";
 import { clarificationAgent } from "../agents/clarification-agent";
 import { maiSale } from "../agents/mai-agent";
+import { unifiedMemoryManager } from "../core/memory/unified-memory-manager";
 
 export const channelMessageWorkflow = createWorkflow({
   id: 'channel-message-processor',
@@ -87,67 +82,26 @@ export const channelMessageWorkflow = createWorkflow({
           hasAttachments: !!((inputData as any)?.message?.attachments?.length)
         });
 
-      // Get chat history from memory
+      // Get chat history from unified memory manager
       let chatHistory: any[] = [];
       let currentUserProfile: any = {};
       try {
-        // Create a memory instance with the same configuration as the agents
-        const memory = (() => {
-          const db = getLibSQLConfig();
-          return new Memory({
-            storage: new LibSQLStore({
-              url: db.url,
-              authToken: db.authToken,
-            }),
-            vector: chromaVector,
-            embedder: embedder,
-            options: {
-              lastMessages: 10,
-              workingMemory: {
-                enabled: true,
-                scope: "resource",
-                schema: userProfileSchema,
-              },
-              semanticRecall: {
-                topK: 3,
-                messageRange: 2,
-                scope: "resource"
-              },
-            },
-          });
-        })();
+        const userId = (inputData as any).message.senderId;
 
-        // Create user-specific resource for memory access using real sender data
-        const resource = `user_${(inputData as any).message.senderId}`;
-        const thread = `${(inputData as any).channelId}_thread`;
+        console.log('🔍 [Workflow] Getting chat history via Unified Memory Manager for user:', userId);
 
-        // Get recent messages from memory
-        const memoryResult = await memory.query({
-          threadId: thread,
-          selectBy: { last: 5 },
-          threadConfig: {} as any // Type fix - provide empty config to satisfy API
-        });
+        // Use unified memory manager to get chat history across all channels
+        chatHistory = await unifiedMemoryManager.getUserChatHistory(userId, { limit: 5 });
 
-        chatHistory = memoryResult.uiMessages.map((msg: any) => ({
-          role: msg.role,
-          content: msg.content,
-          timestamp: msg.timestamp?.toISOString()
-        }));
+        // For tool context, prepare simplified structure
+        currentUserProfile = {};
 
-        // Get current user profile if available
-        try {
-          const profileResult = await memory.query({
-            threadId: thread,
-            selectBy: { last: 1 },
-            threadConfig: {} as any // Type fix - provide empty config to satisfy API
-          });
-          currentUserProfile = profileResult || {};
-        } catch (profileError) {
-          console.warn('⚠️ [Workflow] Could not retrieve user profile:', profileError?.message);
-        }
+        console.log(`✅ [Workflow] Retrieved ${chatHistory.length} messages from unified memory`);
+
       } catch (error) {
-        console.warn('⚠️ [Workflow] Could not retrieve chat history:', error instanceof Error ? error.message : String(error));
+        console.warn('⚠️ [Workflow] Could not retrieve chat history from unified memory:', error instanceof Error ? error.message : String(error));
         chatHistory = [];
+        currentUserProfile = {};
       }
 
       // Use default intent analysis
@@ -263,13 +217,25 @@ export const channelMessageWorkflow = createWorkflow({
       const { message, channelId, chatHistory, intent } = inputData as any;
       const intentType = intent.intent;
       const confidence = intent.confidence;
+      const userId = message.senderId;
 
       console.log('🎭 [Workflow] Agent Dispatcher', {
         channelId,
         intentType,
         confidence,
         messageLength: message.content.length,
-        senderId: message.senderId
+        senderId: userId
+      });
+
+      // 🏁 GREETING CONTROL LOGIC 🏁
+      const hasBeenGreeted = await unifiedMemoryManager.hasUserBeenGreeted(userId);
+      const needsGreeting = !hasBeenGreeted;
+
+      console.log('👋 [GreetingControl] Workflow-level greeting check:', {
+        userId,
+        hasBeenGreeted,
+        needsGreeting,
+        intentType
       });
 
       // Check if repeat mode is enabled
@@ -344,19 +310,42 @@ export const channelMessageWorkflow = createWorkflow({
           messages = [...historyMessages, { role: 'user', content: message.content }];
         }
 
-        console.log('📊 [Workflow] Agent input prepared', {
-          totalMessages: messages.length,
-          agentType,
-          messageLength: message.content.length
-        });
+      console.log('📊 [Workflow] Agent input prepared', {
+        totalMessages: messages.length,
+        agentType,
+        messageLength: message.content.length,
+        needsGreeting,
+        hasBeenGreeted
+      });
 
-        const result = await selectedAgent.generate(messages as any);
+      // 🎯 GREETING CONTROL INSTRUCTION 📝
+      // Add greeting control instruction to user message based on greeting status
+      if (needsGreeting) {
+        message.content = `[FIRST TIME USER NEEDS GREETING] ${message.content}`;
+        console.log('👋 [GreetingControl] Adding FIRST_TIME greeting instruction');
+      } else {
+        message.content = `[SKIP GREETING - USER ALREADY GREETED] ${message.content}`;
+        console.log('👋 [GreetingControl] Adding SKIP_GREETING instruction');
+      }
+
+      const result = await selectedAgent.generate(messages as any, {});
 
         console.log('✅ [Workflow] Agent response generated successfully', {
           agentType,
           responseLength: result.text.length,
           responsePreview: `${result.text?.substring(0, 50)}...`
         });
+
+        // 📝 MARK USER AS GREETED AFTER SUCCESSFUL RESPONSE 📝
+        if (needsGreeting) {
+          try {
+            await unifiedMemoryManager.markUserAsGreeted(userId, agentType, channelId);
+            console.log('✅ [GreetingControl] Successfully marked user as greeted');
+          } catch (markError) {
+            console.warn('⚠️ [GreetingControl] Failed to mark user as greeted:', markError);
+            // Don't fail the response if marking fails
+          }
+        }
 
         return {
           response: result.text || 'Xin lỗi, tôi không thể tạo được phản hồi.',
@@ -366,7 +355,12 @@ export const channelMessageWorkflow = createWorkflow({
             agentType,
             intent: intentType,
             confidence: confidence,
-            timestamp: new Date().toISOString()
+            timestamp: new Date().toISOString(),
+            greetingControls: {
+              needsGreeting,
+              hasBeenGreeted,
+              greetingInstructionApplied: true
+            }
           }
         };
 
@@ -382,7 +376,7 @@ export const channelMessageWorkflow = createWorkflow({
         try {
           console.log('🔄 [Workflow] Falling back to Mai agent');
           const fallbackAgent = mastra.getAgent('maiSale');
-          const result = await fallbackAgent.generate([{ role: 'user', content: message.content }] as any);
+          const result = await fallbackAgent.generate([{ role: 'user', content: message.content }] as any, {});
 
           return {
             response: result.text || 'Xin lỗi, tôi gặp lỗi khi xử lý yêu cầu của bạn.',
