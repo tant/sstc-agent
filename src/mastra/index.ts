@@ -4,6 +4,9 @@ import { LibSQLStore } from '@mastra/libsql';
 import { channelMessageWorkflow } from './workflows/message-processor';
 import { maiSale } from './agents/mai-agent';
 import { anDataAnalyst } from './agents/an-data-analyst';
+import { purchaseAgent } from './agents/purchase-agent';
+import { warrantyAgent } from './agents/warranty-agent';
+import { clarificationAgent } from './agents/clarification-agent';
 import { intentAnalyzerTool } from './tools/intent-analyzer';
 import { TelegramChannelAdapter } from './channels/telegram';
 import { ZaloChannelAdapter } from './channels/zalo';
@@ -14,12 +17,12 @@ export const mastra = new Mastra({
   workflows: {
     channelMessageWorkflow
   },
-  agents: { 
+  agents: {
     maiSale,
-    anDataAnalyst 
-  },
-  tools: {
-    intentAnalyzer: intentAnalyzerTool
+    anDataAnalyst,
+    purchase: purchaseAgent,
+    warranty: warrantyAgent,
+    clarification: clarificationAgent
   },
   storage: new LibSQLStore({
     // stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db
