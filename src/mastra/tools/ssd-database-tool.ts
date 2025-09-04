@@ -2,18 +2,32 @@ import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
 import {
 	SpecialistData,
-	RAMSpecialistData,
-	RAMProductRecommendation,
-	RAMTechnicalAnalysis,
+	StorageSpecialistData,
+	StorageProductRecommendation,
+	StorageTechnicalAnalysis,
 } from "../core/models/specialist-data-models";
 
-// Input schema for RAM database tool
-const ramSearchInputSchema = z.object({
+// Input schema for SSD database tool
+const ssdSearchInputSchema = z.object({
 	query: z.string().min(1, "Search query is required"),
-	capacity: z.enum(["8GB", "16GB", "32GB", "64GB"]).optional(),
-	type: z.enum(["DDR4", "DDR5"]).optional(),
-	speed: z.string().optional(),
-	formFactor: z.enum(["UDIMM", "SODIMM"]).optional(),
+	capacity: z
+		.enum([
+			"120GB",
+			"240GB",
+			"250GB",
+			"256GB",
+			"480GB",
+			"500GB",
+			"512GB",
+			"1TB",
+			"2TB",
+			"4TB",
+		])
+		.optional(),
+	interface: z.enum(["SATA", "NVMe"]).optional(),
+	formFactor: z
+		.enum(["2.5 inch", "M.2 2280", "M.2 2242", "M.2 2230"])
+		.optional(),
 	budget: z
 		.object({
 			min: z.number().optional(),
@@ -26,9 +40,9 @@ const ramSearchInputSchema = z.object({
 	motherboardCompatibility: z.string().optional(),
 });
 
-// Output schema for RAM database tool - structured data format
-const ramSearchOutputSchema = z.object({
-	specialistData: z.custom<RAMSpecialistData>(),
+// Output schema for SSD database tool - structured data format
+const ssdSearchOutputSchema = z.object({
+	specialistData: z.custom<StorageSpecialistData>(),
 	searchMetadata: z.object({
 		totalResults: z.number(),
 		searchSummary: z.string(),
@@ -38,30 +52,28 @@ const ramSearchOutputSchema = z.object({
 	recommendations: z.array(z.string()),
 });
 
-export const ramDatabaseTool = createTool({
-	id: "ram-database-search",
+export const ssdDatabaseTool = createTool({
+	id: "ssd-database-search",
 	description:
-		"Search SSTC RAM product database and return structured data for specialist agents",
-	inputSchema: ramSearchInputSchema,
-	outputSchema: ramSearchOutputSchema,
+		"Search SSTC SSD product database and return structured data for specialist agents",
+	inputSchema: ssdSearchInputSchema,
+	outputSchema: ssdSearchOutputSchema,
 	execute: async ({ context, mastra }) => {
 		const inputData = context as any;
 		const {
 			query,
 			capacity,
-			type,
-			speed,
+			interface: iface,
 			formFactor,
 			budget,
 			useCase,
 			motherboardCompatibility,
 		} = inputData;
 
-		console.log("🔍 [RAM DB] Searching:", {
+		console.log("🔍 [SSD DB] Searching:", {
 			query,
 			capacity,
-			type,
-			speed,
+			interface: iface,
 			formFactor,
 			budget,
 			useCase,
@@ -77,7 +89,7 @@ export const ramDatabaseTool = createTool({
 			// Build query based on filters
 			let sqlQuery = `
         SELECT * FROM products 
-        WHERE category = 'RAM' OR Loại sản phẩm = 'RAM'
+        WHERE category = 'SSD' OR Loại sản phẩm = 'SSD'
       `;
 
 			const params: any[] = [];
@@ -95,16 +107,10 @@ export const ramDatabaseTool = createTool({
 				params.push(capacity);
 			}
 
-			// Add type filter
-			if (type) {
-				sqlQuery += ` AND type = ?`;
-				params.push(type);
-			}
-
-			// Add speed filter
-			if (speed) {
-				sqlQuery += ` AND speed LIKE ?`;
-				params.push(`%${speed}%`);
+			// Add interface filter
+			if (iface) {
+				sqlQuery += ` AND interface = ?`;
+				params.push(iface);
 			}
 
 			// Add form factor filter
@@ -133,7 +139,7 @@ export const ramDatabaseTool = createTool({
 
 			// Add motherboard compatibility filter
 			if (motherboardCompatibility) {
-				sqlQuery += ` AND Tương thích RAM LIKE ?`;
+				sqlQuery += ` AND Tương thích SSD LIKE ?`;
 				params.push(`%${motherboardCompatibility}%`);
 			}
 
@@ -159,15 +165,17 @@ export const ramDatabaseTool = createTool({
 				return {
 					sku: row.SKU || "",
 					name: row["Tên sản phẩm"] || "",
-					type: row.type || "",
+					interface: row.interface || "",
 					capacity: row.quantity || "",
-					speed: row.speed || "",
-					latency: row.latency || "",
-					voltage: row.voltage || "",
+					readSpeed: row.read_speed || "",
+					writeSpeed: row.write_speed || "",
 					formFactor: row.form_factor || "",
+					endurance: row.endurance || "",
+					controller: row.controller || "",
+					nandType: row.nand_type || "",
 					price: price,
-					compatibility: row["Tương thích RAM"]
-						? row["Tương thích RAM"].split(",")
+					compatibility: row["Tương thích SSD"]
+						? row["Tương thích SSD"].split(",")
 						: [],
 					useCases: row["Recommended_Use"]
 						? row["Recommended_Use"].split(",")
@@ -196,22 +204,13 @@ export const ramDatabaseTool = createTool({
 					score += 3;
 				}
 
-				// Type matching
+				// Interface matching
 				if (
-					type &&
-					product.type &&
-					product.type.toLowerCase().includes(type.toLowerCase())
+					iface &&
+					product.interface &&
+					product.interface.toLowerCase().includes(iface.toLowerCase())
 				) {
 					score += 3;
-				}
-
-				// Speed matching
-				if (
-					speed &&
-					product.speed &&
-					product.speed.toLowerCase().includes(speed.toLowerCase())
-				) {
-					score += 2;
 				}
 
 				// Form factor matching
@@ -248,20 +247,22 @@ export const ramDatabaseTool = createTool({
 			// Sort by score
 			scoredProducts.sort((a: any, b: any) => b.score - a.score);
 
-			// Convert to structured RAM specialist data format
-			const ramSpecialistData: RAMSpecialistData = {
-				type: "ram",
+			// Convert to structured Storage specialist data format
+			const storageSpecialistData: StorageSpecialistData = {
+				type: "storage",
 				recommendations: scoredProducts.map(
-					(product: any): RAMProductRecommendation => ({
+					(product: any): StorageProductRecommendation => ({
 						productId: product.sku,
 						productName: product.name,
 						specifications: {
-							type: product.type,
+							interface: product.interface as "SATA" | "NVMe",
 							capacity: product.capacity,
-							speed: product.speed,
-							latency: product.latency,
-							voltage: product.voltage,
+							readSpeed: product.readSpeed,
+							writeSpeed: product.writeSpeed,
 							formFactor: product.formFactor,
+							endurance: product.endurance,
+							controller: product.controller || undefined,
+							nandType: product.nandType || undefined,
 						},
 						price: product.price,
 						availability: product.stockStatus as
@@ -282,74 +283,93 @@ export const ramDatabaseTool = createTool({
 				),
 				technicalAnalysis: {
 					keySpecifications: {
-						type:
-							type ||
-							(scoredProducts.length > 0 ? scoredProducts[0].type : "DDR4"),
+						interface:
+							iface ||
+							(scoredProducts.length > 0
+								? scoredProducts[0].interface
+								: "SATA"),
 						capacity:
 							capacity ||
-							(scoredProducts.length > 0 ? scoredProducts[0].capacity : "8GB"),
-						speed:
-							scoredProducts.length > 0 ? scoredProducts[0].speed : "2400MHz",
-						latency:
-							scoredProducts.length > 0 ? scoredProducts[0].latency : "CL16",
-						voltage:
-							scoredProducts.length > 0 ? scoredProducts[0].voltage : "1.2V",
+							(scoredProducts.length > 0
+								? scoredProducts[0].capacity
+								: "250GB"),
+						readSpeed:
+							scoredProducts.length > 0
+								? scoredProducts[0].readSpeed
+								: "500MB/s",
+						writeSpeed:
+							scoredProducts.length > 0
+								? scoredProducts[0].writeSpeed
+								: "400MB/s",
 						formFactor:
 							formFactor ||
 							(scoredProducts.length > 0
 								? scoredProducts[0].formFactor
-								: "UDIMM"),
+								: "2.5 inch"),
+						endurance:
+							scoredProducts.length > 0
+								? scoredProducts[0].endurance
+								: "300TBW",
+						controller:
+							scoredProducts.length > 0
+								? scoredProducts[0].controller
+								: "Unknown",
+						nandType:
+							scoredProducts.length > 0 ? scoredProducts[0].nandType : "TLC",
 					},
 					performanceMetrics: {
-						speedRating:
+						readPerformance:
 							scoredProducts.length > 0
 								? Math.min(
 										100,
 										Math.max(
 											0,
 											(parseInt(
-												scoredProducts[0].speed?.replace("MHz", "") || "2400",
+												scoredProducts[0].readSpeed?.replace("MB/s", "") ||
+													"500",
 											) /
-												5000) *
+												7000) *
 												100,
 										),
 									)
-								: 48,
-						latencyRating:
+								: 7,
+						writePerformance:
 							scoredProducts.length > 0
 								? Math.min(
 										100,
 										Math.max(
 											0,
-											100 -
-												parseInt(
-													scoredProducts[0].latency?.replace("CL", "") || "16",
-												) *
-													2,
+											(parseInt(
+												scoredProducts[0].writeSpeed?.replace("MB/s", "") ||
+													"400",
+											) /
+												7000) *
+												100,
 										),
 									)
-								: 68,
+								: 6,
+						enduranceRating:
+							scoredProducts.length > 0
+								? Math.min(
+										100,
+										Math.max(
+											0,
+											(parseInt(
+												scoredProducts[0].endurance?.replace("TBW", "") ||
+													"300",
+											) /
+												1000) *
+												100,
+										),
+									)
+								: 30,
 						compatibilityScore: motherboardCompatibility ? 90 : 70,
-						powerEfficiency:
-							scoredProducts.length > 0
-								? Math.min(
-										100,
-										Math.max(
-											0,
-											100 -
-												parseFloat(
-													scoredProducts[0].voltage?.replace("V", "") || "1.2",
-												) *
-													20,
-										),
-									)
-								: 76,
 					},
 					technicalRequirements: [
-						"Compatible motherboard with matching RAM slot type",
+						"Compatible motherboard with matching interface slot",
 						"Adequate power supply for system requirements",
 						"Proper installation in correct slot configuration",
-						"Compatible with existing RAM modules (if upgrading)",
+						"Compatible with existing storage setup",
 					],
 				},
 				compatibilityCheck: {
@@ -358,10 +378,10 @@ export const ramDatabaseTool = createTool({
 						? []
 						: ["Motherboard compatibility not specified"],
 					recommendations: [
-						"Ensure motherboard supports selected RAM type and speed",
-						"Check available slots for dual channel configuration",
-						"Verify power requirements for high-speed RAM",
-						"Ensure RAM compatibility with CPU and chipset",
+						"Ensure motherboard supports selected SSD interface and form factor",
+						'Check available slots for M.2 or 2.5" installation',
+						"Verify power requirements for high-performance SSDs",
+						"Ensure SSD compatibility with system BIOS/UEFI",
 					],
 				},
 				pricingInfo: {
@@ -413,13 +433,13 @@ export const ramDatabaseTool = createTool({
 
 			if (scoredProducts.length === 0) {
 				recommendations.push(
-					"Không tìm thấy sản phẩm RAM phù hợp. Hãy thử mở rộng ngân sách hoặc điều chỉnh yêu cầu.",
+					"Không tìm thấy sản phẩm SSD phù hợp. Hãy thử mở rộng ngân sách hoặc điều chỉnh yêu cầu.",
 				);
 			} else {
 				const avgPrice =
 					scoredProducts.reduce((sum: number, p: any) => sum + p.price, 0) /
 					scoredProducts.length;
-				if (avgPrice > 2000000) {
+				if (avgPrice > 3000000) {
 					recommendations.push(
 						"Xem xét phiên bản cấu hình thấp hơn để tiết kiệm ngân sách",
 					);
@@ -433,7 +453,7 @@ export const ramDatabaseTool = createTool({
 					)
 				) {
 					recommendations.push(
-						"Đảm bảo chọn RAM có tốc độ cao để tối ưu hiệu năng gaming",
+						"Đảm bảo chọn SSD có tốc độ đọc/ghi cao để tối ưu hiệu năng gaming",
 					);
 				}
 
@@ -444,10 +464,10 @@ export const ramDatabaseTool = createTool({
 
 			const searchSummary =
 				scoredProducts.length === 0
-					? `Không tìm thấy sản phẩm RAM nào cho "${query}"`
-					: `Tìm thấy ${scoredProducts.length} sản phẩm RAM phù hợp`;
+					? `Không tìm thấy sản phẩm SSD nào cho "${query}"`
+					: `Tìm thấy ${scoredProducts.length} sản phẩm SSD phù hợp`;
 
-			console.log("✅ [RAM DB] Results:", {
+			console.log("✅ [SSD DB] Results:", {
 				totalFound: scoredProducts.length,
 				averageScore:
 					scoredProducts.length > 0
@@ -462,19 +482,19 @@ export const ramDatabaseTool = createTool({
 			});
 
 			return {
-				specialistData: ramSpecialistData,
+				specialistData: storageSpecialistData,
 				searchMetadata: {
 					totalResults: scoredProducts.length,
 					searchSummary,
 					processingTime: Date.now() - startTime,
-					confidenceScore: ramSpecialistData.confidenceScore,
+					confidenceScore: storageSpecialistData.confidenceScore,
 				},
 				recommendations,
 			};
 		} catch (error) {
-			console.error("❌ [RAM DB] Search failed:", error);
+			console.error("❌ [SSD DB] Search failed:", error);
 			throw new Error(
-				`RAM database search failed: ${error instanceof Error ? error.message : String(error)}`,
+				`SSD database search failed: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 	},
