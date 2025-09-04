@@ -230,7 +230,7 @@ Quý khách có muốn biết thêm thông số kỹ thuật không ạ?
 	"storage-default": {
 		type: "storage",
 		template: `
-Dạ quý khách, em vừa nhận được thông tin từ chuyên gia ổ cứng của SSTC.
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia SSD của SSTC.
 
 **{{productName}}** - {{capacity}} {{interface}}
 Tốc độ đọc: {{readSpeed}}, ghi: {{writeSpeed}}
@@ -244,8 +244,13 @@ Giá: {{formattedPrice}} VND
 Với tốc độ cao, ổ cứng này lý tưởng cho làm việc với file lớn.
 {{/if}}
 
-Quý khách có muốn em so sánh với các lựa chọn khác không ạ?
-    `.trim(),
+Quý khách có muốn em tìm thêm các lựa chọn SSD khác phù hợp với nhu cầu cụ thể hơn không ạ? Ví dụ như:
+- Dung lượng bao nhiêu GB? (256GB, 512GB, 1TB, 2TB)
+- Giao tiếp SATA hay NVMe?
+- Mục đích sử dụng chính? (gaming, văn phòng, sáng tạo nội dung)
+
+Hoặc nếu quý khách muốn xem các sản phẩm SSD khác, em có thể giúp tìm kiếm theo tiêu chí cụ thể hơn ạ!
+`.trim(),
 		variables: [
 			"productName",
 			"capacity",
@@ -254,6 +259,29 @@ Quý khách có muốn em so sánh với các lựa chọn khác không ạ?
 			"writeSpeed",
 			"price",
 			"useCases",
+			"formattedPrice"
+		],
+		examples: [],
+	},
+
+	"storage-comparison": {
+		type: "storage",
+		template: `
+Dạ quý khách, em xin phép giới thiệu một số lựa chọn SSD phổ biến của SSTC:
+
+{{#each recommendations}}
+**{{this.productName}}** - {{this.price}} VND
+- Dung lượng: {{this.specifications.capacity}}
+- Giao tiếp: {{this.specifications.interface}}
+- Tốc độ: Đọc {{this.specifications.readSpeed}}, Ghi {{this.specifications.writeSpeed}}
+- Phù hợp: {{this.useCases}}
+
+{{/each}}
+
+Quý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các lựa chọn theo tiêu chí cụ thể hơn ạ?
+`.trim(),
+		variables: [
+			"recommendations"
 		],
 		examples: [],
 	},
@@ -318,6 +346,7 @@ Xin lỗi quý khách, có lỗi xảy ra khi xử lý yêu cầu.
 Em đang thử lại, quý khách vui lòng chờ trong giây lát...
     `.trim(),
 		variables: [],
+\t"storage-product-list": {\n\	\ttype: "storage",\n\	\ttemplate: `\nDạ quý khách, em xin giới thiệu các mẫu SSD hiện có tại SSTC:\n\n{{#each recommendations}}\n**{{this.productName}}** ({{this.specifications.sku}})\n- Dung lượng: {{this.specifications.capacity}} \n- Giao tiếp: {{this.specifications.interface}}\n- Tốc độ đọc/ghi: {{this.specifications.readSpeed}}/{{this.specifications.writeSpeed}}\n- Giá: {{this.price}} VND\n- Phù hợp: {{this.useCases}}\n\n{{/each}}\n\nQuý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các lựa chọn theo tiêu chí cụ thể hơn ạ?\nVí dụ như:\n- Dung lượng: 256GB, 512GB, 1TB, 2TB\n- Giao tiếp: SATA, NVMe\n- Mục đích: Gaming, Văn phòng, Sáng tạo nội dung\n\t\t`.trim(),\n\	\tvariables: [\n\	\t\t"recommendations"\n\	\t],\n\	\texamples: [],\n\	},
 		examples: [],
 	},
 };

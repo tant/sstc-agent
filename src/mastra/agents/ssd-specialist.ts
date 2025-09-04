@@ -250,23 +250,40 @@ export class SSDSpecialist extends Agent {
 
 		const { recommendations, technicalAnalysis, confidenceScore } = data;
 
-		let response = `Dựa trên phân tích, tôi có một vài đề xuất SSD cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
+		let response = `Dựa trên phân tích, tôi có một vài đề xuất SSD cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):
+
+`;
 
 		recommendations.forEach((rec, index) => {
-			response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ\n`;
-			response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}\n`;
-			response += `   - **Thông số**: ${rec.specifications.capacity} ${rec.specifications.interface}, Đọc ${rec.specifications.readSpeed}, Ghi ${rec.specifications.writeSpeed}\n`;
+			response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ
+`;
+			response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}
+`;
+			response += `   - **Thông số**: ${rec.specifications.capacity} ${rec.specifications.interface}, Đọc ${rec.specifications.readSpeed}, Ghi ${rec.specifications.writeSpeed}
+`;
 			if (rec.recommendationScore > 8) {
 				// Assuming score is out of 10
-				response += `   - **Độ phù hợp**: Rất cao\n`;
+				response += `   - **Độ phù hợp**: Rất cao
+`;
 			} else if (rec.recommendationScore > 5) {
-				response += `   - **Độ phù hợp**: Cao\n`;
+				response += `   - **Độ phù hợp**: Cao
+`;
 			}
 		});
 
 		if (technicalAnalysis.keySpecifications) {
-			response += `\n**Tóm tắt thông số chính**:\n - Giao tiếp: ${technicalAnalysis.keySpecifications.interface}\n - Tốc độ đọc: ${technicalAnalysis.keySpecifications.readSpeed}\n - Tốc độ ghi: ${technicalAnalysis.keySpecifications.writeSpeed}\n`;
+			response += `
+**Tóm tắt thông số chính**:
+ - Giao tiếp: ${technicalAnalysis.keySpecifications.interface}
+ - Tốc độ đọc: ${technicalAnalysis.keySpecifications.readSpeed}
+ - Tốc độ ghi: ${technicalAnalysis.keySpecifications.writeSpeed}
+`;
 		}
+
+		// Instead of creating fictional comparison tables, encourage customer to ask for specific needs
+		response += `
+Quý khách muốn tìm hiểu thêm về mẫu nào trong số này, hay có yêu cầu đặc biệt nào (dung lượng, tốc độ, giá)? 
+Em có thể giúp tìm các lựa chọn phù hợp hơn với nhu cầu cụ thể của quý khách!`;
 
 		return response;
 	}
