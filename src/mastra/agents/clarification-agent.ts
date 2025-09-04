@@ -133,32 +133,32 @@ Agent: "Tuyệt vời! Cho mình hỏi bạn dùng SSD này để làm gì? Gami
 - Luôn tôn trọng decision timeline của customer`;
 
 export const clarificationAgent = new Agent({
-  name: "Clarification Agent",
-  instructions: EMBEDDED_PERSONALITY,
-  model: mastraModelProvider(),
-  tools: {},
-  memory: (() => {
-    const db = getLibSQLConfig();
-    return new Memory({
-      storage: new LibSQLStore({
-        url: db.url,
-        authToken: db.authToken,
-      }),
-      vector: chromaVector,
-      embedder: embedder,
-      options: {
-        lastMessages: 10,
-        workingMemory: {
-          enabled: true,
-          scope: "resource",
-          schema: userProfileSchema,
-        },
-        semanticRecall: {
-          topK: 3,
-          messageRange: 2,
-          scope: "resource"
-        },
-      },
-    });
-  })()
+	name: "Clarification Agent",
+	instructions: EMBEDDED_PERSONALITY,
+	model: mastraModelProvider(),
+	tools: {},
+	memory: (() => {
+		const db = getLibSQLConfig();
+		return new Memory({
+			storage: new LibSQLStore({
+				url: db.url,
+				authToken: db.authToken,
+			}),
+			vector: chromaVector,
+			embedder: embedder,
+			options: {
+				lastMessages: 10,
+				workingMemory: {
+					enabled: true,
+					scope: "resource",
+					schema: userProfileSchema,
+				},
+				semanticRecall: {
+					topK: 3,
+					messageRange: 2,
+					scope: "resource",
+				},
+			},
+		});
+	})(),
 });

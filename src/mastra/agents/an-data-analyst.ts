@@ -8,7 +8,7 @@ import { chromaVector } from "../vector/chroma";
 import { mastraModelProvider } from "../llm/provider";
 import { embedder } from "../embedding/provider";
 import { userProfileSchema } from "../core/models/user-profile-schema";
-import { intentAnalyzerTool } from "../tools/intent-analyzer";
+import { clarifyIntentTool } from "../tools/clarify-intent-tool";
 
 // Embedded personality markdown for An Data Analyst
 const EMBEDDED_PERSONALITY = `
@@ -174,34 +174,34 @@ Provide structured recommendations in the following format:
 `;
 
 export const anDataAnalyst = new Agent({
-  name: "An Data Analyst",
-  instructions: EMBEDDED_PERSONALITY,
-  model: mastraModelProvider(),
-  tools: { 
-    intentAnalyzer: intentAnalyzerTool 
-  },
-  memory: (() => {
-    const db = getLibSQLConfig();
-    return new Memory({
-      storage: new LibSQLStore({
-        url: db.url,
-        authToken: db.authToken,
-      }),
-      vector: chromaVector,
-      embedder: embedder,
-      options: {
-        lastMessages: 10,
-        workingMemory: {
-          enabled: true,
-          scope: "resource",
-          schema: userProfileSchema,
-        },
-        semanticRecall: {
-          topK: 3,
-          messageRange: 2,
-          scope: "resource"
-        },
-      },
-    });
-  })()
+	name: "An Data Analyst",
+	instructions: EMBEDDED_PERSONALITY,
+	model: mastraModelProvider(),
+	tools: {
+		clarifyIntent: clarifyIntentTool,
+	},
+	memory: (() => {
+		const db = getLibSQLConfig();
+		return new Memory({
+			storage: new LibSQLStore({
+				url: db.url,
+				authToken: db.authToken,
+			}),
+			vector: chromaVector,
+			embedder: embedder,
+			options: {
+				lastMessages: 10,
+				workingMemory: {
+					enabled: true,
+					scope: "resource",
+					schema: userProfileSchema,
+				},
+				semanticRecall: {
+					topK: 3,
+					messageRange: 2,
+					scope: "resource",
+				},
+			},
+		});
+	})(),
 });

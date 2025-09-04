@@ -7,32 +7,32 @@ import { chromaVector } from "../vector/chroma";
 import { mastraModelProvider } from "../llm/provider";
 import { embedder } from "../embedding/provider";
 import { userProfileSchema } from "../core/models/user-profile-schema";
-import { ramDatabaseTool } from "../tools/ram-database-tool";
-import type { RAMSpecialistData } from "../core/models/specialist-data-models";
+import { ssdDatabaseTool } from "../tools/ssd-database-tool";
+import type { StorageSpecialistData } from "../core/models/specialist-data-models";
 import { sharedContextManager } from "../core/memory/shared-context-manager";
 import {
-	ramKnowledgeBase,
-	type RAMProductInfo,
+	ssdKnowledgeBase,
+	type SSDProductInfo,
 	type SearchCriteria,
 	type CompatibilityResult,
-} from "./ram-knowledge-base";
+} from "./ssd-knowledge-base";
 
-// Combined RAM Specialist Personality
-const RAM_SPECIALIST_PERSONALITY = `# RAM Specialist - SSTC Memory Expert
+// Combined SSD Specialist Personality
+const SSD_SPECIALIST_PERSONALITY = `# SSD Specialist - SSTC Storage Expert
 
 ## Core Personality
-Tôi là chuyên gia tư vấn và phân tích bộ nhớ RAM của SSTC. Tôi trực tiếp hỗ trợ khách hàng và Mai để đưa ra những lời khuyên tốt nhất về sản phẩm RAM, từ thông số kỹ thuật, hiệu năng, đến khả năng tương thích và giá cả. Tôi có khả năng phân tích sâu về dữ liệu sản phẩm để đưa ra các đề xuất chính xác và hữu ích.
+Tôi là chuyên gia tư vấn và phân tích ổ cứng SSD của SSTC. Tôi trực tiếp hỗ trợ khách hàng và Mai để đưa ra những lời khuyên tốt nhất về sản phẩm SSD, từ thông số kỹ thuật, hiệu năng, đến khả năng tương thích và giá cả. Tôi có khả năng phân tích sâu về dữ liệu sản phẩm để đưa ra các đề xuất chính xác và hữu ích.
 
 ## Communication Style
 - **Tone**: Thân thiện, chuyên nghiệp, và tập trung vào việc cung cấp thông tin chính xác.
 - **Language**: Tiếng Việt là chính, có thể hỗ trợ tiếng Anh khi cần.
-- **Focus**: Cung cấp giải pháp toàn diện về RAM cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu.
+- **Focus**: Cung cấp giải pháp toàn diện về SSD cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu.
 
 ## Key Expertise Areas
 
 ### 1. Data Extraction & Analysis
-- **Technical Specifications**: Trích xuất thông số kỹ thuật từ cơ sở dữ liệu sản phẩm.
-- **Performance Metrics**: Phân tích hiệu năng dựa trên tốc độ, độ trễ, điện áp.
+- **Technical Specifications**: Trích xuất thông số kỹ thuật từ cơ sở dữ liệu sản phẩm (SATA, NVMe, M.2, Gen3, Gen4).
+- **Performance Metrics**: Phân tích hiệu năng dựa trên tốc độ đọc/ghi, IOPS, và TBW.
 - **Compatibility Analysis**: Phân tích tương thích với mainboard, CPU.
 - **Pricing Information**: Trích xuất thông tin giá cả và khuyến mãi.
 - **Availability Status**: Kiểm tra trạng thái tồn kho và giao hàng.
@@ -40,22 +40,22 @@ Tôi là chuyên gia tư vấn và phân tích bộ nhớ RAM của SSTC. Tôi t
 ### 2. Customer-Facing Consultation
 - **Product Recommendations**: Đưa ra danh sách sản phẩm được xếp hạng theo độ phù hợp.
 - **Technical Explanations**: Giải thích các thông số kỹ thuật một cách dễ hiểu.
-- **Use Case Analysis**: Phân tích và tư vấn RAM cho các nhu cầu cụ thể như Gaming, Sáng tạo nội dung, Văn phòng.
+- **Use Case Analysis**: Phân tích và tư vấn SSD cho các nhu cầu cụ thể như Gaming, Sáng tạo nội dung, Văn phòng.
 
 ## Technical Knowledge Base
-- **RAM Product Lines**: Generic DDR4, Generic DDR5.
-- **Key Technical Concepts**: CAS Latency, Bandwidth, Dual-channel, Overclocking (XMP/DOCP).
+- **SSD Product Lines**: Generic SATA, Generic NVMe.
+- **Key Technical Concepts**: Sequential Read/Write, Random IOPS, TBW Rating, Interface Types (SATA, NVMe).
 `;
 
-export class RAMSpecialist extends Agent {
+export class SSDSpecialist extends Agent {
 	constructor() {
 		super({
-			name: "RAM Specialist",
-			description: "Provides expert advice and data analysis for RAM products.",
-			instructions: RAM_SPECIALIST_PERSONALITY,
+			name: "SSD Specialist",
+			description: "Provides expert advice and data analysis for SSD products.",
+			instructions: SSD_SPECIALIST_PERSONALITY,
 			model: mastraModelProvider(),
 			tools: {
-				ramDatabaseTool,
+				ssdDatabaseTool,
 			},
 			memory: (() => {
 				const db = getLibSQLConfig();
@@ -83,30 +83,30 @@ export class RAMSpecialist extends Agent {
 			})(),
 		});
 
-		// Khởi tạo RAM Knowledge Base
+		// Initialize SSD Knowledge Base
 		this.initializeKnowledgeBase();
 	}
 
-	// Phương thức khởi tạo knowledge base
+	// Method to initialize knowledge base
 	private async initializeKnowledgeBase(): Promise<void> {
 		try {
-			console.log("🏗️ [RAM Specialist] Initializing RAM Knowledge Base...");
-			await ramKnowledgeBase.initialize();
+			console.log("🏗️ [SSD Specialist] Initializing SSD Knowledge Base...");
+			await ssdKnowledgeBase.initialize();
 			console.log(
-				"✅ [RAM Specialist] RAM Knowledge Base initialized successfully",
+				"✅ [SSD Specialist] SSD Knowledge Base initialized successfully",
 			);
 
-			// Hiển thị thống kê cơ bản
-			const stats = ramKnowledgeBase.getStatistics();
-			console.log("📊 [RAM Specialist] Knowledge Base Statistics:", {
+			// Display basic statistics
+			const stats = ssdKnowledgeBase.getStatistics();
+			console.log("📊 [SSD Specialist] Knowledge Base Statistics:", {
 				totalProducts: stats.totalProducts,
 				brands: stats.brands.length,
-				types: stats.types.length,
+				interfaces: stats.interfaces.length,
 				avgPrice: stats.avgPrice,
 			});
 		} catch (error) {
 			console.error(
-				"❌ [RAM Specialist] Failed to initialize Knowledge Base:",
+				"❌ [SSD Specialist] Failed to initialize Knowledge Base:",
 				error,
 			);
 		}
@@ -117,20 +117,20 @@ export class RAMSpecialist extends Agent {
 		message: string,
 		context: any = {},
 		conversationId?: string,
-	): Promise<RAMSpecialistData | null> {
+	): Promise<StorageSpecialistData | null> {
 		const startTime = Date.now();
-		console.log("🧠 [RAM Specialist] Generating structured recommendations", {
+		console.log("🧠 [SSD Specialist] Generating structured recommendations", {
 			messageLength: message.length,
 			conversationId,
 		});
 
 		try {
-			if (!ramKnowledgeBase.isReady()) {
+			if (!ssdKnowledgeBase.isReady()) {
 				console.warn(
-					"⚠️ [RAM Specialist] Knowledge Base not ready, attempting to initialize...",
+					"⚠️ [SSD Specialist] Knowledge Base not ready, attempting to initialize...",
 				);
-				await ramKnowledgeBase.initialize();
-				if (!ramKnowledgeBase.isReady()) {
+				await ssdKnowledgeBase.initialize();
+				if (!ssdKnowledgeBase.isReady()) {
 					throw new Error("Knowledge Base failed to initialize.");
 				}
 			}
@@ -142,30 +142,31 @@ export class RAMSpecialist extends Agent {
 
 			const extendedContext = { ...context, sharedContext };
 
-			// Use the knowledge base to search for RAMs
-			const searchResults = ramKnowledgeBase.searchRAMs({
+			// Use the knowledge base to search for SSDs
+			const searchResults = ssdKnowledgeBase.searchSSDs({
 				query: message,
 				capacity: extendedContext.capacity,
-				type: extendedContext.type,
-				speed: extendedContext.speed,
+				interface: extendedContext.interface,
 				formFactor: extendedContext.formFactor,
 				budget: extendedContext.budget,
 				useCase: extendedContext.useCase,
 			});
 
-			// Map searchResults (RAMProductInfo[]) to RAMSpecialistData
-			const specialistData: RAMSpecialistData = {
-				type: "ram",
+			// Map searchResults (SSDProductInfo[]) to StorageSpecialistData
+			const specialistData: StorageSpecialistData = {
+				type: "storage",
 				recommendations: searchResults.map((product) => ({
 					productId: product.sku,
 					productName: product.name,
 					specifications: {
-						type: product.type,
+						interface: product.interface as "SATA" | "NVMe",
 						capacity: product.capacity,
-						speed: product.speed,
-						latency: product.latency,
-						voltage: product.voltage,
+						readSpeed: product.readSpeed,
+						writeSpeed: product.writeSpeed,
 						formFactor: product.formFactor,
+						endurance: product.endurance,
+						controller: product.controller,
+						nandType: product.nandType,
 					},
 					price: product.price,
 					availability: product.stockStatus as
@@ -223,7 +224,7 @@ export class RAMSpecialist extends Agent {
 			};
 
 			console.log(
-				"✅ [RAM Specialist] Structured data retrieved from Knowledge Base",
+				"✅ [SSD Specialist] Structured data retrieved from Knowledge Base",
 				{
 					productsFound: specialistData.recommendations.length,
 					confidenceScore: specialistData.confidenceScore,
@@ -234,7 +235,7 @@ export class RAMSpecialist extends Agent {
 			return specialistData;
 		} catch (error: any) {
 			console.error(
-				"❌ [RAM Specialist] Failed to get structured recommendations from Knowledge Base:",
+				"❌ [SSD Specialist] Failed to get structured recommendations from Knowledge Base:",
 				error.message,
 			);
 			return null;
@@ -242,19 +243,19 @@ export class RAMSpecialist extends Agent {
 	}
 
 	// Method to generate a human-readable response from the data
-	generateHumanReadableResponse(data: RAMSpecialistData): string {
+	generateHumanReadableResponse(data: StorageSpecialistData): string {
 		if (!data || !data.recommendations || data.recommendations.length === 0) {
-			return "Xin lỗi, tôi không tìm thấy sản phẩm RAM nào phù hợp với yêu cầu của bạn.";
+			return "Xin lỗi, tôi không tìm thấy sản phẩm SSD nào phù hợp với yêu cầu của bạn.";
 		}
 
-		const { recommendations, analysis, confidenceScore } = data;
+		const { recommendations, technicalAnalysis, confidenceScore } = data;
 
-		let response = `Dựa trên phân tích, tôi có một vài đề xuất RAM cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
+		let response = `Dựa trên phân tích, tôi có một vài đề xuất SSD cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
 
 		recommendations.forEach((rec, index) => {
 			response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ\n`;
 			response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}\n`;
-			response += `   - **Thông số**: ${rec.specifications.capacity} ${rec.specifications.type}, ${rec.specifications.speed}, ${rec.specifications.latency}\n`;
+			response += `   - **Thông số**: ${rec.specifications.capacity} ${rec.specifications.interface}, Đọc ${rec.specifications.readSpeed}, Ghi ${rec.specifications.writeSpeed}\n`;
 			if (rec.recommendationScore > 8) {
 				// Assuming score is out of 10
 				response += `   - **Độ phù hợp**: Rất cao\n`;
@@ -263,44 +264,36 @@ export class RAMSpecialist extends Agent {
 			}
 		});
 
-		if (analysis.summary) {
-			response += `\n**Tóm tắt phân tích**: ${analysis.summary}\n`;
-		}
-
-		if (analysis.performance) {
-			response += `\n**Phân tích hiệu năng**: ${analysis.performance}\n`;
-		}
-
-		if (analysis.compatibility) {
-			response += `\n**Phân tích tương thích**: ${analysis.compatibility}\n`;
+		if (technicalAnalysis.keySpecifications) {
+			response += `\n**Tóm tắt thông số chính**:\n - Giao tiếp: ${technicalAnalysis.keySpecifications.interface}\n - Tốc độ đọc: ${technicalAnalysis.keySpecifications.readSpeed}\n - Tốc độ ghi: ${technicalAnalysis.keySpecifications.writeSpeed}\n`;
 		}
 
 		return response;
 	}
 
-	// Internal API methods delegating to ramKnowledgeBase
-	async getProductInfo(ramModel: string): Promise<RAMProductInfo | null> {
-		if (!ramKnowledgeBase.isReady()) {
-			console.warn("⚠️ [RAM Specialist] Knowledge Base not ready");
+	// Internal API methods delegating to ssdKnowledgeBase
+	async getProductInfo(ssdModel: string): Promise<SSDProductInfo | null> {
+		if (!ssdKnowledgeBase.isReady()) {
+			console.warn("⚠️ [SSD Specialist] Knowledge Base not ready");
 			return null;
 		}
-		return ramKnowledgeBase.getProductInfo(ramModel);
+		return ssdKnowledgeBase.getProductInfo(ssdModel);
 	}
 
-	async searchRAMs(criteria: SearchCriteria): Promise<RAMProductInfo[]> {
-		if (!ramKnowledgeBase.isReady()) {
-			console.warn("⚠️ [RAM Specialist] Knowledge Base not ready");
+	async searchSSDs(criteria: SearchCriteria): Promise<SSDProductInfo[]> {
+		if (!ssdKnowledgeBase.isReady()) {
+			console.warn("⚠️ [SSD Specialist] Knowledge Base not ready");
 			return [];
 		}
-		return ramKnowledgeBase.searchRAMs(criteria);
+		return ssdKnowledgeBase.searchSSDs(criteria);
 	}
 
 	async checkCompatibility(
-		ramModel: string,
+		ssdModel: string,
 		motherboardOrChipset: string,
 	): Promise<CompatibilityResult> {
-		if (!ramKnowledgeBase.isReady()) {
-			console.warn("⚠️ [RAM Specialist] Knowledge Base not ready");
+		if (!ssdKnowledgeBase.isReady()) {
+			console.warn("⚠️ [SSD Specialist] Knowledge Base not ready");
 			return {
 				isCompatible: false,
 				compatibleMotherboards: [],
@@ -308,31 +301,31 @@ export class RAMSpecialist extends Agent {
 				recommendations: ["Please initialize the knowledge base"],
 			};
 		}
-		return ramKnowledgeBase.checkCompatibility(ramModel, motherboardOrChipset);
+		return ssdKnowledgeBase.checkCompatibility(ssdModel, motherboardOrChipset);
 	}
 
-	async getAllRAMs(): Promise<RAMProductInfo[]> {
-		if (!ramKnowledgeBase.isReady()) {
-			console.warn("⚠️ [RAM Specialist] Knowledge Base not ready");
+	async getAllSSDs(): Promise<SSDProductInfo[]> {
+		if (!ssdKnowledgeBase.isReady()) {
+			console.warn("⚠️ [SSD Specialist] Knowledge Base not ready");
 			return [];
 		}
-		return ramKnowledgeBase.getAllRAMs();
+		return ssdKnowledgeBase.getAllSSDs();
 	}
 
 	isKnowledgeBaseReady(): boolean {
-		return ramKnowledgeBase.isReady();
+		return ssdKnowledgeBase.isReady();
 	}
 
 	getKnowledgeBaseStats(): any {
-		if (!ramKnowledgeBase.isReady()) {
+		if (!ssdKnowledgeBase.isReady()) {
 			return { ready: false };
 		}
 		return {
 			ready: true,
-			...ramKnowledgeBase.getStatistics(),
+			...ssdKnowledgeBase.getStatistics(),
 		};
 	}
 }
 
-// Export the single, unified RAM specialist instance
-export const ramSpecialist = new RAMSpecialist();
+// Export the single, unified SSD specialist instance
+export const ssdSpecialist = new SSDSpecialist();
