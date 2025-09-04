@@ -7,6 +7,7 @@ import { anDataAnalyst } from './agents/an-data-analyst';
 import { purchaseAgent } from './agents/purchase-agent';
 import { warrantyAgent } from './agents/warranty-agent';
 import { clarificationAgent } from './agents/clarification-agent';
+import { ramSpecialist } from './agents/ram-specialist';
 import { intentAnalyzerTool } from './tools/intent-analyzer';
 import { TelegramChannelAdapter } from './channels/telegram';
 import { ZaloChannelAdapter } from './channels/zalo';
@@ -22,7 +23,8 @@ export const mastra = new Mastra({
     anDataAnalyst,
     purchase: purchaseAgent,
     warranty: warrantyAgent,
-    clarification: clarificationAgent
+    clarification: clarificationAgent,
+    ram: ramSpecialist
   },
   storage: new LibSQLStore({
     // stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db

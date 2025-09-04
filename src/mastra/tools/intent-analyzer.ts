@@ -90,8 +90,26 @@ export const intentAnalyzerTool = createTool({
         return score + addedScore;
       }, 0);
 
+      // Check for RAM-specific keywords
+      const ramKeywords = ['ram', 'memory', 'ddr4', 'ddr5', 'bộ nhớ', 'ram desktop', 'ram laptop', 'dual channel', 'single channel'];
+      const foundRamKeywords = ramKeywords.filter(keyword => lowerMessage.includes(keyword));
+      let ramConfidence = 0;
+      
+      ramConfidence = foundRamKeywords.reduce((score, keyword) => {
+        const addedScore = lowerMessage.includes(keyword) ? 0.4 : 0;
+        if (addedScore > 0) {
+          reasoning.push(`Từ khóa RAM "${keyword}" được tìm thấy (+${addedScore} confidence)`);
+        }
+        return score + addedScore;
+      }, 0);
+
       // Determine primary intent
-      if (purchaseConfidence > warrantyConfidence && purchaseConfidence > 0.4) {
+      // Prioritize RAM-related queries as purchase intent
+      if (foundRamKeywords.length > 0 && ramConfidence > 0.3) {
+        primaryIntent = 'purchase';
+        purchaseConfidence = Math.max(purchaseConfidence, ramConfidence);
+        reasoning.push(`Phân loại intent: PURCHASE - RAM DETECTED (confidence boosted to ${purchaseConfidence.toFixed(2)})`);
+      } else if (purchaseConfidence > warrantyConfidence && purchaseConfidence > 0.4) {
         primaryIntent = 'purchase';
         reasoning.push(`Phân loại intent: PURCHASE (confidence: ${purchaseConfidence.toFixed(2)} > ${warrantyConfidence.toFixed(2)} và > 0.4)`);
       } else if (warrantyConfidence > purchaseConfidence && warrantyConfidence > 0.4) {

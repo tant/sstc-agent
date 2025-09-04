@@ -2,567 +2,272 @@
 
 ## Tổng quan
 
-Hệ thống agent tư vấn sản phẩm SSTC sử dụng **kiến trúc hybrid** kết hợp giữa một agent điều phối chính (Main Agent) và các agent chuyên môn (Specialized Agents) cho từng loại sản phẩm. Kiến trúc này tối ưu cho việc tư vấn các sản phẩm công nghệ phức tạp như PC build, RAM, SSD, và Barebone.
+Hệ thống agent tư vấn sản phẩm SSTC sử dụng **kiến trúc hybrid** kết hợp giữa một agent điều phối chính (Main Agent) và các agent chuyên môn (Specialized Agents) cho từng loại sản phẩm.
 
-## Kiến trúc Tổng thể
+## Kiến trúc Hiện Tại
 
+Hệ thống hiện đang vận hành theo mô hình **định tuyến trực tiếp** (Direct Routing), nơi các tin nhắn từ khách hàng được phân tích bởi An-Data-Analyst và sau đó được định tuyến trực tiếp đến agent chuyên trách phù hợp.
+
+### Luồng Xử Lý Hiện Tại
 ```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                           SSTC Agent Architecture                           ║
-║                           (Hybrid Multi-Agent System)                      ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                              MAIN AGENT                                   ║
-║                           ┌─────────────┐                                 ║
-║                           │  Mai Sale   │                                 ║
-║                           │ (Coordinator│                                 ║
-║                           │    Agent)   │                                 ║
-║                           └──────┬──────┘                                 ║
-║                                  │                                       ║
-║                    ┌─────────────┼─────────────┐                         ║
-║                    │             │             │                         ║
-║           ┌────────▼────────┐ ┌──▼──┐ ┌──────▼──────┐                   ║
-║           │   PC Build      │ │ RAM │ │     SSD     │                   ║
-║           │  Specialist     │ │     │ │ Specialist  │                   ║
-║           │                 │ │     │ │             │                   ║
-║           │ • CPU Selection │ │ •   │ │ • NVMe/SATA │                   ║
-║           │ • MB Compatibility││ DDR4│ │ • Capacity  │                   ║
-║           │ • RAM Matching  │ │ DDR5│ │ • Speed     │                   ║
-║           │ • SSD Selection │ │     │ │ • Use Case  │                   ║
-║           └────────┬────────┘ └─┬───┘ └──────┬──────┘                   ║
-║                    │             │             │                         ║
-║                    └─────────────┼─────────────┘                         ║
-║                                  │                                       ║
-║                         ┌────────▼────────┐                              ║
-║                         │   Barebone     │                              ║
-║                         │  Specialist    │                              ║
-║                         │                │                              ║
-║                         │ • Case Size    │                              ║
-║                         │ • MB Form      │                              ║
-║                         │ • Cooling      │                              ║
-║                         │ • Aesthetics   │                              ║
-║                         └─────────────────┘                              ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                           SHARED RESOURCES                                ║
-║                                                                          ║
-║  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐           ║
-║  │   Memory        │  │   RAG System    │  │   Workflows     │           ║
-║  │   (LibSQL)      │  │   (Chroma)      │  │   (Mastra)      │           ║
-║  │                 │  │                 │  │                 │           ║
-║  │ • User Profiles │  │ • Product DB    │  │ • Routing WF    │           ║
-║  │ • Conversation  │  │ • Compatibility │  │ • Consultation  │           ║
-║  │ • Preferences   │  │ • Search        │  │ • Handoff       │           ║
-║  └─────────────────┘  └─────────────────┘  └─────────────────┘           ║
-║                                                                          ║
-║  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐           ║
-║  │   Tools         │  │   Channels      │  │   Analytics     │           ║
-║  │                 │  │                 │  │                 │           ║
-║  │ • Compatibility │  │ • Telegram      │  │ • Performance   │           ║
-║  │ • Price Calc    │  │ • WhatsApp      │  │ • Conversion    │           ║
-║  │ • Product Search│  │ • Web Chat      │  │ • User Sat.     │           ║
-║  └─────────────────┘  └─────────────────┘  └─────────────────┘           ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                           DATA FLOW                                        ║
-║                                                                          ║
-║  User Query → Intent Analysis → Agent Routing → Specialized Consultation ║
-║                                                                          ║
-║  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ ║
-║  │  Customer   │───▶│ Main Agent  │───▶│ Specialist  │───▶│  Response   │ ║
-║  │   Input     │    │  (Mai)      │    │   Agent     │    │   &         │ ║
-║  └─────────────┘    └─────────────┘    └─────────────┘    │  Recommendations║
-║                                                          └─────────────┘ ║
-║                                                                          ║
-║  ⬆️                                                                    ⬆️ ║
-║  └────────────────────────────────────────────────────────────────────────┘ ║
-║              Memory Update & Learning Loop                                ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+Customer Message 
+    ↓
+An-Data-Analyst (phân tích intent)
+    ↓
+Agent Routing (chuyển tiếp trực tiếp)
+    ↓
+Specialized Agent (trả lời trực tiếp khách hàng)
 ```
 
-### Kiến trúc Chi tiết
+## Kiến trúc Mới Đề Xuất: Xử Lý Song Song
 
-#### 1. **Hierarchical Agent Structure**
+Để cải thiện trải nghiệm người dùng và hiệu suất hệ thống, chúng tôi đề xuất chuyển sang **kiến trúc xử lý song song** (Parallel Processing Architecture) với An-Data-Analyst làm trung tâm điều phối.
+
+### Luồng Xử Lý Mới
 ```
-Main Agent (maiSale)
-├── Coordination & Routing
-├── User Profile Management
-├── Consistency Assurance
-└── Final Recommendations
-
-Specialized Agents
-├── PC Build Specialist
-│   ├── CPU Selection Logic
-│   ├── Motherboard Compatibility
-│   ├── RAM Matching
-│   └── SSD Recommendations
-├── RAM Specialist
-│   ├── DDR4/DDR5 Analysis
-│   ├── Capacity Optimization
-│   ├── Speed/Latency Advice
-│   └── Motherboard Compatibility
-├── SSD Specialist
-│   ├── NVMe vs SATA Guidance
-│   ├── Capacity Planning
-│   ├── Performance Analysis
-│   └── Use Case Matching
-└── Barebone Specialist
-    ├── Case Size Selection
-    ├── Form Factor Matching
-    ├── Cooling System Design
-    └── Aesthetics Consultation
+Customer Message 
+    ↓
+An-Data-Analyst (phân tích intent)
+    ↓
+Decision Point:
+├── Không rõ intent → Mai xử lý trực tiếp
+└── Rõ intent → Parallel Processing:
+    ├── Specialist Agent (xử lý chuyên sâu, trả về dữ liệu)
+    └── Mai Agent (chuẩn bị response structure)
+    ↓
+Mai tổng hợp dữ liệu từ Specialist → Trả lời khách hàng
 ```
 
-#### 2. **Data Flow Architecture**
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   User Input    │───▶│ Intent Analysis │───▶│ Agent Routing  │
-│                 │    │                 │    │                 │
-│ • Text Message  │    │ • NLP Processing│    │ • Rule Engine   │
-│ • Context       │    │ • Intent Class. │    │ • Agent Select  │
-│ • User Profile  │    │ • Entity Extract│    │ • Handoff       │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                        │
-                                                        ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│Specialized Agent│───▶│Consultation Flow│───▶│Recommendation  │
-│                 │    │                 │    │Generation       │
-│ • Domain Expert │    │ • Question Tree │    │                 │
-│ • Product DB    │    │ • Compatibility │    │ • Top 3 Options │
-│ • RAG Search    │    │ • Price Calc    │    │ • Pros/Cons     │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                                                        │
-                                                        ▼
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Response      │───▶│ Memory Update   │───▶│ Analytics      │
-│   Formatting    │    │                 │    │                 │
-│                 │    │ • User Profile  │    │ • Performance   │
-│ • Natural Lang. │    │ • Preferences   │    │ • Conversion    │
-│ • Recommendations│    │ • History      │    │ • Satisfaction  │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
+### Lợi Ích Chính Của Kiến Trúc Mới
 
-#### 3. **Memory Architecture**
-```
-Shared Memory (Resource Scope)
-├── User Profiles
-│   ├── Personal Information
-│   ├── Purchase History
-│   ├── Preferences
-│   └── Interaction History
-├── Product Knowledge
-│   ├── Compatibility Rules
-│   ├── Price Information
-│   └── Technical Specifications
-└── Conversation Context
-    ├── Current Session
-    ├── Previous Interactions
-    └── Agent Handoffs
+#### 1. Trải Nghiệm Người Dùng Tốt Hơn
+- **Thời gian phản hồi nhanh hơn**: Mai bắt đầu xử lý ngay lập tức
+- **Thông báo minh bạch**: Khách hàng được thông báo rõ ràng khi cần chờ
+- **Tương tác tự nhiên**: Luôn tương tác với Mai - nhân viên quen thuộc
 
-Agent-Specific Memory (Thread Scope)
-├── PC Build Specialist
-│   ├── Build Configurations
-│   ├── Compatibility Checks
-│   └── Price Calculations
-├── RAM Specialist
-│   ├── Memory Requirements
-│   ├── Motherboard Compatibility
-│   └── Performance Metrics
-├── SSD Specialist
-│   ├── Storage Needs
-│   ├── Performance Requirements
-│   └── Use Case Analysis
-└── Barebone Specialist
-    ├── Case Requirements
-    ├── Component Fit
-    └── Cooling Needs
-```
+#### 2. Kiến Trúc Linh Hoạt
+- **Dễ mở rộng**: Thêm specialist mới mà không thay đổi workflow chính
+- **Tách biệt concerns**: An-Data-Analyst tập trung phân tích, Mai tập trung giao tiếp
+- **Quản lý lỗi tốt**: Cơ chế timeout/retry rõ ràng
 
-#### 4. **Integration Points**
-```
-External Systems Integration
-├── Product Database (Excel/ERP)
-│   ├── Real-time Sync
-│   ├── Inventory Updates
-│   └── Price Changes
-├── Communication Channels
-│   ├── Telegram Bot
-│   ├── WhatsApp Business
-│   ├── Web Chat Widget
-│   └── Voice Integration
-├── Analytics & Monitoring
-│   ├── User Behavior
-│   ├── Conversion Tracking
-│   ├── Agent Performance
-│   └── System Health
-└── Business Intelligence
-    ├── Sales Forecasting
-    ├── Customer Insights
-    └── Product Recommendations
-```
+#### 3. Hiệu Suất Tối Ưu
+- **Xử lý song song**: Tận dụng tối đa tài nguyên hệ thống
+- **Tối ưu thời gian**: Giảm thời gian chờ cảm nhận của khách hàng
 
-#### 5. **Workflow Routing Diagram**
+## Chi Tiết Triển Khai Kiến Trúc Mới
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        WORKFLOW ROUTING SYSTEM                            ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+### Phase 1: Core Infrastructure (Tuần 1-2)
 
-┌─────────────────┐
-│   User Message  │
-│  "Tôi muốn mua  │
-│    PC gaming"   │
-└─────────┬───────┘
-          │
-          ▼
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                         INTENT ANALYSIS                                   ║
-║                                                                          ║
-║  ┌─────────────────────────────────────────────────────────────────────┐ ║
-║  │                    Main Agent (maiSale)                             │ ║
-║  │                                                                     │ ║
-║  │  Input: "Tôi muốn mua PC gaming"                                   │ ║
-║  │                                                                     │ ║
-║  │  Analysis:                                                         │ ║
-║  │  • Intent: pc-build                                                │ ║
-║  │  • Confidence: 0.95                                                │ ║
-║  │  • Entities: ["gaming", "pc"]                                      │ ║
-║  │  • Budget: unknown                                                 │ ║
-║  │                                                                     │ ║
-║  └─────────────────────────────────────────────────────────────────────┘ ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-          │
-          ▼
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                         AGENT ROUTING                                     ║
-║                                                                          ║
-║  ┌─────────────────────────────────────────────────────────────────────┐ ║
-║  │                    Routing Decision                                 │ ║
-║  │                                                                     │ ║
-║  │  Intent: pc-build → PC Build Specialist                            │ ║
-║  │  Intent: ram → RAM Specialist                                      │ ║
-║  │  Intent: ssd → SSD Specialist                                      │ ║
-║  │  Intent: barebone → Barebone Specialist                            │ ║
-║  │                                                                     │ ║
-║  │  Context Transfer:                                                 │ ║
-║  │  • User Profile                                                    │ ║
-║  │  • Conversation History                                            │ ║
-║  │  • Previous Preferences                                            │ ║
-║  └─────────────────────────────────────────────────────────────────────┘ ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-          │
-          ▼
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                     SPECIALIZED CONSULTATION                              ║
-║                                                                          ║
-║  ┌─────────────────────────────────────────────────────────────────────┐ ║
-║  │                PC Build Specialist                                  │ ║
-║  │                                                                     │ ║
-║  │  Step 1: Ask Budget → "Budget của bạn là bao nhiêu?"               │ ║
-║  │  Step 2: Analyze Use Case → Gaming PC Configuration                │ ║
-║  │  Step 3: CPU Selection → Intel i5/i7 or AMD Ryzen 5/7              │ ║
-║  │  Step 4: Motherboard Match → Compatible chipset                    │ ║
-║  │  Step 5: RAM Recommendation → DDR4/DDR5 based on CPU               │ ║
-║  │  Step 6: SSD Selection → NVMe for performance                      │ ║
-║  │  Step 7: Compatibility Check → All components compatible           │ ║
-║  │  Step 8: Price Calculation → Within budget                         │ ║
-║  │  Step 9: Generate Options → Top 3 configurations                   │ ║
-║  └─────────────────────────────────────────────────────────────────────┘ ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-          │
-          ▼
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                         RESPONSE & HANDOFF                                ║
-║                                                                          ║
-║  ┌─────────────────────────────────────────────────────────────────────┐ ║
-║  │                    Final Response                                   │ ║
-║  │                                                                     │ ║
-║  │  "Dựa trên nhu cầu gaming của bạn với budget X triệu,              │ ║
-║  │   tôi khuyến nghị 3 cấu hình sau:                                  │ ║
-║  │                                                                     │ ║
-║  │   1. Cấu hình cơ bản: CPU i5, 16GB RAM, GTX 1660...               │ ║
-║  │   2. Cấu hình trung cấp: CPU i7, 32GB RAM, RTX 3060...            │ ║
-║  │   3. Cấu hình cao cấp: CPU i9, 64GB RAM, RTX 4070...              │ ║
-║  │                                                                     │ ║
-║  │   Bạn muốn tôi giải thích chi tiết cấu hình nào không?"            │ ║
-║  └─────────────────────────────────────────────────────────────────────┘ ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-```
+#### 1.1 Cải Tiến An-Data-Analyst
+**File ảnh hưởng**: `/src/mastra/agents/an-data-analyst.ts`
 
-#### 6. **Memory Flow Diagram**
+**Công việc cần làm**:
+- Bổ sung logic xác định specialist dựa trên keywords
+- Thêm confidence scoring cho routing decisions
+- Chuẩn bị context data cho xử lý song song
+- Cập nhật tool intent analyzer với logic routing nâng cao
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                          MEMORY FLOW ARCHITECTURE                          ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+#### 1.2 Framework Xử Lý Song Song
+**Tạo mới**: `/src/mastra/core/parallel-processing/framework.ts`
 
-╔═══════════════╗    ╔══════════════════╗    ╔══════════════════════════════╗
-║   User Input  ║───▶║  Intent Analysis ║───▶║    Agent Selection           ║
-║               ║    ║                  ║    ║                              ║
-║ • Message     ║    ║ • NLP Processing ║    ║ • Route to Specialist        ║
-║ • Context     ║    ║ • Entity Extract ║    ║ • Context Transfer           ║
-║ • History     ║    ║ • Intent Class.  ║    ║ • Memory Inheritance         ║
-╚═══════════════╝    ╚══════════════════╝    ╚══════════════════════════════╝
-         │                     │                        │
-         │                     │                        │
-         ▼                     ▼                        ▼
-╔═══════════════╗    ╔══════════════════╗    ╔══════════════════════════════╗
-║Shared Memory  ║    ║ Agent Memory     ║    ║  Specialized Memory          ║
-║(Resource)     ║    ║ (Thread)         ║    ║  (Domain Specific)           ║
-╠═══════════════╣    ╠══════════════════╣    ╠══════════════════════════════╣
-║ • User Profile║    ║ • Session State  ║    ║ • Domain Knowledge           ║
-║ • Preferences ║    ║ • Temp Data      ║    ║ • Product Expertise          ║
-║ • History     ║    ║ • Working Notes  ║    ║ • Compatibility Rules        ║
-║ • Purchase Rec║    ║ • Current Task   ║    ║ • Technical Specifications   ║
-╚═══════════════╝    ╚══════════════════╝    ╚══════════════════════════════╝
-         ▲                     ▲                        ▲
-         │                     │                        │
-         │                     │                        │
-╔═══════════════╗    ╔══════════════════╗    ╔══════════════════════════════╗
-║   Response    ║◀───║  Memory Update   ║◀───║    Consultation Result        ║
-║   Generation  ║    ║                  ║    ║                              ║
-║               ║    ║ • Update Profile ║    ║ • Product Recommendations     ║
-║ • Final Answer║    ║ • Save Preferences║    ║ • Technical Details          ║
-║ • Suggestions ║    ║ • Log Interaction║    ║ • Compatibility Info          ║
-╚═══════════════╝    ╚══════════════════╝    ╚══════════════════════════════╝
+**Công việc cần làm**:
+- Tạo interface ParallelProcessingFramework với các phương thức:
+  - initiateParallelProcessing: Khởi tạo xử lý song song
+  - waitForSpecialistData: Chờ dữ liệu từ specialist với timeout
+  - handleTimeoutScenario: Xử lý kịch bản timeout
+- Implement cơ chế quản lý processing sessions
+- Tạo hệ thống tracking cho các xử lý đang chạy
 
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        MEMORY SYNCHRONIZATION                             ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+#### 1.3 Cơ Chế Timeout/Retry
+**Tạo mới**: `/src/mastra/core/parallel-processing/timeout-manager.ts`
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                          Memory Sync Process                               │
-│                                                                           │
-│  1. Agent receives context from Main Agent                               │
-│     ├── User profile (resource scope)                                    │
-│     ├── Conversation history                                             │
-│     └── Previous preferences                                             │
-│                                                                           │
-│  2. Agent loads domain-specific memory                                   │
-│     ├── Product knowledge                                                │
-│     ├── Compatibility rules                                              │
-│     └── Technical specifications                                         │
-│                                                                           │
-│  3. Consultation process updates memory                                  │
-│     ├── Working memory (current session)                                 │
-│     ├── User preferences (learned)                                       │
-│     └── Product recommendations                                          │
-│                                                                           │
-│  4. Memory sync back to shared storage                                   │
-│     ├── Update user profile                                              │
-│     ├── Save conversation context                                        │
-│     └── Log agent performance                                            │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+**Công việc cần làm**:
+- Tạo class TimeoutManager với chiến lược timeout progressive
+- Implement waitForData với Promise.race để timeout handling
+- Tạo progressiveRetry với exponential backoff
+- Thêm logging và monitoring cho timeout events
 
-#### 7. **Integration Flow Diagram**
+### Phase 2: Cải Tiến Mai Agent (Tuần 2)
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                        INTEGRATION FLOW                                   ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+#### 2.1 Khả Năng Nhận Dữ Liệu Từ Specialist
+**File ảnh hưởng**: `/src/mastra/agents/mai-agent.ts`
 
-╔══════════════════════════════╗
-║        External Systems      ║
-╚══════════════════════════════╝
-                │
-                ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║     Product Database         ║    ║    Communication Channels    ║
-║     (Excel/ERP System)       ║    ║                              ║
-╠══════════════════════════════╣    ╠══════════════════════════════╣
-║ • Real-time data sync        ║    ║ • Telegram Bot API          ║
-║ • Inventory updates          ║    ║ • WhatsApp Business API     ║
-║ • Price changes              ║    ║ • Web Chat Widget           ║
-║ • New product additions      ║    ║ • Voice Integration         ║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-                │                              │
-                └──────────────────────────────┘
-                               │
-                               ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║      Data Processing Layer   ║    ║       Memory System          ║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-                │
-                ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║        RAG System            ║    ║       Memory System          ║
-║        (Chroma)              ║    ║       (LibSQL)               ║
-╠══════════════════════════════╣    ╠══════════════════════════════╣
-║ • Document chunking          ║    ║ • User profiles             ║
-║ • Vector embeddings          ║    ║ • Conversation history      ║
-║ • Similarity search          ║    ║ • Preferences               ║
-║ • Product recommendations     ║    ║ • Agent state              ║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-                │                              │
-                └──────────────────────────────┘
-                               │
-                               ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║     Agent Orchestration      ║    ║     Analytics & Monitoring   ║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-                │
-                ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║   Workflow Engine            ║    ║     Analytics & Monitoring   ║
-║   (Mastra)                   ║    ║                              ║
-╠══════════════════════════════╣    ╠══════════════════════════════╣
-║ • Intent analysis            ║    ║ • User behavior tracking     ║
-║ • Agent routing              ║    ║ • Conversion metrics         ║
-║ • Consultation flows         ║    ║ • Agent performance          ║
-║ • Response generation        ║    ║ • System health             ║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-                │                              │
-                └──────────────────────────────┘
-                               │
-                               ▼
-╔══════════════════════════════╗    ╔══════════════════════════════╗
-║      Response Delivery       ║    ║     Error Handling & Fallback║
-╚══════════════════════════════╝    ╚══════════════════════════════╝
-```
+**Công việc cần làm**:
+- Bổ sung khả năng xử lý dữ liệu từ specialist
+- Implement data validation logic cho specialist inputs
+- Tạo error handling mechanisms cho dữ liệu không đầy đủ
+- Cập nhật instructions cho Mai với khả năng mới
 
-#### 8. **Real-time Communication Flow**
+#### 2.2 Templates Phản Hồi Theo Loại Dữ Liệu
+**Tạo mới**: `/src/mastra/agents/mai-agent/response-templates.ts`
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                   REAL-TIME COMMUNICATION FLOW                            ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+**Công việc cần làm**:
+- Tạo response templates cho từng loại specialist data (RAM, GPU, CPU, v.v.)
+- Implement template selection logic dựa trên loại dữ liệu nhận được
+- Thêm timeout communication templates
+- Tạo progress indication templates
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           User Interaction                                 │
-│                                                                           │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Message   │───▶│  Channel   │───▶│   Queue     │───▶│   Agent     │ │
-│  │   Input     │    │  Adapter   │    │   System    │    │   System    │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-│         │                │                     │                │          │
-│         │                │                     │                │          │
-│         ▼                ▼                     ▼                ▼          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Telegram  │    │   Webhook   │    │   Redis     │    │   Mastra    │ │
-│  │   Bot API   │    │   Handler   │    │   Queue     │    │   Engine    │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+### Phase 3: Chuyển Đổi RAM Specialist (Tuần 3)
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Agent Processing Flow                              │
-│                                                                           │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Intent    │───▶│   Route     │───▶│   Consult   │───▶│   Generate  │ │
-│  │   Analysis  │    │   Agent     │    │   Agent     │    │   Response  │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-│         │                │                     │                │          │
-│         │                │                     │                │          │
-│         ▼                ▼                     ▼                ▼          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   NLP       │    │   Workflow  │    │   RAG       │    │   Template   │ │
-│  │   Engine    │    │   Engine    │    │   Search    │    │   Engine    │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
+#### 3.1 Thay Đổi Từ Trả Lời Sang Cung Cấp Dữ Liệu
+**File ảnh hưởng**: `/src/mastra/agents/ram-specialist.ts`
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Response Delivery Flow                              │
-│                                                                           │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Format    │───▶│   Channel   │───▶│   Send      │───▶│   Track     │ │
-│  │   Response  │    │   Adapter   │    │   Message   │    │   Metrics   │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-│         │                │                     │                │          │
-│         │                │                     │                │          │
-│         ▼                ▼                     ▼                ▼          │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │   Markdown  │    │   Telegram  │    │   API       │    │   Analytics │ │
-│  │   to Text   │    │   API       │    │   Call      │    │   System    │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+**Công việc cần làm**:
+- Chuyển đổi RAM specialist từ customer-facing responder sang data provider
+- Bổ sung structured data output formats
+- Thêm technical analysis capabilities
+- Implement recommendation scoring system
 
-#### 9. **Error Handling & Fallback Flow**
+#### 3.2 Định Dạng Dữ Liệu Chuẩn Cho Specialist
+**Tạo mới**: `/src/mastra/core/models/specialist-data-models.ts`
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                     ERROR HANDLING & FALLBACK                             ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+**Công việc cần làm**:
+- Tạo interface SpecialistData với các fields cần thiết
+- Định nghĩa ProductRecommendation interface
+- Thêm processing metadata fields
+- Implement data validation và normalization logic
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                         Error Scenarios                                    │
-│                                                                           │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐       │
-│  │   Agent Error   │    │   System Error  │    │   Timeout       │       │
-│  │                 │    │                 │    │                 │       │
-│  │ • Model failure │    │ • DB down       │    │ • Long response │       │
-│  │ • API limit     │    │ • Network issue │    │ • Stuck agent   │       │
-│  │ • Bad input     │    │ • Service crash │    │ • Queue full    │       │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘       │
-│         │                │                     │                         │
-│         ▼                ▼                     ▼                         │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐       │
-│  │   Detect Error  │    │   Fallback      │    │   Retry Logic   │       │
-│  │                 │    │   Strategy      │    │                 │       │
-│  │ • Error type    │    │ • Simple resp   │    │ • Exponential   │       │
-│  │ • Severity      │    │ • Main agent    │    │ • Max retries   │       │
-│  │ • Context       │    │ • Manual        │    │ • Circuit break │       │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘       │
-└─────────────────────────────────────────────────────────────────────────────┘
+### Phase 4: Workflow Integration (Tuần 4)
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                      Fallback Hierarchy                                   │
-│                                                                           │
-│  1. Try Specialized Agent → 2. Fallback to Main Agent                    │
-│     ├── Same domain fallback      ├── General consultation               │
-│     └── Simplified response       └── Basic recommendations              │
-│                                                                           │
-│  3. Try Cached Response → 4. Static Response                             │
-│     ├── Previous similar query    ├── Predefined answers                │
-│     └── Template-based response   └── Contact human support              │
-│                                                                           │
-│  5. Error Notification → 6. System Recovery                              │
-│     ├── Alert developers         ├── Restart services                    │
-│     └── Log incident             └── Failover to backup                  │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+#### 4.1 Cập Nhật Message Processor Workflow
+**File ảnh hưởng**: `/src/mastra/workflows/message-processor.ts`
 
-#### 10. **Performance Monitoring Dashboard**
+**Công việc cần làm**:
+- Cập nhật workflow với mô hình xử lý song song
+- Thêm parallel processing initiation logic
+- Implement data synchronization giữa Mai và specialist
+- Thêm timeout/retry handling trong workflow
 
-```
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                   PERFORMANCE MONITORING DASHBOARD                        ║
-╚══════════════════════════════════════════════════════════════════════════════╝
+#### 4.2 Hệ Thống Quản Lý Context Chia Sẻ
+**Tạo mới**: `/src/mastra/core/memory/shared-context-manager.ts`
 
-╔═══════════════╗    ╔═══════════════╗    ╔═══════════════╗    ╔═══════════════╗
-║ Response Time ║    ║  Throughput   ║    ║   Accuracy    ║    ║ User Sat.     ║
-║               ║    ║               ║    ║               ║    ║               ║
-║ • Avg: 2.3s   ║    ║ • 150 req/min ║    ║ • 94.2%       ║    ║ • 4.6/5       ║
-║ • P95: 4.1s   ║    ║ • Peak: 300   ║    ║ • Intent: 96% ║    ║ • +12% MoM    ║
-║ • P99: 8.2s   ║    ║ • Error: 2%   ║    ║ • Route: 98%  ║    ║ • Target: 4.8 ║
-╚═══════════════╝    ╚═══════════════╝    ╚═══════════════╝    ╚═══════════════╝
+**Công việc cần làm**:
+- Tạo SharedContextManager để quản lý context chia sẻ
+- Implement createContextBundle để tạo context bundle
+- Thêm updateContextWithSpecialistData để cập nhật context
+- Tạo conflict resolution mechanisms
 
-╔═══════════════╗    ╔═══════════════╗    ╔═══════════════╗    ╔═══════════════╗
-║ Agent Usage   ║    ║ Memory Usage  ║    ║ Error Rates   ║    ║ Cost Analysis ║
-║               ║    ║               ║    ║               ║    ║               ║
-║ • Main: 35%   ║    ║ • RAM: 2.1GB  ║    ║ • Total: 1.2% ║    ║ • $0.023/req  ║
-║ • PC Build:25%║    ║ • Disk: 45GB ║    ║ • Agent: 0.8% ║    ║ • $450/month   ║
-║ • RAM: 20%    ║    ║ • Cache: 89%  ║    ║ • System:0.4% ║    ║ • Budget: $600 ║
-║ • SSD: 12%    ║    ║               ║    ║               ║    ║               ║
-║ • Barebone:8% ║    ║               ║    ║               ║    ║               ║
-╚═══════════════╝    ╚═══════════════╝    ╚═══════════════╝    ╚═══════════════╝
+## Timeline Triển Khai Chi Tiết
 
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                        Real-time Metrics                                  │
-│                                                                           │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │ Active Users│    │ Queue Depth │    │ CPU Usage   │    │ Memory      │ │
-│  │ • Current:47│    │ • Messages:3│    │ • System:23%│    │ • Used: 2.1G│ │
-│  │ • Peak: 156 │    │ • Processing│    │ • User: 45% │    │ • Free: 4.2G│ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-│                                                                           │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐ │
-│  │ Conversions │    │ Error Rate  │    │ Avg Resp   │    │ Uptime      │ │
-│  │ • Today: 23 │    │ • Last Hr:0%│    │ • Time:2.1s│    │ • 99.97%     │ │
-│  │ • Week: 145 │    │ • Last Day:│    │ • Target:<3s│    │ • SLA: 99.9% │ │
-│  └─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘ │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
+### Tuần 1: Core Infrastructure
+**Ngày 1-3**: Thiết kế Parallel Processing Framework
+- Thiết kế interfaces và data structures
+- Xây dựng timeout/retry mechanisms
+- Tạo skeleton code cho framework components
+
+**Ngày 4-5**: Implement Parallel Processing Core
+- Implement ParallelProcessingFramework
+- Implement TimeoutManager
+- Tạo context management utilities
+
+**Ngày 6-7**: Testing và Integration
+- Unit testing framework components
+- Integration testing với existing workflow
+- Hoàn thiện documentation
+
+### Tuần 2: Mai Agent Enhancement
+**Ngày 1-2**: Data Reception Interface
+- Cập nhật Mai agent với khả năng nhận dữ liệu
+- Implement data validation logic
+- Tạo error handling mechanisms
+
+**Ngày 3-4**: Response Synthesis Engine
+- Implement template-based response generation
+- Tạo natural language synthesis từ structured data
+- Thêm personality preservation mechanisms
+
+**Ngày 5-7**: Timeout Handling
+- Implement customer communication during delays
+- Tạo progress indication systems
+- Thêm retry coordination logic
+
+### Tuần 3: Specialist Transformation
+**Ngày 1-3**: RAM Specialist Restructuring
+- Chuyển đổi RAM specialist từ responder sang data provider
+- Implement structured data output formats
+- Thêm technical analysis capabilities
+
+**Ngày 4-5**: Data Model Standardization
+- Tạo standardized data models cho tất cả specialists
+- Implement data validation và normalization
+- Thêm compatibility checking logic
+
+**Ngày 6-7**: Testing và Optimization
+- Test specialist data output quality
+- Tối ưu processing performance
+- Validate data consistency
+
+### Tuần 4: Workflow Integration
+**Ngày 1-2**: Workflow Restructuring
+- Cập nhật message processor workflow
+- Implement parallel processing initiation
+- Thêm data synchronization logic
+
+**Ngày 3-4**: Context Management Enhancement
+- Implement shared context management
+- Thêm context versioning và synchronization
+- Tạo conflict resolution mechanisms
+
+**Ngày 5-7**: End-to-End Testing
+- Full system integration testing
+- Performance optimization
+- User experience validation
+
+## Risk Mitigation Strategies
+
+### 1. Performance Risks
+**Risk**: Increased resource usage from parallel processing
+**Mitigation**: 
+- Implement resource monitoring và alerts
+- Add load balancing cho high-traffic periods
+- Create graceful degradation cho resource constraints
+
+### 2. Data Consistency Risks
+**Risk**: Race conditions giữa Mai và specialists
+**Mitigation**:
+- Implement data versioning và timestamps
+- Add data integrity checks và validation
+- Create rollback mechanisms cho inconsistent data
+
+### 3. User Experience Risks
+**Risk**: Confusing timeout communications
+**Mitigation**:
+- A/B testing different timeout messages
+- Implement progressive timeout escalation
+- Add customer preference settings cho communication style
+
+### 4. Technical Debt Risks
+**Risk**: Complex codebase với multiple coordination points
+**Mitigation**:
+- Comprehensive documentation và diagrams
+- Regular code reviews và refactoring
+- Automated testing cho all coordination scenarios
+
+## Success Metrics
+
+### Technical Metrics
+- **Response Time**: <2 seconds cho 95% requests
+- **Timeout Rate**: <5% specialist requests
+- **Error Rate**: <1% system errors
+- **Resource Usage**: <20% CPU utilization during peak
+
+### User Experience Metrics
+- **Customer Satisfaction**: >4.5/5 rating
+- **Response Quality**: >90% relevant responses
+- **Wait Time Perception**: <10% customer complaints about delays
+
+### Business Metrics
+- **Conversion Rate**: 15% improvement in product inquiries to sales
+- **Customer Retention**: 20% improvement in return customers
+- **Support Efficiency**: 25% reduction in follow-up questions
+
+## Rollback Plan
+
+If implementation faces critical issues:
+
+1. **Immediate Rollback**: Revert to direct routing within 2 hours
+2. **Incremental Rollout**: Deploy to subset of users for testing
+3. **Feature Flag**: Implement toggle to switch between architectures
+4. **Monitoring**: Enhanced observability for rapid issue detection
+
+This approach provides a balanced evolution of the current system while significantly improving the customer experience and maintaining system reliability.

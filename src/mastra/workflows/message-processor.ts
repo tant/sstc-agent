@@ -257,7 +257,18 @@ export const channelMessageWorkflow = createWorkflow({
       let agentType: string;
 
       // Agent routing logic based on intent analysis
-      if (intentType === 'purchase' && confidence >= 0.6) {
+      // Check if this is a RAM-related query
+      const lowerMessage = message.content.toLowerCase();
+      const ramKeywords = ['ram', 'memory', 'ddr4', 'ddr5', 'bộ nhớ', 'ram desktop', 'ram laptop'];
+      const foundRamKeywords = ramKeywords.filter(keyword => lowerMessage.includes(keyword));
+      
+      // Enhanced routing logic with direct keyword matching for RAM queries
+      if (foundRamKeywords.length > 0) {
+        // Route any RAM-related queries to RAM specialist regardless of intent classification
+        selectedAgent = mastra.getAgent('ram');
+        agentType = 'ram';
+        console.log('🎯 [Workflow] Direct RAM keyword match, routing to RAM specialist');
+      } else if (intentType === 'purchase' && confidence >= 0.6) {
         selectedAgent = mastra.getAgent('purchase');
         agentType = 'purchase';
       } else if (intentType === 'warranty' && confidence >= 0.6) {
