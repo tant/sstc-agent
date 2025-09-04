@@ -18,14 +18,14 @@ dotenv.config();
  */
 
 import * as fs from 'fs/promises'; // Use promise-based fs
-import * as path from 'path';
+import path from 'path';
 import csvParser from 'csv-parser';
-import { createClient, type Client } from '@libsql/client';
+import { createClient, type Client, type InValue } from '@libsql/client';
 import { Readable } from 'stream';
 
 // Import project modules
-import { chromaVector } from '../src/mastra/vector/chroma.js';
-// We will create the embedder instance locally in main()
+// We will create the chroma and embedder instances locally in main()
+import { ChromaVector } from '@mastra/chroma';
 import { createOpenAI } from '@ai-sdk/openai';
 
 // --- CONFIGURATION ---
@@ -100,6 +100,65 @@ interface ProductData {
   Noise?: string;
 }
 
+// --- SCHEMA DEFINITION ---
+
+/**
+ * Single source of truth for the product database schema.
+ * This drives the CREATE TABLE statement, INSERT statement, and data mapping.
+ */
+const PRODUCT_SCHEMA: { name: string; type: string; value: (p: ProductData) => InValue }[] = [
+  { name: 'sku', type: 'TEXT PRIMARY KEY', value: (p) => p.SKU },
+  { name: 'name', type: 'TEXT NOT NULL', value: (p) => p['Tên sản phẩm'] },
+  { name: 'model', type: 'TEXT', value: (p) => p.Model ?? null },
+  { name: 'price', type: 'REAL', value: (p) => (p.Giá ? parseFloat(p.Giá.replace(/[^\d.]/g, '')) : null) },
+  { name: 'warranty', type: 'TEXT', value: (p) => p.Warranty ?? null },
+  { name: 'availability', type: 'TEXT', value: (p) => p.Availability ?? null },
+  { name: 'rating', type: 'TEXT', value: (p) => p.Rating ?? null },
+  { name: 'tags', type: 'TEXT', value: (p) => p.Tags ?? null },
+  { name: 'image_url', type: 'TEXT', value: (p) => p.Image_URL ?? null },
+  { name: 'comparison_with_other_models', type: 'TEXT', value: (p) => p['Comparison with Other Models'] ?? null },
+  { name: 'upsell_suggestions', type: 'TEXT', value: (p) => p['Upsell Suggestions'] ?? null },
+  { name: 'sales_pitch', type: 'TEXT', value: (p) => p['Sales Pitch'] ?? null },
+  { name: 'bundles', type: 'TEXT', value: (p) => p.Bundles ?? null },
+  { name: 'suitable_applications', type: 'TEXT', value: (p) => p['Suitable Applications'] ?? null },
+  { name: 'type', type: 'TEXT', value: (p) => p['Ráp cho'] ?? null },
+  { name: 'category', type: 'TEXT', value: (p) => p['Loại sản phẩm'] ?? null },
+  { name: 'compatible_cpu', type: 'TEXT', value: (p) => p['Tương thích CPU'] ?? null },
+  { name: 'linked_system_model', type: 'TEXT', value: (p) => p['Linked System Model'] ?? null },
+  { name: 'speed', type: 'TEXT', value: (p) => p.speed ?? null },
+  { name: 'latency', type: 'TEXT', value: (p) => p.latency ?? null },
+  { name: 'voltage', type: 'TEXT', value: (p) => p.voltage ?? null },
+  { name: 'form_factor', type: 'TEXT', value: (p) => p.form_factor ?? null },
+  { name: 'ecc', type: 'TEXT', value: (p) => p.ecc ?? null },
+  { name: 'brand', type: 'TEXT', value: (p) => p.brand ?? null },
+  { name: 'quantity', type: 'TEXT', value: (p) => p.quantity ?? null },
+  { name: 'channel', type: 'TEXT', value: (p) => p.channel ?? null },
+  { name: 'usp', type: 'TEXT', value: (p) => p.USP ?? null },
+  { name: 'recommended_use', type: 'TEXT', value: (p) => p['Recommended_Use'] ?? null },
+  { name: 'benchmark_score', type: 'TEXT', value: (p) => p['Benchmark Score (Read/Write MB/s)'] ?? null },
+  { name: 'power_consumption', type: 'TEXT', value: (p) => p['Power Consumption (W)'] ?? null },
+  { name: 'tdp', type: 'TEXT', value: (p) => p.TDP ?? null },
+  { name: 'price_per_performance', type: 'TEXT', value: (p) => p['Price per Performance'] ?? null },
+  { name: 'future_proofing', type: 'TEXT', value: (p) => p['Future Proofing'] ?? null },
+  { name: 'benchmarks_passmark', type: 'TEXT', value: (p) => p['Benchmarks (PassMark)'] ?? null },
+  { name: 'power_supply', type: 'TEXT', value: (p) => p['Power Supply (W)'] ?? null },
+  { name: 'level', type: 'TEXT', value: (p) => p.Level ?? null },
+  { name: 'system_model', type: 'TEXT', value: (p) => p['System Model'] ?? null },
+  { name: 'barebone_linked_sku', type: 'TEXT', value: (p) => p['Barebone Linked SKU'] ?? null },
+  { name: 'linked_sku_ram', type: 'TEXT', value: (p) => p['Linked SKU RAM'] ?? null },
+  { name: 'linked_sku_ssd', type: 'TEXT', value: (p) => p['Linked SKU SSD'] ?? null },
+  { name: 'gia_tong', type: 'REAL', value: (p) => (p['Giá Tổng'] ? parseFloat(p['Giá Tổng'].replace(/[^\d.]/g, '')) : null) },
+  { name: 'total_specs', type: 'TEXT', value: (p) => p['Total Specs'] ?? null },
+  { name: 'performance_benchmark', type: 'TEXT', value: (p) => p['Performance Benchmark'] ?? null },
+  { name: 'customer_reviews_rating', type: 'TEXT', value: (p) => p['Customer Reviews/Rating'] ?? null },
+  { name: 'environmental_impact', type: 'TEXT', value: (p) => p['Environmental Impact'] ?? null },
+  { name: 'benchmark_gaming_fps', type: 'TEXT', value: (p) => p['Benchmark Gaming (FPS)'] ?? null },
+  { name: 'weight_dimensions', type: 'TEXT', value: (p) => p['Weight/Dimensions'] ?? null },
+  { name: 'future_upgrade_path', type: 'TEXT', value: (p) => p['Future Upgrade Path'] ?? null },
+  { name: 'noise_level_db', type: 'TEXT', value: (p) => p['Noise Level (dB)'] ?? null },
+  { name: 'weight', type: 'TEXT', value: (p) => p.Weight ?? null },
+  { name: 'noise', type: 'TEXT', value: (p) => p.Noise ?? null },
+];
 
 // --- HELPER FUNCTIONS ---
 
@@ -189,154 +248,46 @@ async function prepareLibSQL(db: Client): Promise<void> {
   console.log('🗑️  Preparing LibSQL database (dropping and recreating table)...');
   await db.execute('DROP TABLE IF EXISTS products;');
   
-  // A single, comprehensive table to hold all product types
-  await db.execute(`
+  const columnDefs = PRODUCT_SCHEMA.map(col => `${col.name} ${col.type}`).join(',\n      ');
+  const createTableStmt = `
     CREATE TABLE products (
-      sku TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      model TEXT,
-      price REAL,
-      warranty TEXT,
-      availability TEXT,
-      rating TEXT,
-      tags TEXT,
-      image_url TEXT,
-      comparison_with_other_models TEXT,
-      upsell_suggestions TEXT,
-      sales_pitch TEXT,
-      bundles TEXT,
-      suitable_applications TEXT,
-      type TEXT,
-      category TEXT,
-      compatible_cpu TEXT,
-      linked_system_model TEXT,
-      speed TEXT,
-      latency TEXT,
-      voltage TEXT,
-      form_factor TEXT,
-      ecc TEXT,
-      brand TEXT,
-      quantity TEXT,
-      channel TEXT,
-      usp TEXT,
-      recommended_use TEXT,
-      benchmark_score TEXT,
-      power_consumption TEXT,
-      tdp TEXT,
-      price_per_performance TEXT,
-      future_proofing TEXT,
-      benchmarks_passmark TEXT,
-      power_supply TEXT,
-      level TEXT,
-      system_model TEXT,
-      barebone_linked_sku TEXT,
-      linked_sku_ram TEXT,
-      linked_sku_ssd TEXT,
-      gia_tong REAL,
-      total_specs TEXT,
-      performance_benchmark TEXT,
-      customer_reviews_rating TEXT,
-      environmental_impact TEXT,
-      benchmark_gaming_fps TEXT,
-      weight_dimensions TEXT,
-      future_upgrade_path TEXT,
-      noise_level_db TEXT,
-      weight TEXT,
-      noise TEXT,
+      ${columnDefs},
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
-  `);
+  `;
+
+  await db.execute(createTableStmt);
   console.log('✅ LibSQL table "products" created successfully.');
 }
 
 /**
  * Syncs all products to the LibSQL database using a single transaction.
+ * This now uses db.batch() for significantly better performance.
  * @param db The LibSQL client instance.
  * @param products An array of all products to sync.
  */
 async function syncToLibSQL(db: Client, products: ProductData[]): Promise<void> {
-  console.log(`🔂 Starting LibSQL transaction to sync ${products.length} products...`);
-  const tx = await db.transaction('write');
-  try {
-    const insertStmt = `
-      INSERT OR REPLACE INTO products (
-        sku, name, model, price, warranty, availability, rating, tags, image_url,
-        comparison_with_other_models, upsell_suggestions, sales_pitch, bundles,
-        suitable_applications, type, category, compatible_cpu, linked_system_model,
-        speed, latency, voltage, form_factor, ecc, brand, quantity, channel, usp,
-        recommended_use, benchmark_score, power_consumption, tdp, price_per_performance,
-        future_proofing, benchmarks_passmark, power_supply, level, system_model,
-        barebone_linked_sku, linked_sku_ram, linked_sku_ssd, gia_tong, total_specs,
-        performance_benchmark, customer_reviews_rating, environmental_impact,
-        benchmark_gaming_fps, weight_dimensions, future_upgrade_path, noise_level_db,
-        weight, noise
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+  if (products.length === 0) {
+    console.log('No products to sync to LibSQL.');
+    return;
+  }
+  console.log(`🚀 Starting batch sync of ${products.length} products to LibSQL...`);
 
-    for (const product of products) {
-      await tx.execute({
-        sql: insertStmt,
-        args: [
-          product.SKU,
-          product['Tên sản phẩm'],
-          product.Model || null,
-          product.Giá ? parseFloat(product.Giá.replace(/[^\d.]/g, '')) : null,
-          product.Warranty || null,
-          product.Availability || null,
-          product.Rating || null,
-          product.Tags || null,
-          product.Image_URL || null,
-          product['Comparison with Other Models'] || null,
-          product['Upsell Suggestions'] || null,
-          product['Sales Pitch'] || null,
-          product.Bundles || null,
-          product['Suitable Applications'] || null,
-          product['Ráp cho'] || null,
-          product['Loại sản phẩm'] || null,
-          product['Tương thích CPU'] || null,
-          product['Linked System Model'] || null,
-          product.speed || null,
-          product.latency || null,
-          product.voltage || null,
-          product.form_factor || null,
-          product.ecc || null,
-          product.brand || null,
-          product.quantity || null,
-          product.channel || null,
-          product.USP || null,
-          product['Recommended_Use'] || null,
-          product['Benchmark Score (Read/Write MB/s)'] || null,
-          product['Power Consumption (W)'] || null,
-          product.TDP || null,
-          product['Price per Performance'] || null,
-          product['Future Proofing'] || null,
-          product['Benchmarks (PassMark)'] || null,
-          product['Power Supply (W)'] || null,
-          product.Level || null,
-          product['System Model'] || null,
-          product['Barebone Linked SKU'] || null,
-          product['Linked SKU RAM'] || null,
-          product['Linked SKU SSD'] || null,
-          product['Giá Tổng'] ? parseFloat(product['Giá Tổng'].replace(/[^\d.]/g, '')) : null,
-          product['Total Specs'] || null,
-          product['Performance Benchmark'] || null,
-          product['Customer Reviews/Rating'] || null,
-          product['Environmental Impact'] || null,
-          product['Benchmark Gaming (FPS)'] || null,
-          product['Weight/Dimensions'] || null,
-          product['Future Upgrade Path'] || null,
-          product['Noise Level (dB)'] || null,
-          product.Weight || null,
-          product.Noise || null,
-        ],
-      });
-    }
-    await tx.commit();
-    console.log('✅ LibSQL transaction committed successfully.');
+  const columnNames = PRODUCT_SCHEMA.map(col => col.name).join(', ');
+  const placeholders = PRODUCT_SCHEMA.map(() => '?').join(', ');
+  const insertStmt = `INSERT OR REPLACE INTO products (${columnNames}) VALUES (${placeholders});`;
+
+  const statements = products.map(product => {
+    const args = PRODUCT_SCHEMA.map(col => col.value(product));
+    return { sql: insertStmt, args };
+  });
+
+  try {
+    await db.batch(statements, 'write');
+    console.log('✅ LibSQL batch sync completed successfully.');
   } catch (error) {
-    console.error('❌ LibSQL transaction failed. Rolling back...', error);
-    await tx.rollback();
+    console.error('❌ LibSQL batch sync failed.', error);
     throw error; // Re-throw to stop the sync process
   }
 }
@@ -345,13 +296,14 @@ async function syncToLibSQL(db: Client, products: ProductData[]): Promise<void> 
  * Syncs all products to the ChromaDB vector store.
  * @param products An array of all products to sync.
  * @param embedder The embedding model instance.
+ * @param chroma The ChromaDB client instance.
  */
-async function syncToChroma(products: ProductData[], embedder: any): Promise<void> {
+async function syncToChroma(products: ProductData[], embedder: any, chroma: ChromaVector): Promise<void> {
   const indexName = 'products';
   console.log(`🗑️  Preparing ChromaDB (deleting and recreating index "${indexName}")...`);
 
   try {
-    await chromaVector.deleteIndex({ indexName });
+    await chroma.deleteIndex({ indexName });
   } catch (e) {
     // Ignore if index doesn't exist
   }
@@ -359,7 +311,7 @@ async function syncToChroma(products: ProductData[], embedder: any): Promise<voi
   try {
     const testEmbedding = await embedder.doEmbed({ values: ['test'] });
     const dimension = testEmbedding.embeddings[0].length;
-    await chromaVector.createIndex({ indexName, dimension, metric: 'cosine' });
+    await chroma.createIndex({ indexName, dimension, metric: 'cosine' });
     console.log(`✅ ChromaDB index "${indexName}" created with dimension ${dimension}.`);
   } catch (e) {
     console.error('❌ Failed to create ChromaDB index:', e);
@@ -386,7 +338,7 @@ async function syncToChroma(products: ProductData[], embedder: any): Promise<voi
   const embeddings = await embedder.doEmbed({ values: documents });
 
   console.log(`📥 Upserting ${products.length} products to ChromaDB...`);
-  await chromaVector.upsert({
+  await chroma.upsert({
     indexName,
     vectors: embeddings.embeddings,
     ids,
@@ -419,20 +371,33 @@ async function main() {
 
   let db: Client | undefined;
   try {
-    // 1. Initialize Embedder locally now that .env is loaded
-    const embedding_base_url = process.env.EMBEDDING_BASE_URL;
-    const embedding_api_key = process.env.EMBEDDING_API_KEY ?? '';
-    const embedding_model_id = process.env.EMBEDDING_MODEL_ID ?? 'text-embedding-3-small';
+    // 1. Initialize services locally now that .env is loaded
+    
+    // Embedder
+    const embedder_base_url = process.env.EMBEDDER_BASE_URL;
+    const embedder_api_key = process.env.EMBEDDER_API_KEY ?? '';
+    const embedder_model_id = process.env.EMBEDDER_MODEL ?? 'text-embedding-3-small';
 
-    if (!embedding_base_url) {
-      throw new Error('EMBEDDING_BASE_URL is not set in .env file. Please check your .env file.');
+    if (!embedder_base_url) {
+      throw new Error('EMBEDDER_BASE_URL is not set in .env file. Please check your .env file.');
     }
     
-    console.log(`[Embedding Provider] Initializing with URL: ${embedding_base_url}`);
+    console.log(`[Embedding Provider] Initializing with URL: ${embedder_base_url}`);
     const embedder = createOpenAI({
-      baseURL: embedding_base_url,
-      apiKey: embedding_api_key,
-    }).embedding(embedding_model_id);
+      baseURL: embedder_base_url,
+      apiKey: embedder_api_key,
+    }).embedding(embedder_model_id);
+
+    // ChromaDB
+    const chromaHost = process.env.CHROMA_HOST ?? 'localhost';
+    const chromaPort = process.env.CHROMA_PORT ?? '8000';
+    const chromaSsl = process.env.CHROMA_SSL === 'true';
+    console.log(`[Chroma Vector] Initializing with host: ${chromaHost} port: ${chromaPort} ssl: ${chromaSsl}`);
+    const chroma = new ChromaVector({
+      host: chromaHost,
+      port: parseInt(chromaPort, 10),
+      ssl: chromaSsl,
+    });
 
 
     // 2. Load all products from CSVs in parallel
@@ -457,7 +422,7 @@ async function main() {
     await syncToLibSQL(db, allProducts);
 
     // 6. Sync to ChromaDB
-    await syncToChroma(allProducts, embedder);
+    await syncToChroma(allProducts, embedder, chroma);
 
     console.log('\n🎉 Product sync completed successfully!');
     console.log(`📈 Synced ${allProducts.length} products to both databases.`);
