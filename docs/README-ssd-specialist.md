@@ -1,32 +1,53 @@
 # SSD Specialist Implementation
 
 ## Overview
-This implementation adds SSD (Solid State Drive) specialist support to the SSTC agent system. The `SSDSpecialist` is a unified agent that provides expert advice on SSD products, handles data analysis, and can generate human-readable responses.
+This implementation provides SSD (Solid State Drive) specialist support in the SSTC agent system. The SSD specialist is a self-contained agent with embedded knowledge base functionality that provides expert advice on SSD products and can work both independently and with Mai agent.
 
-## Components
+## Architecture (Post-Consolidation)
 
 ### 1. Unified SSD Specialist Agent (`ssd-specialist.ts`)
-- A single, frontend-facing agent that can directly interact with customers or provide data to other agents.
-- Provides expert advice on SSD products.
-- Uses the `ssdDatabaseTool` for product information.
-- Can generate both structured data and human-readable responses.
+- **Self-contained specialist** with embedded knowledge base functionality
+- **Multi-mode operation**: Backend service, direct consultant, and summary mode
+- **Database integration**: Uses `ssdDatabaseTool` instead of external knowledge base
+- **Embedded interfaces**: All knowledge base interfaces embedded directly in the specialist
+- **No external dependencies**: Eliminates need for separate knowledge base files
 
-### 2. SSD Database Tool (`ssd-database-tool.ts`)
-- An enhanced tool that returns structured specialist data for SSDs.
+### 2. Key Components Embedded
+
+#### Embedded Interfaces
+- `SSDProductInfo`: SSD product details and specifications
+- `SSDCompatibilityResult`: SSD compatibility analysis results
+- `SSDSearchCriteria`: Search and filtering parameters
+
+#### Embedded Compatibility Features
+- Interface compatibility (SATA, NVMe, PCIe)
+- Form factor compatibility (2.5", M.2 2280, M.2 2242, etc.)
+- Performance tier classification (Entry, Mainstream, High-Performance)
+- Endurance and TBW (Total Bytes Written) analysis
+
+#### Database Tool Integration
+- `ssdDatabaseTool`: Enhanced tool that returns structured specialist data
+- Replaces direct LibSQL access with centralized database tool approach
 
 ### 3. Data Models (`specialist-data-models.ts`)
-- `StorageSpecialistData`: Interface for SSD specialist data.
-- `StorageProductRecommendation`: Interface for individual SSD product recommendations.
-- `StorageTechnicalAnalysis`: Interface for technical analysis of SSD products.
+- `StorageSpecialistData`: Interface for SSD specialist data
+- `StorageProductRecommendation`: Interface for individual SSD product recommendations
+- `StorageTechnicalAnalysis`: Interface for technical analysis of SSD products
 
 ## Integration with Workflow
 
-### Message Processor Updates
-The message processor has been updated to:
-1. Detect SSD-related queries using keyword matching.
-2. Route SSD queries directly to the unified `ssdSpecialist`.
-3. The `ssdSpecialist` retrieves structured data using its tool.
-4. The final data is integrated into Mai's responses for the customer.
+### Message Processor Integration
+The message processor integrates with the SSD specialist:
+1. **Detection**: SSD-related queries detected using keyword matching
+2. **Routing**: Queries routed directly to the unified SSD specialist
+3. **Processing**: SSD specialist uses embedded knowledge base and database tool
+4. **Integration**: Structured data integrated into Mai's responses
+
+### Operating Modes Support
+- **Backend Service Mode**: Provides structured data for Mai agent
+- **Direct Consultant Mode**: Direct customer interaction capabilities
+- **Summary Mode**: Quick summary generation for parallel processing
+- **Context-aware**: Leverages shared memory for personalized recommendations
 
 ## Features
 
