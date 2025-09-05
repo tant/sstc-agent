@@ -13,6 +13,7 @@ Thư mục này chứa các bài kiểm tra cho các chuyên gia CPU, RAM, SSD, 
 7. `all-hardware-specialists.test.ts` - Kiểm tra nhập khẩu cho tất cả các chuyên gia phần cứng
 8. `ssd-specialist-test.ts` - Kiểm tra ngăn chặn tạo sản phẩm hư cấu cho SSD specialist
 9. `mai-agent-test.ts` - Kiểm tra ngăn chặn tạo sản phẩm hư cấu cho Mai agent
+10. `mai-barebone-coordination.test.ts` - Kiểm tra phối hợp ngầm giữa Mai và chuyên gia Barebone
 
 ## Chạy các bài kiểm tra
 
@@ -32,12 +33,11 @@ npm test -- tests/e2e/agents/desktop-specialist.test.ts
 # Chạy kiểm tra tích hợp
 npm test -- tests/e2e/agents/hardware-specialists-integration.test.ts
 
-# Chạy kiểm tra ngăn chặn tạo sản phẩm hư cấu
-npm test -- tests/e2e/agents/ssd-specialist-test.ts
-npm test -- tests/e2e/agents/mai-agent-test.ts
-
 # Chạy kiểm tra nhập khẩu tất cả các chuyên gia
 npm test -- tests/e2e/agents/all-hardware-specialists.test.ts
+
+# Chạy kiểm tra phối hợp ngầm
+npm test -- tests/e2e/agents/mai-barebone-coordination.test.ts
 ```
 
 ## Nội dung các bài kiểm tra
@@ -47,12 +47,16 @@ npm test -- tests/e2e/agents/all-hardware-specialists.test.ts
 - **Chất lượng nội dung**: Kiểm tra các chuyên gia có bao gồm các từ khóa mong đợi trong phản hồi
 - **Độ chính xác kỹ thuật**: Xác minh các chuyên gia cung cấp thông tin kỹ thuật chính xác
 - **Phù hợp với trường hợp sử dụng**: Đảm bảo các chuyên gia đưa ra đề xuất phù hợp cho các trường hợp sử dụng cụ thể (chơi game, sáng tạo nội dung, v.v.)
-- **Ngăn chặn tạo sản phẩm hư cấu**: Đảm bảo các chuyên gia không tạo ra sản phẩm không tồn tại trong database
 
 ### Kiểm tra tích hợp
 - **Nhất quán giữa các chuyên gia**: Kiểm tra các chuyên gia khác nhau có thể phản hồi các truy vấn
 - **Chất lượng phản hồi**: Xác minh tất cả các chuyên gia cung cấp phản hồi không rỗng
 - **Chức năng**: Đảm bảo tất cả các chuyên gia được khởi tạo và hoạt động đúng cách
+
+### Kiểm tra phối hợp ngầm (Behind-the-Scenes Coordination)
+- **Tương tác liền mạch**: Kiểm tra Mai agent có thể phối hợp ngầm với chuyên gia Barebone mà không tiết lộ với khách hàng
+- **Xử lý yêu cầu**: Xác minh Mai có thể xử lý yêu cầu về barebone case một cách chính xác
+- **Tích hợp dữ liệu**: Đảm bảo dữ liệu từ chuyên gia barebone được tích hợp một cách tự nhiên vào phản hồi
 
 ## Cấu trúc kiểm tra
 
@@ -103,3 +107,37 @@ Dạ quý khách, em xin giới thiệu các mẫu SSD hiện có tại SSTC:
 - Giá: 1.600.000 VND
 - Phù hợp: Ultra-fast storage, 4K gaming
 ```
+
+## Phối hợp Ngầm với Chuyên gia (Behind-the-Scenes Specialist Coordination)
+
+### Cách tiếp cận mới:
+1. **Tương tác liền mạch**: Mai tương tác với khách hàng như thể Mai biết tất cả thông tin
+2. **Điều phối ngầm**: Mai trao đổi với chuyên gia barebone ngầm mà không tiết lộ với khách hàng
+3. **Tích hợp tự nhiên**: Thông tin từ chuyên gia được tích hợp một cách tự nhiên vào phản hồi
+4. **Không đề cập chuyên gia**: Không bao giờ nói với khách hàng về việc trao đổi với chuyên gia
+
+### Lợi ích:
+- **Trải nghiệm liền mạch**: Khách hàng chỉ tương tác với Mai
+- **Thông tin chính xác**: Dữ liệu từ chuyên gia chuyên môn
+- **Giọng điệu nhất quán**: Luôn là Mai đang tư vấn
+- **Không bị gián đoạn**: Không có chuyển tiếp giữa các người
+
+### Ví dụ:
+❌ Trước (chuyển tiếp rõ ràng):
+```
+Dạ quý khách, về sản phẩm barebone case, em xin phép chuyển quý khách sang chuyên gia barebone của SSTC để được tư vấn chi tiết hơn ạ!
+```
+
+✅ Sau (phối hợp ngầm):
+```
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Dưới đây là một số mẫu barebone case phù hợp với nhu cầu của quý khách:
+
+**MAX IV** (MAX IV -1T)
+- Kích thước: 1TB NVMe
+- Giao tiếp: PCIe 4X4
+- Tốc độ đọc/ghi: 6000/6000 MB/s
+- Giá: 1.600.000 VND
+- Phù hợp: Ultra-fast storage, 4K gaming
+```
+
+Khách hàng không biết Mai đã trao đổi với chuyên gia barebone, nhưng vẫn nhận được thông tin chính xác từ chuyên gia đó.

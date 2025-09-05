@@ -1,0 +1,83 @@
+{
+  "claude": {
+    "projectName": "SSTC Agent",
+    "projectDescription": "Multi-agent AI system built with Mastra framework for SSTC hardware sales and support",
+    "packageManager": "pnpm",
+    "workingDirectory": "/home/tan/work/sstc-agent"
+  },
+  "development": {
+    "primaryLanguage": "typescript",
+    "framework": "mastra",
+    "buildCommand": "pnpm run build",
+    "devCommand": "pnpm run dev",
+    "testCommand": "pnpm run test:e2e",
+    "lintCommand": "pnpm run lint",
+    "formatCommand": "pnpm run format"
+  },
+  "codebase": {
+    "includePaths": [
+      "src/**",
+      "tests/**",
+      "scripts/**",
+      "docs/**",
+      "data/**",
+      "*.ts",
+      "*.js",
+      "*.json",
+      "*.md"
+    ],
+    "excludePaths": [
+      "node_modules/**",
+      "dist/**",
+      "build/**",
+      ".git/**",
+      "pnpm-lock.yaml",
+      "*.log"
+    ]
+  },
+  "agents": {
+    "primaryAgent": "mai-agent",
+    "specialists": [
+      "cpu-specialist",
+      "ram-specialist", 
+      "ssd-specialist",
+      "barebone-specialist",
+      "desktop-specialist"
+    ],
+    "supportAgents": [
+      "clarification-agent",
+      "an-data-analyst"
+    ]
+  },
+  "testing": {
+    "testDirectory": "tests/e2e/agents",
+    "mockDataPath": "data/",
+    "logAnalysis": "pnpm run test:analyze"
+  },
+  "database": {
+    "vectorDb": "ChromaDB",
+    "storage": "LibSQL",
+    "productData": "data/products-*.csv"
+  },
+  "channels": [
+    "telegram",
+    "zalo", 
+    "web"
+  ],
+  "preferences": {
+    "codeStyle": "biome",
+    "tabSize": 4,
+    "quotes": "double",
+    "semicolons": true,
+    "trailingComma": true
+  },
+  "mcp": {
+    "servers": [
+      {
+        "name": "mastraDocs",
+        "status": "not_connected",
+        "description": "Mastra framework documentation server"
+      }
+    ]
+  }
+}
