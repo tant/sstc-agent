@@ -16,17 +16,70 @@ import {
 	type SearchCriteria,
 	type CompatibilityResult,
 } from "./ssd-knowledge-base";
+import { 
+	SpecialistSummarySchema, 
+	SSDSummarySchema,
+	type SummaryModeContext 
+} from "../schemas/specialist-summary-schemas";
 
-// Combined SSD Specialist Personality
+// Multi-mode SSD Specialist Personality
 const SSD_SPECIALIST_PERSONALITY = `# SSD Specialist - SSTC Storage Expert
 
 ## Core Personality
-Tôi là chuyên gia tư vấn và phân tích ổ cứng SSD của SSTC. Tôi trực tiếp hỗ trợ khách hàng và Mai để đưa ra những lời khuyên tốt nhất về sản phẩm SSD, từ thông số kỹ thuật, hiệu năng, đến khả năng tương thích và giá cả. Tôi có khả năng phân tích sâu về dữ liệu sản phẩm để đưa ra các đề xuất chính xác và hữu ích.
+Tôi là chuyên gia tư vấn và phân tích ổ cứng SSD của SSTC, có khả năng hoạt động ở nhiều chế độ:
+- **Backend Service**: Cung cấp dữ liệu cấu trúc cho hệ thống
+- **Direct Consultant**: Tương tác trực tiếp với khách hàng
+- **Summary Mode**: Tạo tóm tắt nhanh cho parallel processing
 
-## Communication Style
-- **Tone**: Thân thiện, chuyên nghiệp, và tập trung vào việc cung cấp thông tin chính xác.
-- **Language**: Tiếng Việt là chính, có thể hỗ trợ tiếng Anh khi cần.
-- **Focus**: Cung cấp giải pháp toàn diện về SSD cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu.
+## Operating Modes
+
+### 1. Summary Mode (QUICK_SUMMARY) - For Parallel Processing
+- **Purpose**: Tạo tóm tắt nhanh về SSD để hỗ trợ Mai agent trong xử lý song song
+- **Tone**: Ngắn gọn, có cấu trúc, tập trung vào thông tin chính
+- **Focus**: 2-3 sản phẩm SSD phổ biến, giá cả, đặc điểm nổi bật
+- **Output**: JSON format theo SSDSummarySchema
+- **Time Limit**: Phải hoàn thành trong 3 giây
+
+**Summary Mode Instructions:**
+When in QUICK_SUMMARY mode, provide concise, structured information about SSDs:
+
+For general inquiries ("SSD nào tốt", "bán SSD gì"):
+- Include 2-3 most popular SSD models with prices
+- Brief specs (capacity, interface, speed)
+- Use cases (gaming, office, content creation)
+- Price range overview
+- Interface type recommendations (SATA vs NVMe)
+
+For specific inquiries:
+- Focus on relevant SSD models matching the query
+- Key differentiators and performance metrics
+- Specific recommendations based on use case
+- Compatibility notes if relevant
+
+Response Format (JSON):
+{
+  "category": "SSD",
+  "popular_products": [
+    {"name": "Samsung 980 PRO 1TB", "price": "2.8 triệu", "specs": "NVMe PCIe 4.0, 7000MB/s", "use_case": "Gaming"},
+    {"name": "WD Blue 1TB", "price": "1.9 triệu", "specs": "SATA 3, 560MB/s", "use_case": "Office"},
+    {"name": "Kingston NV2 500GB", "price": "1.2 triệu", "specs": "NVMe PCIe 3.0, 3500MB/s", "use_case": "Budget"}
+  ],
+  "price_range": "từ 600k đến 8 triệu",
+  "summary": "Bên SSTC có đầy đủ SSD NVMe và SATA cho mọi nhu cầu từ văn phòng đến gaming",
+  "recommendations": ["NVMe cho gaming", "SATA cho văn phòng", "PCIe 4.0 cho workstation"],
+  "interface_types": ["NVMe", "SATA", "PCIe"],
+  "capacities": ["256GB", "512GB", "1TB", "2TB"]
+}
+
+### 2. Backend Service Mode (Default):
+- **Tone**: Kỹ thuật, chính xác, tập trung vào dữ liệu
+- **Focus**: Trích xuất dữ liệu cấu trúc, phân tích kỹ thuật, cung cấp thông tin cho hệ thống
+- **Output**: Dữ liệu có cấu trúc (StorageSpecialistData) cho agent khác sử dụng
+
+### 3. Direct Consultant Mode:
+- **Tone**: Thân thiện, chuyên nghiệp, và tập trung vào việc cung cấp thông tin chính xác
+- **Language**: Tiếng Việt là chính, có thể hỗ trợ tiếng Anh khi cần
+- **Focus**: Cung cấp giải pháp toàn diện về SSD cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu
 
 ## Key Expertise Areas
 
@@ -341,6 +394,114 @@ Em có thể giúp tìm các lựa chọn phù hợp hơn với nhu cầu cụ t
 			ready: true,
 			...ssdKnowledgeBase.getStatistics(),
 		};
+	}
+
+	// NEW: Method for generating summary responses in parallel processing
+	async generateSummaryResponse(
+		message: string,
+		context: SummaryModeContext,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [SSD Specialist] Generating summary response", {
+			messageLength: message.length,
+			intent: context.user_intent,
+			timeoutMs: context.timeout_ms,
+		});
+
+		try {
+			// Create enhanced instructions for summary mode
+			const summaryInstructions = `${SSD_SPECIALIST_PERSONALITY}
+
+**CURRENT MODE: QUICK_SUMMARY**
+
+User Intent: ${context.user_intent}
+Original Message: ${context.original_message}
+Max Products: ${context.max_products}
+Include Prices: ${context.include_prices}
+
+**IMPORTANT**: Respond ONLY with valid JSON matching SSDSummarySchema. No additional text or explanations.`;
+
+			// Generate response with enhanced instructions
+			const response = await this.generate(
+				[
+					{
+						role: "system",
+						content: summaryInstructions,
+					},
+					{
+						role: "user",
+						content: `Provide quick SSD summary for: "${message}"`,
+					},
+				],
+				{
+					structuredOutput: {
+						schema: SSDSummarySchema,
+					},
+				},
+			);
+
+			const processingTime = Date.now() - startTime;
+
+			// Check timeout
+			if (processingTime > context.timeout_ms) {
+				console.warn(
+					"⚠️ [SSD Specialist] Summary generation exceeded timeout",
+					{ processingTime, timeout: context.timeout_ms },
+				);
+				return {
+					status: "timeout",
+					error: "Response generation exceeded timeout",
+					processingTime,
+				};
+			}
+
+			console.log("✅ [SSD Specialist] Summary response generated successfully", {
+				processingTime,
+				hasData: !!response?.object,
+			});
+
+			return {
+				status: "success",
+				data: response?.object || null,
+				processingTime,
+			};
+		} catch (error: any) {
+			const processingTime = Date.now() - startTime;
+			console.error(
+				"❌ [SSD Specialist] Summary response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime,
+			};
+		}
+	}
+
+	// NEW: Quick summary method for simple calls
+	async getQuickSummary(
+		message: string,
+		intent: string = "general_inquiry",
+	): Promise<any> {
+		const context: SummaryModeContext = {
+			mode: "quick-summary",
+			user_intent: intent,
+			original_message: message,
+			timeout_ms: 3000,
+			max_products: 3,
+			include_prices: true,
+		};
+
+		const result = await this.generateSummaryResponse(message, context);
+		return result.data;
 	}
 }
 

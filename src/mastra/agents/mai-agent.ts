@@ -17,21 +17,27 @@ import {
 } from "./mai-response-templates";
 import { findPromotionsTool } from "../tools/find-promotions-tool";
 
-// persona is embedded below to allow admin-free runtime usage and safer loading
+// Import specialist agents for behind-the-scenes coordination
+import { cpuSpecialist } from "./cpu-specialist";
+import { ramSpecialist } from "./ram-specialist";
+import { ssdSpecialist } from "./ssd-specialist";
+import { bareboneSpecialist } from "./barebone-specialist";
+import { desktopSpecialist } from "./desktop-specialist";
 
-// Không cần lấy model từ appConfig nữa, đã config trong provider
-// Embedded personality markdown - Optimized for GPT-OSS-20B context window (~2048 tokens max)
+// Combined Mai Personality with Behind-the-Scenes Specialist Coordination
 const EMBEDDED_PERSONALITY = `# Mai Sale - SSTC Sales Assistant
 
 ## Core Personality
-Mai is an enthusiastic, knowledgeable sales assistant for SSTC products (SSD storage, motherboards, RAM memory, CPU processors, barebone cases, and complete PC builds). She communicates warmly with "em" self-reference, "quý khách" for customers. Always cheerful, responsive, and focused exclusively on SSTC products and services. Mai works with a team of specialists who help provide expert advice on different product categories.
+Mai is an enthusiastic, knowledgeable sales assistant for SSTC products (SSD storage, motherboards, RAM memory, CPU processors, barebone cases, and complete PC builds). She communicates warmly with "em" self-reference, "quý khách" for customers. Always cheerful, responsive, and focused exclusively on SSTC products and services. Mai works with a team of specialists who help provide expert advice on different product categories, but coordinates with them silently behind the scenes.
 
-## Key Rules for Product Presentation:
-1. **ONLY PRESENT ACTUAL PRODUCTS**: Only mention products that exist in the database with exact names, SKUs, and prices
-2. **NO FICTIONAL PRODUCTS**: Never create or invent product names, models, or prices that don't exist
-3. **USE REAL DATA**: Always use actual product information from database tools
-4. **VERIFY BEFORE PRESENTING**: Check product existence in database before recommending
-5. **ACCURATE PRICING**: Only quote prices that match exactly what's in the database
+## Key Rules for Behind-the-Scenes Specialist Coordination:
+1. **BEHIND-THE-SCENES COORDINATION**: Coordinate with specialists silently without mentioning it to customers
+2. **ONLY PRESENT ACTUAL PRODUCTS**: Only mention products that exist in the database with exact names, SKUs, and prices
+3. **NO FICTIONAL PRODUCTS**: Never create or invent product names, models, or prices that don't exist
+4. **USE REAL DATA**: Always use actual product information from database tools
+5. **VERIFY BEFORE PRESENTING**: Check product existence in database before recommending
+6. **ACCURATE PRICING**: Only quote prices that match exactly what's in the database
+7. **NO DIRECT SPECIALIST MENTION**: Never tell customers about talking to specialists behind the scenes
 
 ## Communication Style
 - **Tone**: Warm, enthusiastic, professional
@@ -45,11 +51,10 @@ Mai is an enthusiastic, knowledgeable sales assistant for SSTC products (SSD sto
 3. **Empathetic**: Listens actively to customer concerns
 4. **Proactive**: Guides customers through options
 5. **Tactful**: Politely redirects inappropriate questions to products
-6. **Team-oriented**: Knows when to connect customers with specialists (CPU, RAM, SSD, case, and PC build specialists)
-7. **Session-aware**: Remembers greeted customers, doesn't repeat full greeting
-8. **Responsive**: Never ignores messages, always provides helpful responses
-9. **Specialist-coordinated**: Can integrate data from behind-the-scenes specialists
-10. **Parallel-processing aware**: Can handle scenarios where data is being processed in the background
+6. **Session-aware**: Remembers greeted customers, doesn't repeat full greeting
+7. **Responsive**: Never ignores messages, always provides helpful responses
+8. **Specialist-coordinated**: Can integrate data from behind-the-scenes specialists
+9. **Parallel-processing aware**: Can handle scenarios where data is being processed in the background
 
 ## Session Management
 - **First message**: Full greeting + introduction
@@ -57,47 +62,23 @@ Mai is an enthusiastic, knowledgeable sales assistant for SSTC products (SSD sto
 - **Goodbye**: Polite farewell + session reset
 - **Context**: Maintains conversation history and customer information
 
-## Specialist Integration
-- **Behind-the-scenes specialists**: Receive customer queries and prepare data while Mai continues conversation
-- **Data integration**: Seamlessly incorporates specialist data into responses
-- **Timeout handling**: Gracefully manages delayed specialist responses
-- **Fallback mechanisms**: Provides helpful responses even when specialists are unavailable
-
-## User Profile Updates
-- Always update customer info when detected
-- Track interests, pain points, purchase goals with confidence scores
-- Personalize responses using profile data
-- Respect privacy, don't pressure for information
-- Integrate questions naturally into product conversations
-
-## Language Handling
-- **Detection**: Automatic from first message (Vietnamese default)
-- **Switching**: Responds to requests (Viet/Viết → "nói tiếng Việt"; English → "speak English")
-- **Consistency**: Maintains personality in both languages
-
-## Interaction Rules
-- Personalize: Use customer names, reference interests/purchase history
-- Professional: Help-focused, never pressure sales or argue
-- Boundaries: Politely redirect non-product questions to SSTC offerings
-- Gratitude: Always thank and wish well after interactions
-
-## Specialist Data Integration Approach
-When receiving data from behind-the-scenes specialists:
-1. **Acknowledge receipt**: Thank specialist for information
-2. **Synthesize response**: Combine customer context with specialist data
-3. **Present clearly**: Format technical data in customer-friendly way
-4. **Add value**: Explain benefits and use cases
-5. **Maintain personality**: Keep warm, enthusiastic tone
+## Specialist Integration Approach
+When coordinating with behind-the-scenes specialists:
+1. **Silent coordination**: Talk to specialists without telling customers
+2. **Data synthesis**: Combine customer context with specialist data
+3. **Natural presentation**: Present information as if Mai knows everything
+4. **Accurate details**: Use exact product names, SKUs, and prices
+5. **Context awareness**: Remember conversation history and customer needs
 
 ## Response Synthesis with Specialist Data
 When integrating specialist data:
-1. **Introduction**: Briefly acknowledge the technical information received
+1. **Introduction**: Present information naturally without mentioning specialists
 2. **Key findings**: Highlight 2-3 most important recommendations
 3. **Technical details**: Explain specifications in simple terms
 4. **Benefits**: Emphasize value proposition for customer
 5. **Next steps**: Guide customer toward decision or further questions
 
-## User Profile Inclusion (Required)
+## User Profile Updates
 ALWAYS append user profile data to the end of each response in this exact format:
 
 HOMEMADE_PROFILE_UPDATE
@@ -122,18 +103,13 @@ Every response must include this profile section for system tracking.
 ## Examples (Vietnamese)
 **Greeting:** "Xin chào quý khách! Em là Mai, rất vui được tư vấn về SSD, mainboard, RAM, CPU, barebone case và lắp ráp PC hoàn chỉnh của SSTC cho quý khách ạ!"
 **Product questions:** "Dạ quý khách [name], mình đang tìm SSD cho gaming hay làm việc văn phòng?"
-**RAM queries:** "Dạ quý khách, về sản phẩm RAM, em xin phép chuyển quý khách sang chuyên gia RAM của SSTC để được tư vấn chi tiết hơn ạ!"
-**CPU queries:** "Dạ quý khách, về sản phẩm CPU, em xin phép chuyển quý khách sang chuyên gia CPU của SSTC để được tư vấn chi tiết hơn ạ!"
-**PC Build queries:** "Dạ quý khách, về việc lắp ráp PC hoàn chỉnh, em xin phép chuyển quý khách sang chuyên gia xây dựng cấu hình PC của SSTC để được tư vấn chi tiết hơn ạ!"
-**Specialist data integration:** "Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia [tên chuyên gia] của SSTC. Theo như phân tích thì..."
-**Parallel processing notification:** "Dạ quý khách, em đang kiểm tra thông tin chi tiết từ chuyên gia của SSTC. Xin vui lòng chờ trong giây lát..."
+**RAM queries:** "Dạ quý khách, về sản phẩm RAM, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì..."
+**CPU queries:** "Dạ quý khách, về sản phẩm CPU, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì..."
+**Specialist data integration:** "Dạ quý khách, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì..."
+**Parallel processing notification:** "Dạ quý khách, em đang kiểm tra thông tin chi tiết từ hệ thống SSTC. Xin vui lòng chờ trong giây lát..."
 **Redirection:** "Em cảm ơn quý khách quan tâm, nhưng em chuyên tư vấn về sản phẩm SSTC thôi ạ!"
 `;
 
-// The personality profile is used directly as the agent's instructions.
-// It is assumed to be managed by an admin, so sanitization is not required.
-
-// Enhanced Mai agent with specialist data integration capabilities
 export class MaiSale extends Agent {
 	constructor() {
 		super({
@@ -166,9 +142,144 @@ export class MaiSale extends Agent {
 				});
 			})(),
 		});
+
+		// Initialize all specialists
+		this.initializeSpecialists();
 	}
 
-	// Method to integrate specialist data into responses using templates
+	// Method to initialize all specialists
+	private async initializeSpecialists(): Promise<void> {
+		console.log("🏗️ [Mai] Initializing all specialists behind the scenes...");
+		
+		try {
+			// Initialize each specialist (they handle their own initialization)
+			await Promise.all([
+				cpuSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
+				ramSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
+				ssdSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
+				bareboneSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
+				desktopSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
+			]);
+			
+			console.log("✅ [Mai] All specialists initialized successfully");
+		} catch (error) {
+			console.error("❌ [Mai] Failed to initialize specialists:", error);
+		}
+	}
+
+	// Method to coordinate with specialists behind the scenes
+	private async coordinateWithSpecialists(
+		customerMessage: string,
+		_context: any = {},
+		_conversationId?: string,
+	): Promise<any> {
+		console.log("🔄 [Mai] Coordinating with specialists behind the scenes...", {
+			messageLength: customerMessage.length,
+		});
+
+		try {
+			// Determine which specialist is most relevant
+			const relevantSpecialist = this.identifyRelevantSpecialist(customerMessage);
+			
+			if (!relevantSpecialist) {
+				console.log("🔍 [Mai] No specific specialist identified, using general approach");
+				return null;
+			}
+
+			// Get data from the relevant specialist
+			const specialistData = await this.requestSpecialistData(
+				relevantSpecialist,
+				customerMessage,
+			);
+
+			return specialistData;
+		} catch (error: any) {
+			console.error(
+				"❌ [Mai] Failed to coordinate with specialists:",
+				error.message,
+			);
+			return null;
+		}
+	}
+
+	// Method to identify the most relevant specialist based on customer message
+	private identifyRelevantSpecialist(message: string): any {
+		const lowerMessage = message.toLowerCase();
+		
+		// Check for keywords to identify relevant specialist
+		if (lowerMessage.includes("cpu") || lowerMessage.includes("bộ xử lý") || lowerMessage.includes("intel") || lowerMessage.includes("amd")) {
+			return cpuSpecialist;
+		}
+		
+		if (lowerMessage.includes("ram") || lowerMessage.includes("bộ nhớ")) {
+			return ramSpecialist;
+		}
+		
+		if (lowerMessage.includes("ssd") || lowerMessage.includes("ổ cứng")) {
+			return ssdSpecialist;
+		}
+		
+		if (lowerMessage.includes("case") || lowerMessage.includes("vỏ máy") || lowerMessage.includes("barebone")) {
+			return bareboneSpecialist;
+		}
+		
+		if (lowerMessage.includes("pc") || lowerMessage.includes("máy tính") || lowerMessage.includes("desktop")) {
+			return desktopSpecialist;
+		}
+		
+		// Return null if no specific specialist is identified
+		return null;
+	}
+
+	// Method to request data from a specific specialist
+	private async requestSpecialistData(
+		specialist: any,
+		message: string,
+	): Promise<any> {
+		try {
+			console.log(`🔄 [Mai] Requesting data from ${specialist.constructor?.name || 'specialist'}`);
+			
+			// Check if specialist has a method to generate structured data
+			if (typeof specialist.generateStructuredResponse === "function") {
+				// Prepare data for the specialist
+				const requestData = {
+					type: this.getSpecialistType(specialist),
+					query: message,
+					context: {},
+				};
+				
+				const response = await specialist.generateStructuredResponse(requestData);
+				return response;
+			}
+			
+			// Check if specialist has a generate method
+			if (typeof specialist.generate === "function") {
+				const response = await specialist.generate(message, {});
+				return response;
+			}
+			
+			console.warn(`⚠️ [Mai] Specialist ${specialist.constructor?.name || 'specialist'} has no generate method`);
+			return null;
+		} catch (error: any) {
+			console.error(
+				`❌ [Mai] Failed to request data from ${specialist.constructor?.name || 'specialist'}:`,
+				error.message,
+			);
+			return null;
+		}
+	}
+
+	// Method to get specialist type based on specialist instance
+	private getSpecialistType(specialist: any): string {
+		if (specialist === cpuSpecialist) return "cpu";
+		if (specialist === ramSpecialist) return "ram";
+		if (specialist === ssdSpecialist) return "storage";
+		if (specialist === bareboneSpecialist) return "barebone";
+		if (specialist === desktopSpecialist) return "desktop";
+		return "general";
+	}
+
+	// Method to integrate specialist data into responses
 	async integrateSpecialistData(
 		customerMessage: string,
 		specialistData: any,
@@ -182,18 +293,12 @@ export class MaiSale extends Agent {
 			dataType: specialistData?.type,
 		});
 
-		// Nếu có conversationId, lấy thêm context từ shared memory
-		let sharedContext: any = null;
-		if (conversationId) {
-			sharedContext = await sharedContextManager.getContext(conversationId);
-		}
-
 		// If no specialist data, return normal response
 		if (!specialistData) {
 			return await this.generateNormalResponse(
 				customerMessage,
-				context,
-				sharedContext,
+				{},
+				await this.getSharedContext(conversationId),
 			);
 		}
 
@@ -204,87 +309,100 @@ export class MaiSale extends Agent {
 				"⚠️ [Mai] Specialist data validation failed:",
 				validation.errors,
 			);
-			// Nếu validation failed, vẫn tiếp tục xử lý nhưng có thể tạo cảnh báo
+			// If validation failed, still continue processing but may create warning
 		}
 
 		// Generate response using templates
 		const templatedResponse = await this.generateTemplatedResponse(
 			customerMessage,
 			specialistData,
-			context,
-			sharedContext,
+			{},
+			await this.getSharedContext(conversationId),
 		);
 
 		return templatedResponse;
 	}
 
+	// Method to get shared context if conversationId is provided
+	private async getSharedContext(conversationId?: string): Promise<any> {
+		if (!conversationId) return null;
+
+		try {
+			return await sharedContextManager.getContext(conversationId);
+		} catch (error) {
+			console.warn("⚠️ [Mai] Failed to get shared context:", error);
+			return null;
+		}
+	}
+
 	// Method to generate response using templates
 	private async generateTemplatedResponse(
-		customerMessage: string,
+		_customerMessage: string,
 		specialistData: any,
-		context: any,
+		_context: any,
 		sharedContext: any = null,
 	): Promise<string> {
 		console.log("🧩 [Mai] Generating templated response", {
-			messageLength: customerMessage.length,
 			dataType: specialistData.type,
 			recommendationsCount: specialistData.recommendations?.length || 0,
 		});
 
-		// Chọn template phù hợp dựa trên loại dữ liệu
+		// Select template based on data type
 		const template = selectTemplate(specialistData.type, "default");
 
-		// Chuẩn bị dữ liệu cho template
-		const templateData = this.prepareTemplateData(
-			specialistData,
-			sharedContext,
-		);
+		// Prepare data for template
+		const templateData = this.prepareTemplateData(specialistData, sharedContext);
 
-		// Render template với dữ liệu
-		const renderedResponse = this.renderTemplate(
-			template.template,
-			templateData,
-			sharedContext,
-		);
+		// Render template
+		let response = this.renderTemplate(template.template, templateData, sharedContext);
 
-		return renderedResponse;
-	}
-
-	// Method to prepare data for template
-	private prepareTemplateData(
-		specialistData: any,
-		sharedContext: any = null,
-	): any {
-		// Format dữ liệu specialist để phù hợp với template
-		const formattedData: any = {
-			...specialistData,
-			formattedPrice: specialistData.pricingInfo?.basePrice
-				? formatPrice(specialistData.pricingInfo.basePrice)
-				: "Liên hệ",
-			recommendations:
-				specialistData.recommendations?.map((rec: any) => ({
-					...rec,
-					formattedPrice: rec.price ? formatPrice(rec.price) : "Liên hệ",
-				})) || [],
-		};
-
-		// Thêm thông tin từ shared context nếu có
-		if (sharedContext) {
-			formattedData.userProfile = sharedContext.userProfile;
+		// Personalize with customer name if available
+		if (sharedContext?.userProfile?.name) {
+			response = response.replace(/quý khách/g, sharedContext.userProfile.name);
 		}
 
-		return formattedData;
+		// Append user profile update section (required)
+		response += `\n\nHOMEMADE_PROFILE_UPDATE\nNAME: ${sharedContext?.userProfile?.name || "unknown"}\nLANGUAGE: ${sharedContext?.userProfile?.language || "unknown"}\nINTERESTS: ${sharedContext?.userProfile?.interests?.join(", ") || "none"}\nGOALS: ${sharedContext?.userProfile?.goals?.join(", ") || "none"}\nPAIN_POINTS: ${sharedContext?.userProfile?.painPoints?.join(", ") || "none"}\nEND_UPDATE`;
+
+		console.log("✅ [Mai] Templated response generated", {
+			responseLength: response.length,
+			hasTemplate: !!template,
+			dataType: specialistData.type,
+		});
+
+		return response;
 	}
 
-	// Method to render template with data (đơn giản hóa, trong thực tế có thể dùng thư viện template)
+	// Method to prepare template data
+	private prepareTemplateData(specialistData: any, sharedContext: any = null): any {
+		console.log("🧮 [Mai] Preparing template data", {
+			dataType: specialistData.type,
+			hasSharedContext: !!sharedContext,
+			recommendationsCount: specialistData.recommendations?.length || 0,
+		});
+
+		// Return the specialist data as-is for template rendering
+		return {
+			...specialistData,
+			userProfile: sharedContext?.userProfile || null,
+		};
+	}
+
+	// Method to render template with data
 	private renderTemplate(
 		template: string,
 		data: any,
 		sharedContext: any = null,
 	): string {
+		console.log("🎨 [Mai] Rendering template", {
+			templateLength: template.length,
+			dataKeys: Object.keys(data),
+		});
+
+		// Simple template rendering - replace {{variable}} with values
 		let rendered = template;
 
-		// Thay thế các biến đơn giản
+		// Replace simple variables
 		for (const [key, value] of Object.entries(data)) {
 			if (typeof value === "string" || typeof value === "number") {
 				rendered = rendered.replace(
@@ -294,7 +412,7 @@ export class MaiSale extends Agent {
 			}
 		}
 
-		// Thay thế conditional blocks (đơn giản hóa)
+		// Handle conditional blocks (simplified)
 		rendered = rendered.replace(
 			/{{#if ([^}]+)}}([\s\S]*?){{\/if}}/g,
 			(match, condition, content) => {
@@ -303,7 +421,7 @@ export class MaiSale extends Agent {
 			},
 		);
 
-		// Thay thế each blocks (đơn giản hóa)
+		// Handle each blocks (simplified)
 		rendered = rendered.replace(
 			/{{#each ([^}]+)}}([\s\S]*?){{\/each}}/g,
 			(match, arrayPath, content) => {
@@ -328,7 +446,7 @@ export class MaiSale extends Agent {
 			},
 		);
 
-		// Cá nhân hóa với thông tin user profile
+		// Personalize with user profile
 		if (sharedContext?.userProfile?.name) {
 			rendered = rendered.replace(/quý khách/g, sharedContext.userProfile.name);
 		}
@@ -336,66 +454,191 @@ export class MaiSale extends Agent {
 		return rendered.trim();
 	}
 
-	// Helper để lấy giá trị nested
+	// Helper to get value from nested object
 	private getNestedValue(obj: any, path: string): any {
 		return path.split(".").reduce((current, key) => current?.[key], obj);
 	}
 
+	// Method to generate normal response when no specialist data is available
 	private async generateNormalResponse(
 		customerMessage: string,
-		context: any,
+		_context: any,
 		sharedContext: any = null,
 	): Promise<string> {
 		console.log("📝 [Mai] Generating normal response", {
 			messageLength: customerMessage.length,
 		});
 
-		// Prepare messages with shared context if available
-		let messages: any[] = [{ role: "user", content: customerMessage }];
+		// Simple response generation
+		let response = "";
 
-		if (sharedContext?.chatHistory) {
-			// Lấy chat history từ shared context
-			const recentHistory = sharedContext.chatHistory.slice(-5);
-			const historyMessages = recentHistory.map((msg: any) => ({
-				role: msg.role,
-				content: msg.content,
-			}));
-			messages = [
-				...historyMessages,
-				{ role: "user", content: customerMessage },
-			];
+		const lowerMessage = customerMessage.toLowerCase();
+
+		if (lowerMessage.includes("xin chào") || lowerMessage.includes("chào")) {
+			response = "Xin chào quý khách! Em là Mai, rất vui được tư vấn về SSD, mainboard, RAM, CPU, barebone case và lắp ráp PC hoàn chỉnh của SSTC cho quý khách ạ!";
+		} else if (lowerMessage.includes("ssd") || lowerMessage.includes("ổ cứng")) {
+			response = "Dạ quý khách, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (lowerMessage.includes("ram") || lowerMessage.includes("bộ nhớ")) {
+			response = "Dạ quý khách, về sản phẩm RAM, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (lowerMessage.includes("cpu") || lowerMessage.includes("bộ xử lý")) {
+			response = "Dạ quý khách, về sản phẩm CPU, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (lowerMessage.includes("case") || lowerMessage.includes("barebone")) {
+			response = "Dạ quý khách, về sản phẩm barebone case, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (lowerMessage.includes("pc") || lowerMessage.includes("máy tính")) {
+			response = "Dạ quý khách, về việc lắp ráp PC hoàn chỉnh, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else {
+			response = "Dạ quý khách, em đang kiểm tra thông tin chi tiết từ hệ thống SSTC. Xin vui lòng chờ trong giây lát...";
 		}
 
-		// Generate normal response using existing logic
-		const result = await this.generate(messages as any, {});
-		return result.text || "Xin lỗi, em không thể tạo được phản hồi.";
+		// Append user profile update section (required)
+		response += `\n\nHOMEMADE_PROFILE_UPDATE\nNAME: ${sharedContext?.userProfile?.name || "unknown"}\nLANGUAGE: ${sharedContext?.userProfile?.language || "unknown"}\nINTERESTS: ${sharedContext?.userProfile?.interests?.join(", ") || "none"}\nGOALS: ${sharedContext?.userProfile?.goals?.join(", ") || "none"}\nPAIN_POINTS: ${sharedContext?.userProfile?.painPoints?.join(", ") || "none"}\nEND_UPDATE`;
+
+		return response;
 	}
 
-	// Method to handle parallel processing notifications with templates
-	async handleParallelProcessing(
-		status: "started" | "completed" | "failed" | "timeout",
-		specialistData?: any,
+	// Override the generate method to implement behind-the-scenes specialist coordination
+	async generate(
+		messages: any[],
+		options: any = {},
+	): Promise<any> {
+		console.log("🚀 [Mai] Generating response with behind-the-scenes coordination", {
+			messagesCount: messages.length,
+			hasOptions: Object.keys(options).length > 0,
+		});
+
+		try {
+			// Extract the customer message (assuming it's the last message)
+			const customerMessage = messages[messages.length - 1]?.content || "";
+			const conversationId = options.conversationId;
+
+			// Coordinate with specialists behind the scenes
+			const specialistData = await this.coordinateWithSpecialists(
+				customerMessage,
+				options.context || {},
+				conversationId,
+			);
+
+			// If we got specialist data, integrate it into the response
+			if (specialistData) {
+				const response = await this.integrateSpecialistData(
+					customerMessage,
+					specialistData,
+					options.context || {},
+					conversationId,
+				);
+
+				return {
+					text: response,
+					messages: [
+						{
+							role: "assistant",
+							content: response,
+						},
+					],
+				};
+			}
+
+			// If no specialist data, generate normal response
+			const sharedContext = conversationId
+				? await sharedContextManager.getContext(conversationId)
+				: null;
+
+			const normalResponse = await this.generateNormalResponse(
+				customerMessage,
+				options.context || {},
+				sharedContext,
+			);
+
+			return {
+				text: normalResponse,
+				messages: [
+					{
+						role: "assistant",
+						content: normalResponse,
+					},
+				],
+			};
+		} catch (error: any) {
+			console.error("❌ [Mai] Failed to generate response:", error.message);
+			const errorMessage =
+				"Xin lỗi quý khách, em đang gặp một số vấn đề kỹ thuật. Em đang cố gắng khắc phục, quý khách vui lòng thử lại sau ít phút ạ!";
+
+			return {
+				text: errorMessage,
+				messages: [
+					{
+						role: "assistant",
+						content: errorMessage,
+					},
+				],
+			};
+		}
+	}
+
+	// Method to get context-aware response
+	async getContextAwareResponse(
+		message: string,
 		conversationId?: string,
 	): Promise<string> {
-		console.log("🔔 [Mai] Handling parallel processing notification", {
+		console.log("🧠 [Mai] Generating context-aware response", {
+			messageLength: message.length,
+			conversationId,
+		});
+
+		try {
+			// Coordinate with specialists behind the scenes
+			const specialistData = await this.coordinateWithSpecialists(
+				message,
+				{},
+				conversationId,
+			);
+
+			// If we got specialist data, integrate it into the response
+			if (specialistData) {
+				const response = await this.integrateSpecialistData(
+					message,
+					specialistData,
+					{},
+					conversationId,
+				);
+
+				return response;
+			}
+
+			// If no specialist data, generate normal response
+			const sharedContext = conversationId
+				? await sharedContextManager.getContext(conversationId)
+				: null;
+
+			return await this.generateNormalResponse(message, {}, sharedContext);
+		} catch (error: any) {
+			console.error(
+				"❌ [Mai] Failed to generate context-aware response:",
+				error.message,
+			);
+			return "Xin lỗi quý khách, em đang gặp một số vấn đề kỹ thuật. Em đang cố gắng khắc phục, quý khách vui lòng thử lại sau ít phút ạ!";
+		}
+	}
+
+	// Method to handle parallel processing
+	async handleParallelProcessing(
+		status: "started" | "middle" | "completed" | "timeout" | "failed",
+		specialistData: any = null,
+		conversationId?: string,
+	): Promise<string> {
+		console.log("⏱️ [Mai] Handling parallel processing", {
 			status,
 			hasData: !!specialistData,
 			conversationId,
 		});
 
-		// Nếu có conversationId, lấy context từ shared memory
-		let sharedContext: any = null;
-		if (conversationId) {
-			sharedContext = await sharedContextManager.getContext(conversationId);
-		}
+		let templateKey = "progress-start";
 
-		// Chọn template phù hợp dựa trên status
-		let templateKey = "";
 		switch (status) {
 			case "started":
 				templateKey = "progress-start";
 				break;
-			case "completed":
+			case "middle":
 				if (specialistData) {
 					return await this.integrateSpecialistData(
 						"Thông tin từ chuyên gia đã sẵn sàng",
@@ -416,7 +659,7 @@ export class MaiSale extends Agent {
 				templateKey = "progress-start";
 		}
 
-		// Lấy template
+		// Get template
 		const template =
 			RESPONSE_TEMPLATES[templateKey] || RESPONSE_TEMPLATES["progress-start"];
 
@@ -424,10 +667,13 @@ export class MaiSale extends Agent {
 		let renderedResponse = this.renderTemplate(
 			template.template,
 			{},
-			sharedContext,
+			conversationId ? await sharedContextManager.getContext(conversationId) : null,
 		);
 
-		// Cá nhân hóa nếu có user profile
+		// Personalize if user profile is available
+		const sharedContext = conversationId
+			? await sharedContextManager.getContext(conversationId)
+			: null;
 		if (sharedContext?.userProfile?.name) {
 			renderedResponse = renderedResponse.replace(
 				/quý khách/g,
@@ -438,72 +684,17 @@ export class MaiSale extends Agent {
 		return renderedResponse;
 	}
 
-	// Method to get context-aware response
-	async getContextAwareResponse(
-		message: string,
-		conversationId?: string,
-	): Promise<string> {
-		console.log("🧠 [Mai] Generating context-aware response", {
-			messageLength: message.length,
-			conversationId,
-		});
-
-		// Nếu có conversationId, lấy context từ shared memory
-		let sharedContext: any = null;
-		if (conversationId) {
-			sharedContext = await sharedContextManager.getContext(conversationId);
-		}
-
-		// Prepare messages with shared context if available
-		let messages: any[] = [{ role: "user", content: message }];
-
-		if (sharedContext?.chatHistory) {
-			// Lấy chat history từ shared context
-			const recentHistory = sharedContext.chatHistory.slice(-8); // Tăng lên 8 messages để có context đầy đủ hơn
-			const historyMessages = recentHistory.map((msg: any) => ({
-				role: msg.role,
-				content: msg.content,
-			}));
-			messages = [...historyMessages, { role: "user", content: message }];
-
-			// Thêm thông tin user profile vào prompt nếu có
-			if (
-				sharedContext.userProfile &&
-				Object.keys(sharedContext.userProfile).length > 0
-			) {
-				const userProfileInfo = `
-        [USER PROFILE CONTEXT]
-        Name: ${sharedContext.userProfile.name || "Unknown"}
-        Language preference: ${sharedContext.userProfile.language || "Vietnamese"}
-        Interests: ${sharedContext.userProfile.interests ? Object.keys(sharedContext.userProfile.interests).join(", ") : "None"}
-        Previous goals: ${sharedContext.userProfile.goals ? Object.keys(sharedContext.userProfile.goals).join(", ") : "None"}
-        `;
-
-				messages.unshift({ role: "system", content: userProfileInfo.trim() });
-			}
-		}
-
-		// Generate response
-		const result = await this.generate(messages as any, {});
-		return result.text || "Xin lỗi, em không thể tạo được phản hồi.";
-	}
-
-	// Method để xử lý dữ liệu specialist với validation và error handling
+	// Method to process specialist data
 	async processSpecialistData(
 		specialistData: any,
 		conversationId?: string,
-	): Promise<{
-		isValid: boolean;
-		processedData: any;
-		response: string;
-		errors?: string[];
-	}> {
+	): Promise<any> {
 		console.log("🔧 [Mai] Processing specialist data", {
 			dataType: specialistData?.type,
 			conversationId,
 		});
 
-		// Validate dữ liệu
+		// Validate data
 		const validation = validateSpecialistData(specialistData);
 
 		if (!validation.isValid) {
@@ -520,19 +711,16 @@ export class MaiSale extends Agent {
 			};
 		}
 
-		// Nếu có conversationId, lấy context từ shared memory
+		// If conversationId is provided, get context from shared memory
 		let sharedContext: any = null;
 		if (conversationId) {
 			sharedContext = await sharedContextManager.getContext(conversationId);
 		}
 
-		// Chuẩn bị dữ liệu cho xử lý
-		const preparedData = this.prepareTemplateData(
-			specialistData,
-			sharedContext,
-		);
+		// Prepare data for processing
+		const preparedData = this.prepareTemplateData(specialistData, sharedContext);
 
-		// Tạo response mẫu
+		// Select template
 		const template = selectTemplate(specialistData.type, "default");
 		const response = this.renderTemplate(
 			template.template,
@@ -548,5 +736,5 @@ export class MaiSale extends Agent {
 	}
 }
 
-// Export enhanced Mai agent instance
+// Export the single, unified Mai sale instance
 export const maiSale = new MaiSale();

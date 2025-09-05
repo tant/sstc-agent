@@ -9,7 +9,6 @@ import { ramSpecialist } from "./agents/ram-specialist";
 import { cpuSpecialist } from "./agents/cpu-specialist";
 import { ssdSpecialist } from "./agents/ssd-specialist";
 import { bareboneSpecialist } from "./agents/barebone-specialist";
-import { desktopSpecialist } from "./agents/desktop-specialist";
 
 import { TelegramChannelAdapter } from "./channels/telegram";
 import { ZaloChannelAdapter } from "./channels/zalo";
@@ -28,7 +27,6 @@ export const mastra = new Mastra({
 		cpu: cpuSpecialist,
 		ssd: ssdSpecialist,
 		barebone: bareboneSpecialist,
-		desktop: desktopSpecialist,
 	},
 	storage: new LibSQLStore({
 		// stores telemetry, evals, ... into memory storage, if it needs to persist, change to file:../mastra.db

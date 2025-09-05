@@ -16,17 +16,70 @@ import {
 	type SearchCriteria,
 	type CompatibilityResult,
 } from "./ram-knowledge-base";
+import { 
+	SpecialistSummarySchema, 
+	RAMSummarySchema,
+	type SummaryModeContext 
+} from "../schemas/specialist-summary-schemas";
 
-// Combined RAM Specialist Personality
+// Multi-mode RAM Specialist Personality
 const RAM_SPECIALIST_PERSONALITY = `# RAM Specialist - SSTC Memory Expert
 
 ## Core Personality
-Tôi là chuyên gia tư vấn và phân tích bộ nhớ RAM của SSTC. Tôi trực tiếp hỗ trợ khách hàng và Mai để đưa ra những lời khuyên tốt nhất về sản phẩm RAM, từ thông số kỹ thuật, hiệu năng, đến khả năng tương thích và giá cả. Tôi có khả năng phân tích sâu về dữ liệu sản phẩm để đưa ra các đề xuất chính xác và hữu ích.
+Tôi là chuyên gia tư vấn và phân tích bộ nhớ RAM của SSTC, có khả năng hoạt động ở nhiều chế độ:
+- **Backend Service**: Cung cấp dữ liệu cấu trúc cho hệ thống
+- **Direct Consultant**: Tương tác trực tiếp với khách hàng
+- **Summary Mode**: Tạo tóm tắt nhanh cho parallel processing
 
-## Communication Style
-- **Tone**: Thân thiện, chuyên nghiệp, và tập trung vào việc cung cấp thông tin chính xác.
-- **Language**: Tiếng Việt là chính, có thể hỗ trợ tiếng Anh khi cần.
-- **Focus**: Cung cấp giải pháp toàn diện về RAM cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu.
+## Operating Modes
+
+### 1. Summary Mode (QUICK_SUMMARY) - For Parallel Processing
+- **Purpose**: Tạo tóm tắt nhanh về RAM để hỗ trợ Mai agent trong xử lý song song
+- **Tone**: Ngắn gọn, có cấu trúc, tập trung vào thông tin chính
+- **Focus**: 2-3 sản phẩm RAM phổ biến, giá cả, đặc điểm nổi bật
+- **Output**: JSON format theo RAMSummarySchema
+- **Time Limit**: Phải hoàn thành trong 3 giây
+
+**Summary Mode Instructions:**
+When in QUICK_SUMMARY mode, provide concise, structured information about RAM:
+
+For general inquiries ("RAM nào tốt", "bán RAM gì"):
+- Include 2-3 most popular RAM models with prices
+- Brief specs (capacity, speed, type)
+- Use cases (gaming, office, content creation)
+- Price range overview
+- Memory type recommendations (DDR4 vs DDR5)
+
+For specific inquiries:
+- Focus on relevant RAM models matching the query
+- Key differentiators and performance metrics
+- Specific recommendations based on use case
+- Compatibility notes if relevant
+
+Response Format (JSON):
+{
+  "category": "RAM",
+  "popular_products": [
+    {"name": "Corsair Vengeance LPX 16GB", "price": "1.8 triệu", "specs": "DDR4-3200 CL16", "use_case": "Gaming"},
+    {"name": "G.SKILL Ripjaws V 32GB", "price": "3.2 triệu", "specs": "DDR4-3600 CL18", "use_case": "Content Creation"},
+    {"name": "Kingston Fury Beast 16GB", "price": "1.5 triệu", "specs": "DDR4-3200 CL16", "use_case": "Office"}
+  ],
+  "price_range": "từ 800k đến 8 triệu",
+  "summary": "Bên SSTC có đầy đủ RAM DDR4 và DDR5 cho mọi nhu cầu từ văn phòng đến gaming",
+  "recommendations": ["16GB cho gaming", "32GB cho content creation", "8GB cho văn phòng"],
+  "memory_types": ["DDR4", "DDR5"],
+  "capacities": ["8GB", "16GB", "32GB", "64GB"]
+}
+
+### 2. Backend Service Mode (Default):
+- **Tone**: Kỹ thuật, chính xác, tập trung vào dữ liệu
+- **Focus**: Trích xuất dữ liệu cấu trúc, phân tích kỹ thuật, cung cấp thông tin cho hệ thống
+- **Output**: Dữ liệu có cấu trúc (RAMSpecialistData) cho agent khác sử dụng
+
+### 3. Direct Consultant Mode:
+- **Tone**: Thân thiện, chuyên nghiệp, và tập trung vào việc cung cấp thông tin chính xác
+- **Language**: Tiếng Việt là chính, có thể hỗ trợ tiếng Anh khi cần
+- **Focus**: Cung cấp giải pháp toàn diện về RAM cho khách hàng, bao gồm cả dữ liệu kỹ thuật và tư vấn dễ hiểu
 
 ## Key Expertise Areas
 
@@ -331,6 +384,114 @@ export class RAMSpecialist extends Agent {
 			ready: true,
 			...ramKnowledgeBase.getStatistics(),
 		};
+	}
+
+	// NEW: Method for generating summary responses in parallel processing
+	async generateSummaryResponse(
+		message: string,
+		context: SummaryModeContext,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [RAM Specialist] Generating summary response", {
+			messageLength: message.length,
+			intent: context.user_intent,
+			timeoutMs: context.timeout_ms,
+		});
+
+		try {
+			// Create enhanced instructions for summary mode
+			const summaryInstructions = `${RAM_SPECIALIST_PERSONALITY}
+
+**CURRENT MODE: QUICK_SUMMARY**
+
+User Intent: ${context.user_intent}
+Original Message: ${context.original_message}
+Max Products: ${context.max_products}
+Include Prices: ${context.include_prices}
+
+**IMPORTANT**: Respond ONLY with valid JSON matching RAMSummarySchema. No additional text or explanations.`;
+
+			// Generate response with enhanced instructions
+			const response = await this.generate(
+				[
+					{
+						role: "system",
+						content: summaryInstructions,
+					},
+					{
+						role: "user",
+						content: `Provide quick RAM summary for: "${message}"`,
+					},
+				],
+				{
+					structuredOutput: {
+						schema: RAMSummarySchema,
+					},
+				},
+			);
+
+			const processingTime = Date.now() - startTime;
+
+			// Check timeout
+			if (processingTime > context.timeout_ms) {
+				console.warn(
+					"⚠️ [RAM Specialist] Summary generation exceeded timeout",
+					{ processingTime, timeout: context.timeout_ms },
+				);
+				return {
+					status: "timeout",
+					error: "Response generation exceeded timeout",
+					processingTime,
+				};
+			}
+
+			console.log("✅ [RAM Specialist] Summary response generated successfully", {
+				processingTime,
+				hasData: !!response?.object,
+			});
+
+			return {
+				status: "success",
+				data: response?.object || null,
+				processingTime,
+			};
+		} catch (error: any) {
+			const processingTime = Date.now() - startTime;
+			console.error(
+				"❌ [RAM Specialist] Summary response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime,
+			};
+		}
+	}
+
+	// NEW: Quick summary method for simple calls
+	async getQuickSummary(
+		message: string,
+		intent: string = "general_inquiry",
+	): Promise<any> {
+		const context: SummaryModeContext = {
+			mode: "quick-summary",
+			user_intent: intent,
+			original_message: message,
+			timeout_ms: 3000,
+			max_products: 3,
+			include_prices: true,
+		};
+
+		const result = await this.generateSummaryResponse(message, context);
+		return result.data;
 	}
 }
 

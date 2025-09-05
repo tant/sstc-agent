@@ -468,22 +468,11 @@ export const TEMPLATE_COMPONENTS = {
 // Utility functions for formatting data in templates
 export function formatPrice(price: number): string {
 	return new Intl.NumberFormat("vi-VN").format(price);
-}
-
 export function validateSpecialistData(data: any): {
 	isValid: boolean;
 	errors: string[];
 } {
-	const errors: string[] = [];
-
-	if (!data) {
-		return { isValid: false, errors: ["Missing specialist data"] };
-	}
-
-	if (!data.type) {
-		errors.push("Missing specialist data type");
-	}
-
+	// Validate specialist data
 	const validation = SPECIALIST_DATA_VALIDATIONS[data.type];
 	if (!validation) {
 		return {
@@ -492,13 +481,13 @@ export function validateSpecialistData(data: any): {
 		};
 	}
 
-	const errors: string[] = [];
+	const validationErrors: string[] = [];
 
 	// Check required fields
 	for (const field of validation.requiredFields) {
 		const value = getNestedValue(data, field);
 		if (value === undefined || value === null) {
-			errors.push(`Missing required field: ${field}`);
+			validationErrors.push(`Missing required field: ${field}`);
 		}
 	}
 
@@ -506,11 +495,11 @@ export function validateSpecialistData(data: any): {
 	for (const [field, rule] of Object.entries(validation.validationRules)) {
 		const value = getNestedValue(data, field);
 		if (!rule(value)) {
-			errors.push(`Validation failed for field: ${field}`);
+			validationErrors.push(`Validation failed for field: ${field}`);
 		}
 	}
 
-	return { isValid: errors.length === 0, errors };
+	return { isValid: validationErrors.length === 0, errors: validationErrors };
 }
 
 // Helper function to get value from nested object

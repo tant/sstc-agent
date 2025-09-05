@@ -16,21 +16,67 @@ import {
 	type SearchCriteria,
 	type CompatibilityResult,
 } from "./cpu-knowledge-base";
+import { 
+	SpecialistSummarySchema, 
+	CPUSummarySchema,
+	type SummaryModeContext 
+} from "../schemas/specialist-summary-schemas";
 
-// CPU Specialist Personality - Dual role for both backend data processing and direct customer consultation
+// CPU Specialist Personality - Multi-mode operation for parallel processing
 const CPU_SPECIALIST_PERSONALITY = `# CPU Specialist - SSTC Processor Expert
 
 ## Core Personality
-Tôi là chuyên gia vi xử lý CPU của SSTC, có thể làm việc như một dịch vụ backend để cung cấp dữ liệu cấu trúc hoặc tương tác trực tiếp với khách hàng như một nhân viên tư vấn. Tôi tập trung vào việc phân tích dữ liệu kỹ thuật và tư vấn khách hàng chọn lựa vi xử lý CPU phù hợp nhất.
+Tôi là chuyên gia vi xử lý CPU của SSTC, có thể hoạt động ở nhiều chế độ khác nhau:
+- **Backend Service**: Cung cấp dữ liệu cấu trúc cho hệ thống
+- **Direct Consultant**: Tương tác trực tiếp với khách hàng
+- **Summary Mode**: Tạo tóm tắt nhanh cho parallel processing
 
-## Communication Styles
+## Operating Modes
 
-### When working as Backend Service (Default):
+### 1. Summary Mode (QUICK_SUMMARY) - For Parallel Processing
+- **Purpose**: Tạo tóm tắt nhanh để hỗ trợ Mai agent trong xử lý song song
+- **Tone**: Ngắn gọn, có cấu trúc, tập trung vào thông tin chính
+- **Focus**: 2-3 sản phẩm CPU phổ biến, giá cả, đặc điểm nổi bật
+- **Output**: JSON format theo CPUSummarySchema
+- **Time Limit**: Phải hoàn thành trong 3 giây
+
+**Summary Mode Instructions:**
+When in QUICK_SUMMARY mode, provide concise, structured information about CPUs:
+
+For general inquiries ("CPU nào tốt", "bán CPU gì"):
+- Include 2-3 most popular CPU models with prices
+- Brief specs (cores, clock speed, architecture)
+- Use cases (gaming, office, content creation)
+- Price range overview
+- Brand recommendations (Intel vs AMD)
+
+For specific inquiries:
+- Focus on relevant CPU models matching the query
+- Key differentiators and performance metrics
+- Specific recommendations based on use case
+- Compatibility notes if relevant
+
+Response Format (JSON):
+{
+  "category": "CPU",
+  "popular_products": [
+    {"name": "Intel i5-13400F", "price": "4.5 triệu", "specs": "10 cores, 4.6GHz", "use_case": "Gaming"},
+    {"name": "AMD Ryzen 5 7600X", "price": "5.2 triệu", "specs": "6 cores, 5.3GHz", "use_case": "Gaming"},
+    {"name": "Intel i3-12100F", "price": "2.8 triệu", "specs": "4 cores, 4.3GHz", "use_case": "Budget"}
+  ],
+  "price_range": "từ 2.5 triệu đến 15 triệu",
+  "summary": "Bên SSTC có đầy đủ CPU Intel và AMD cho mọi nhu cầu từ văn phòng đến gaming",
+  "recommendations": ["i5 cho gaming", "i3 cho văn phòng", "Ryzen cho content creation"],
+  "brands_available": ["Intel", "AMD"],
+  "socket_types": ["LGA1700", "AM5", "LGA1200", "AM4"]
+}
+
+### 2. Backend Service Mode (Default):
 - **Tone**: Kỹ thuật, chính xác, tập trung vào dữ liệu
 - **Focus**: Trích xuất dữ liệu cấu trúc, phân tích kỹ thuật, cung cấp thông tin cho hệ thống
 - **Output**: Dữ liệu có cấu trúc (CPUSpecialistData) cho agent khác sử dụng
 
-### When working as Direct Consultant:
+### 3. Direct Consultant Mode:
 - **Tone**: Chuyên nghiệp, nhiệt tình, dễ hiểu như một nhân viên kinh doanh SSTC
 - **Focus**: Tư vấn kỹ thuật CPU, tương thích hệ thống, giá trị cho khách hàng
 - **Output**: Phản hồi thân thiện với khách hàng bằng tiếng Việt/Anh
@@ -461,6 +507,114 @@ export class CPUSpecialist extends Agent {
 			ready: true,
 			...cpuKnowledgeBase.getStatistics(),
 		};
+	}
+
+	// NEW: Method for generating summary responses in parallel processing
+	async generateSummaryResponse(
+		message: string,
+		context: SummaryModeContext,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [CPU Specialist] Generating summary response", {
+			messageLength: message.length,
+			intent: context.user_intent,
+			timeoutMs: context.timeout_ms,
+		});
+
+		try {
+			// Create enhanced instructions for summary mode
+			const summaryInstructions = `${CPU_SPECIALIST_PERSONALITY}
+
+**CURRENT MODE: QUICK_SUMMARY**
+
+User Intent: ${context.user_intent}
+Original Message: ${context.original_message}
+Max Products: ${context.max_products}
+Include Prices: ${context.include_prices}
+
+**IMPORTANT**: Respond ONLY with valid JSON matching CPUSummarySchema. No additional text or explanations.`;
+
+			// Generate response with enhanced instructions
+			const response = await this.generate(
+				[
+					{
+						role: "system",
+						content: summaryInstructions,
+					},
+					{
+						role: "user",
+						content: `Provide quick CPU summary for: "${message}"`,
+					},
+				],
+				{
+					structuredOutput: {
+						schema: CPUSummarySchema,
+					},
+				},
+			);
+
+			const processingTime = Date.now() - startTime;
+
+			// Check timeout
+			if (processingTime > context.timeout_ms) {
+				console.warn(
+					"⚠️ [CPU Specialist] Summary generation exceeded timeout",
+					{ processingTime, timeout: context.timeout_ms },
+				);
+				return {
+					status: "timeout",
+					error: "Response generation exceeded timeout",
+					processingTime,
+				};
+			}
+
+			console.log("✅ [CPU Specialist] Summary response generated successfully", {
+				processingTime,
+				hasData: !!response?.object,
+			});
+
+			return {
+				status: "success",
+				data: response?.object || null,
+				processingTime,
+			};
+		} catch (error: any) {
+			const processingTime = Date.now() - startTime;
+			console.error(
+				"❌ [CPU Specialist] Summary response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime,
+			};
+		}
+	}
+
+	// NEW: Quick summary method for simple calls
+	async getQuickSummary(
+		message: string,
+		intent: string = "general_inquiry",
+	): Promise<any> {
+		const context: SummaryModeContext = {
+			mode: "quick-summary",
+			user_intent: intent,
+			original_message: message,
+			timeout_ms: 3000,
+			max_products: 3,
+			include_prices: true,
+		};
+
+		const result = await this.generateSummaryResponse(message, context);
+		return result.data;
 	}
 }
 
