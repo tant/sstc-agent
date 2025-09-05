@@ -1,232 +1,78 @@
-// Response templates for Mai to use when integrating specialist data
-// Hợp nhất từ cả hai phiên bản template để có một file hoàn chỉnh
+import { type ResponseTemplate } from '../core/models/response-template';
 
-// Interface cho response template
-export interface ResponseTemplate {
-	type: string;
-	template: string;
-	variables: string[];
-	examples: string[];
-}
-
-// Interface cho specialist data validation
-export interface SpecialistDataValidation {
-	type: string;
-	requiredFields: string[];
-	validationRules: Record<string, (value: any) => boolean>;
-}
-
-// Response templates cho từng trạng thái xử lý
-export const PROCESSING_STATE_TEMPLATES = {
-	// RAM specialist templates
-	ram: {
-		initial:
-			"Dạ quý khách, để tư vấn RAM phù hợp nhất, em đang kiểm tra thông số kỹ thuật chi tiết...",
-		timeout:
-			"Dạ quý khách chờ em xíu để em lấy thông tin RAM chi tiết nhất cho quý khách ạ!",
-		complete: "Dạ em đã có thông tin RAM phù hợp cho quý khách đây ạ:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin RAM. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin RAM cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-
-	// GPU specialist templates
-	gpu: {
-		initial:
-			"Dạ quý khách, để tư vấn card đồ họa phù hợp, em đang kiểm tra các mẫu hiện có...",
-		timeout:
-			"Dạ quý khách vui lòng chờ trong giây lát, em đang so sánh các lựa chọn card đồ họa tốt nhất...",
-		complete: "Dạ em đã có kết quả tư vấn card đồ họa phù hợp cho quý khách:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin card đồ họa. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin card đồ họa cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-
-	// CPU specialist templates
-	cpu: {
-		initial:
-			"Dạ quý khách, để tư vấn vi xử lý phù hợp, em đang kiểm tra các mẫu hiện có...",
-		timeout:
-			"Dạ quý khách vui lòng chờ trong giây lát, em đang so sánh các lựa chọn vi xử lý tốt nhất...",
-		complete: "Dạ em đã có kết quả tư vấn vi xử lý phù hợp cho quý khách:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin vi xử lý. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin vi xử lý cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-
-	// SSD specialist templates
-	ssd: {
-		initial:
-			"Dạ quý khách, để tư vấn ổ cứng SSD phù hợp, em đang kiểm tra các mẫu hiện có...",
-		timeout:
-			"Dạ quý khách vui lòng chờ trong giây lát, em đang so sánh các lựa chọn ổ cứng SSD tốt nhất...",
-		complete: "Dạ em đã có kết quả tư vấn ổ cứng SSD phù hợp cho quý khách:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin ổ cứng SSD. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin ổ cứng SSD cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-
-	// Storage specialist templates
-	storage: {
-		initial:
-			"Dạ quý khách, để tư vấn ổ cứng phù hợp, em đang kiểm tra các mẫu hiện có...",
-		timeout:
-			"Dạ quý khách vui lòng chờ trong giây lát, em đang so sánh các lựa chọn ổ cứng tốt nhất...",
-		complete: "Dạ em đã có kết quả tư vấn ổ cứng phù hợp cho quý khách:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin ổ cứng. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin ổ cứng cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-
-	// General templates
-	general: {
-		initial:
-			"Dạ quý khách, để tư vấn chi tiết nhất, em đang kiểm tra thông tin...",
-		timeout:
-			"Dạ quý khách chờ em xíu để em lấy thông tin chi tiết nhất cho quý khách ạ!",
-		complete: "Dạ em đã có thông tin chi tiết cho quý khách đây ạ:",
-		error:
-			"Xin lỗi quý khách, em gặp lỗi khi lấy thông tin. Vui lòng thử lại sau ạ!",
-		partial:
-			"Dạ em đã có một số thông tin cho quý khách, em đang tiếp tục tìm kiếm thêm chi tiết ạ:",
-	},
-};
-
-// Templates chi tiết cho từng loại specialist data
+// Template library for Mai to use when integrating specialist data into responses
+// Templates are organized by data type and variant
 export const SPECIALIST_RESPONSE_TEMPLATES: Record<string, ResponseTemplate> = {
-	// RAM Specialist Templates
+	// RAM Templates
 	"ram-default": {
 		type: "ram",
 		template: `
-Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia RAM của SSTC. 
-Theo như phân tích thì sản phẩm phù hợp nhất cho nhu cầu của quý khách là:
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia RAM của SSTC.
 
-**{{productName}}** - {{capacity}} với tốc độ {{speed}} và độ trễ {{latency}}
-Giá: {{formattedPrice}} VND
-Ưu điểm: {{keyFeatures}}
+## 🎯 Khuyến nghị RAM phù hợp
 
-{{#if useCases.includes('gaming')}}
-Với nhu cầu gaming, thanh RAM này sẽ mang lại hiệu năng tốt nhờ tốc độ cao và độ trễ thấp.
+{{#each recommendations}}
+### {{this.productName}} (SKU: {{this.productId}}) - {{this.price}}đ
+
+**Ưu điểm**: {{this.keyFeatures.[0]}}, {{this.keyFeatures.[1]}}
+**Thông số**: {{this.specifications.capacity}} {{this.specifications.type}} {{this.specifications.speed}}, latency {{this.specifications.latency}}
+**Mục đích**: {{this.useCases.[0]}}, {{this.useCases.[1]}}
+
+{{/each}}
+
+## 📊 Phân tích kỹ thuật
+
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số chính**:
+ - Giao tiếp: {{technicalAnalysis.keySpecifications.memoryType}}
+ - Tốc độ: {{technicalAnalysis.keySpecifications.baseSpeed}} đến {{technicalAnalysis.keySpecifications.maxSpeed}}
 {{/if}}
 
-{{#if useCases.includes('content-creation')}}
-Với công việc sáng tạo nội dung, dung lượng {{capacity}} sẽ đủ để xử lý các tác vụ nặng.
-{{/if}}
+## 💰 Thông tin giá cả
 
-Quý khách có muốn em cung cấp thêm thông tin chi tiết về sản phẩm này không ạ?
-    `.trim(),
+ - Giá thấp nhất: {{pricingInfo.basePrice}}đ
+ - Tổng chi phí: {{pricingInfo.totalPrice}}đ
+ - Tiết kiệm: {{pricingInfo.savings}}đ ({{pricingInfo.discountPercentage}}%)
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+		`.trim(),
 		variables: [
-			"productName",
-			"capacity",
-			"speed",
-			"latency",
-			"price",
-			"keyFeatures",
-			"useCases",
+			"recommendations",
+			"technicalAnalysis",
+			"pricingInfo",
 		],
-		examples: [
-			"Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia RAM của SSTC. Theo như phân tích thì sản phẩm phù hợp nhất cho nhu cầu của quý khách là: **Corsair Vengeance LPX 16GB** - 16GB với tốc độ 3200MHz và độ trễ CL22. Giá: 1,200,000 VND. Ưu điểm: Hiệu năng cao, tương thích tốt. Với nhu cầu gaming, thanh RAM này sẽ mang lại hiệu năng tốt nhờ tốc độ cao và độ trễ thấp.",
-		],
+		examples: [],
 	},
 
+	// RAM Comparison Table Template
 	"ram-comparison": {
 		type: "ram",
 		template: `
-Dạ quý khách, em có 2 lựa chọn RAM mà chuyên gia của SSTC đã phân tích:
+Dạ quý khách, đây là bảng so sánh các lựa chọn RAM mà chuyên gia của SSTC gợi ý:
 
-**Lựa chọn 1 - Cân bằng (Recommended):**
-{{#each recommendations.slice(0, 1)}}
-- {{productName}}: {{formattedPrice}} VND
-  + Dung lượng: {{capacity}}
-  + Tốc độ: {{speed}}
-  + Độ trễ: {{latency}}
+| Mẫu | Dung lượng | Loại | Tốc độ | Giá | Ưu điểm |
+|-----|------------|------|--------|-----|----------|
+{{#each recommendations}}
+| {{this.productName}} | {{this.specifications.capacity}} | {{this.specifications.type}} | {{this.specifications.speed}} | {{this.price}}đ | {{this.keyFeatures.[0]}} |
 {{/each}}
 
-**Lựa chọn 2 - Cao cấp:**
-{{#each recommendations.slice(1, 2)}}
-- {{productName}}: {{formattedPrice}} VND
-  + Dung lượng: {{capacity}}
-  + Tốc độ: {{speed}}
-  + Độ trễ: {{latency}}
-{{/each}}
-
-Theo đánh giá, lựa chọn 1 phù hợp với đa số người dùng, còn lựa chọn 2 dành cho nhu cầu cao hơn.
-Quý khách muốn chọn hướng nào ạ?
-    `.trim(),
-		variables: ["recommendations"],
-		examples: [],
-	},
-
-	// GPU Specialist Templates
-	"gpu-default": {
-		type: "gpu",
-		template: `
-Dạ quý khách, em vừa nhận được thông tin từ chuyên gia card đồ họa của SSTC.
-
-**{{productName}}** - {{chipset}} với {{vram}} VRAM
-Giá: {{formattedPrice}} VND
-Hiệu năng: {{performanceScore}}/100
-
-{{#if useCases.includes('gaming')}}
-Với card đồ họa này, quý khách có thể chơi các tựa game mới nhất ở chất lượng cao.
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số kỹ thuật chính**:
+ - Loại RAM: {{technicalAnalysis.keySpecifications.memoryType}}
+ - Tốc độ cơ bản: {{technicalAnalysis.keySpecifications.baseSpeed}}
+ - Tốc độ tối đa: {{technicalAnalysis.keySpecifications.maxSpeed}}
 {{/if}}
 
-{{#if useCases.includes('content-creation')}}
-Card đồ họa này rất phù hợp cho render video và làm đồ họa 3D.
-{{/if}}
-
-Quý khách có muốn em tư vấn thêm về card này không ạ?
-    `.trim(),
+Quý khách có muốn biết thêm thông tin chi tiết về mẫu nào ạ?
+		`.trim(),
 		variables: [
-			"productName",
-			"chipset",
-			"vram",
-			"price",
-			"performanceScore",
-			"useCases",
+			"recommendations",
+			"technicalAnalysis",
 		],
 		examples: [],
 	},
 
-	// CPU Specialist Templates
-	"cpu-default": {
-		type: "cpu",
-		template: `
-Dạ quý khách, em vừa nhận được thông tin từ chuyên gia vi xử lý của SSTC.
-
-**{{productName}}** - {{socket}} với {{cores}} nhân/{{threads}} luồng
-Tốc độ: {{baseClock}} - {{boostClock}}
-Giá: {{formattedPrice}} VND
-
-{{#if useCases.includes('gaming')}}
-Vi xử lý này sẽ mang lại hiệu năng gaming tuyệt vời.
-{{/if}}
-
-{{#if useCases.includes('content-creation')}}
-Với nhiều nhân và luồng, CPU này rất phù hợp cho công việc sáng tạo nội dung.
-{{/if}}
-
-Quý khách có muốn biết thêm thông số kỹ thuật không ạ?
-    `.trim(),
-		variables: [
-			"productName",
-			"socket",
-			"cores",
-			"threads",
-			"baseClock",
-			"boostClock",
-			"price",
-			"useCases",
-		],
-		examples: [],
-	},
-
-	// Storage Specialist Templates
+	// Storage Specialist Templates - Updated
 	"storage-default": {
 		type: "storage",
 		template: `
@@ -285,55 +131,199 @@ Quý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các
 		],
 		examples: [],
 	},
-
-	// Timeout Templates
-	"timeout-default": {
-		type: "timeout",
+	
+	// New Storage Product List Template
+	"storage-product-list": {
+		type: "storage",
 		template: `
-Dạ quý khách vui lòng chờ thêm một chút nữa ạ. Em đang nhận thông tin chi tiết từ chuyên gia của SSTC.
-Thông tin sẽ được cập nhật ngay khi có kết quả...
-    `.trim(),
-		variables: [],
+Dạ quý khách, em xin giới thiệu các mẫu SSD hiện có tại SSTC:
+
+{{#each recommendations}}
+**{{this.productName}}** ({{this.specifications.sku}})
+- Dung lượng: {{this.specifications.capacity}} 
+- Giao tiếp: {{this.specifications.interface}}
+- Tốc độ đọc/ghi: {{this.specifications.readSpeed}}/{{this.specifications.writeSpeed}}
+- Giá: {{this.price}} VND
+- Phù hợp: {{this.useCases}}
+
+{{/each}}
+
+Quý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các lựa chọn theo tiêu chí cụ thể hơn ạ?
+Ví dụ như:
+- Dung lượng: 256GB, 512GB, 1TB, 2TB
+- Giao tiếp: SATA, NVMe
+- Mục đích: Gaming, Văn phòng, Sáng tạo nội dung
+		`.trim(),
+		variables: [
+			"recommendations"
+		],
 		examples: [],
 	},
 
-	"timeout-extended": {
-		type: "timeout",
+	// CPU Templates
+	"cpu-default": {
+		type: "cpu",
 		template: `
-Dạ quý khách, thông tin đang được xử lý kỹ lưỡng để đảm bảo độ chính xác.
-Em sẽ cập nhật cho quý khách ngay khi có kết quả hoàn tất.
-    `.trim(),
-		variables: [],
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia CPU của SSTC.
+
+## 🎯 Khuyến nghị CPU phù hợp
+
+{{#each recommendations}}
+### {{this.productName}} (SKU: {{this.productId}}) - {{this.price}}đ
+
+**Ưu điểm**: {{this.keyFeatures.[0]}}, {{this.keyFeatures.[1]}}
+**Thông số**: {{this.specifications.socket}} với {{this.specifications.cores}} nhân/{{this.specifications.threads}} luồng
+**Tốc độ**: {{this.specifications.baseClock}} - {{this.specifications.boostClock}}
+**Mục đích**: {{this.useCases.[0]}}, {{this.useCases.[1]}}
+
+{{/each}}
+
+## 📊 Phân tích kỹ thuật
+
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số chính**:
+ - Socket: {{technicalAnalysis.keySpecifications.socket}}
+ - Nhân/Luồng: {{technicalAnalysis.keySpecifications.coreCount}}/{{technicalAnalysis.keySpecifications.threadCount}}
+ - Tần số: {{technicalAnalysis.keySpecifications.baseFrequency}} - {{technicalAnalysis.keySpecifications.boostFrequency}}
+{{/if}}
+
+## 💰 Thông tin giá cả
+
+ - Giá thấp nhất: {{pricingInfo.basePrice}}đ
+ - Tổng chi phí: {{pricingInfo.totalPrice}}đ
+ - Tiết kiệm: {{pricingInfo.savings}}đ ({{pricingInfo.discountPercentage}}%)
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+		`.trim(),
+		variables: [
+			"recommendations",
+			"technicalAnalysis",
+			"pricingInfo",
+		],
 		examples: [],
 	},
 
-	// Progress Templates
-	"progress-start": {
-		type: "progress",
+	// CPU Comparison Table Template
+	"cpu-comparison": {
+		type: "cpu",
 		template: `
-Dạ quý khách, em đang kiểm tra thông tin chi tiết từ chuyên gia của SSTC. 
-Xin vui lòng chờ trong giây lát...
-    `.trim(),
-		variables: [],
+Dạ quý khách, đây là bảng so sánh các lựa chọn CPU mà chuyên gia của SSTC gợi ý:
+
+| Mẫu | Socket | Nhân/Luồng | Tần số | Giá | Ưu điểm |
+|-----|--------|------------|--------|-----|----------|
+{{#each recommendations}}
+| {{this.productName}} | {{this.specifications.socket}} | {{this.specifications.cores}}/{{this.specifications.threads}} | {{this.specifications.baseClock}}-{{this.specifications.boostClock}} | {{this.price}}đ | {{this.keyFeatures.[0]}} |
+{{/each}}
+
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số kỹ thuật chính**:
+ - Socket phổ biến: {{technicalAnalysis.keySpecifications.socket}}
+ - Nhân/Luồng tối đa: {{technicalAnalysis.keySpecifications.coreCount}}/{{technicalAnalysis.keySpecifications.threadCount}}
+{{/if}}
+
+Quý khách có muốn biết thêm thông tin chi tiết về mẫu nào ạ?
+		`.trim(),
+		variables: [
+			"recommendations",
+			"technicalAnalysis",
+		],
 		examples: [],
 	},
 
-	"progress-middle": {
-		type: "progress",
+	// Barebone Templates
+	"barebone-default": {
+		type: "barebone",
 		template: `
-Dạ quý khách, em đang phân tích kỹ các thông số kỹ thuật để đưa ra lựa chọn phù hợp nhất.
-Quý khách vui lòng chờ thêm một chút nữa ạ...
-    `.trim(),
-		variables: [],
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia barebone của SSTC.
+
+## 🎯 Khuyến nghị barebone phù hợp
+
+{{#each recommendations}}
+### {{this.productName}} (SKU: {{this.productId}}) - {{this.price}}đ
+
+**Ưu điểm**: {{this.keyFeatures.[0]}}, {{this.keyFeatures.[1]}}
+**Thông số**: {{this.specifications.caseSize}} với mainboard {{this.specifications.motherboardFormFactor}}
+**Khả năng tương thích**: {{this.useCases.[0]}}, {{this.useCases.[1]}}
+
+{{/each}}
+
+## 📊 Phân tích kỹ thuật
+
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số chính**:
+ - Kích thước case: {{technicalAnalysis.keySpecifications.caseSize}}
+ - Form factor: {{technicalAnalysis.keySpecifications.motherboardFormFactor}}
+ - Socket hỗ trợ: {{technicalAnalysis.keySpecifications.supportedSocket}}
+{{/if}}
+
+## 💰 Thông tin giá cả
+
+ - Giá thấp nhất: {{pricingInfo.basePrice}}đ
+ - Tổng chi phí: {{pricingInfo.totalPrice}}đ
+ - Tiết kiệm: {{pricingInfo.savings}}đ ({{pricingInfo.discountPercentage}}%)
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+		`.trim(),
+		variables: [
+			"recommendations",
+			"technicalAnalysis",
+			"pricingInfo",
+		],
 		examples: [],
 	},
 
-	// Error Templates
+	// Desktop Templates
+	"desktop-default": {
+		type: "desktop",
+		template: `
+Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gia desktop của SSTC.
+
+## 🎯 Khuyến nghị cấu hình PC phù hợp
+
+{{#each recommendations}}
+### {{this.productName}} (SKU: {{this.productId}}) - {{this.price}}đ
+
+**Ưu điểm**: {{this.keyFeatures.[0]}}, {{this.keyFeatures.[1]}}
+**Cấu hình**: 
+ - CPU: {{this.specifications.cpuModel}}
+ - RAM: {{this.specifications.ramConfiguration.capacity}} {{this.specifications.ramConfiguration.type}} {{this.specifications.ramConfiguration.speed}}
+ - Storage: {{this.specifications.storageConfiguration.capacity}} {{this.specifications.storageConfiguration.type}}
+ - Case: {{this.specifications.caseModel}} ({{this.specifications.caseSize}})
+**Mục đích**: {{this.useCases.[0]}}, {{this.useCases.[1]}}
+
+{{/each}}
+
+## 📊 Phân tích kỹ thuật
+
+{{#if technicalAnalysis.keySpecifications}}
+**Thông số chính**:
+ - Socket CPU: {{technicalAnalysis.keySpecifications.cpuSocket}}
+ - RAM: {{technicalAnalysis.keySpecifications.ramType}} {{technicalAnalysis.keySpecifications.ramCapacity}}
+ - Storage: {{technicalAnalysis.keySpecifications.storageType}} {{technicalAnalysis.keySpecifications.storageCapacity}}
+{{/if}}
+
+## 💰 Thông tin giá cả
+
+ - Giá thấp nhất: {{pricingInfo.basePrice}}đ
+ - Tổng chi phí: {{pricingInfo.totalPrice}}đ
+ - Tiết kiệm: {{pricingInfo.savings}}đ ({{pricingInfo.discountPercentage}}%)
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+		`.trim(),
+		variables: [
+			"recommendations",
+			"technicalAnalysis",
+			"pricingInfo",
+		],
+		examples: [],
+	},
+
+	// Error templates
 	"error-default": {
 		type: "error",
 		template: `
-Xin lỗi quý khách, em gặp lỗi khi lấy thông tin chi tiết từ chuyên gia. 
-Vui lòng thử lại sau ạ!
+Xin lỗi quý khách, em gặp một số vấn đề kỹ thuật khi xử lý yêu cầu. 
+Em đang khắc phục, quý khách vui lòng thử lại sau ít phút ạ!
     `.trim(),
 		variables: [],
 		examples: [],
@@ -346,9 +336,9 @@ Xin lỗi quý khách, có lỗi xảy ra khi xử lý yêu cầu.
 Em đang thử lại, quý khách vui lòng chờ trong giây lát...
     `.trim(),
 		variables: [],
-\t"storage-product-list": {\n\	\ttype: "storage",\n\	\ttemplate: `\nDạ quý khách, em xin giới thiệu các mẫu SSD hiện có tại SSTC:\n\n{{#each recommendations}}\n**{{this.productName}}** ({{this.specifications.sku}})\n- Dung lượng: {{this.specifications.capacity}} \n- Giao tiếp: {{this.specifications.interface}}\n- Tốc độ đọc/ghi: {{this.specifications.readSpeed}}/{{this.specifications.writeSpeed}}\n- Giá: {{this.price}} VND\n- Phù hợp: {{this.useCases}}\n\n{{/each}}\n\nQuý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các lựa chọn theo tiêu chí cụ thể hơn ạ?\nVí dụ như:\n- Dung lượng: 256GB, 512GB, 1TB, 2TB\n- Giao tiếp: SATA, NVMe\n- Mục đích: Gaming, Văn phòng, Sáng tạo nội dung\n\t\t`.trim(),\n\	\tvariables: [\n\	\t\t"recommendations"\n\	\t],\n\	\texamples: [],\n\	},
 		examples: [],
 	},
+
 };
 
 // Template for integrating specialist data into Mai's responses
@@ -369,95 +359,14 @@ Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết 
 
 [pricingInfo]
 
-## 🛒 Tình trạng hàng
-
-[availabilityStatus]
-
-> [confidenceNote]
-
-[callToAction]
-  `,
-
-	// Template for GPU data integration
-	gpu: `
-Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia card đồ họa của SSTC.
-
-## 🎯 Khuyến nghị card đồ họa phù hợp
-
-[recommendationsTable]
-
-## 📊 Phân tích hiệu năng
-
-[keySpecifications]
-
-## 💰 Thông tin giá cả
-
-[pricingInfo]
-
-## 🛒 Tình trạng hàng
-
-[availabilityStatus]
-
-> [confidenceNote]
-
-[callToAction]
-  `,
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+	`.trim(),
 
 	// Template for CPU data integration
 	cpu: `
-Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia vi xử lý của SSTC.
+Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia CPU của SSTC. 
 
-## 🎯 Khuyến nghị vi xử lý phù hợp
-
-[recommendationsTable]
-
-## 📊 Phân tích hiệu năng
-
-[keySpecifications]
-
-## 💰 Thông tin giá cả
-
-[pricingInfo]
-
-## 🛒 Tình trạng hàng
-
-[availabilityStatus]
-
-> [confidenceNote]
-
-[callToAction]
-  `,
-
-	// Template for Storage data integration
-	storage: `
-Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia ổ cứng của SSTC.
-
-## 🎯 Khuyến nghị ổ cứng phù hợp
-
-[recommendationsTable]
-
-## 📊 Phân tích hiệu năng
-
-[keySpecifications]
-
-## 💰 Thông tin giá cả
-
-[pricingInfo]
-
-## 🛒 Tình trạng hàng
-
-[availabilityStatus]
-
-> [confidenceNote]
-
-[callToAction]
-  `,
-
-	// Generic template for any specialist data
-	generic: `
-Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia của SSTC.
-
-## 🎯 Khuyến nghị phù hợp
+## 🎯 Khuyến nghị CPU phù hợp
 
 [recommendationsTable]
 
@@ -469,125 +378,110 @@ Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết 
 
 [pricingInfo]
 
-## 🛒 Tình trạng hàng
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+	`.trim(),
 
-[availabilityStatus]
+	// Template for Storage data integration
+	storage: `
+Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia SSD của SSTC. 
 
-> [confidenceNote]
+## 🎯 Khuyến nghị SSD phù hợp
 
-[callToAction]
-  `,
+[recommendationsTable]
+
+## 📊 Phân tích kỹ thuật
+
+[keySpecifications]
+
+## 💰 Thông tin giá cả
+
+[pricingInfo]
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+	`.trim(),
+
+	// Template for Barebone data integration
+	barebone: `
+Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia barebone của SSTC. 
+
+## 🎯 Khuyến nghị barebone phù hợp
+
+[recommendationsTable]
+
+## 📊 Phân tích kỹ thuật
+
+[keySpecifications]
+
+## 💰 Thông tin giá cả
+
+[pricingInfo]
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+	`.trim(),
+
+	// Template for Desktop data integration
+	desktop: `
+Dạ quý khách [customerName], em vừa nhận được thông tin chi tiết từ chuyên gia desktop của SSTC. 
+
+## 🎯 Khuyến nghị cấu hình PC phù hợp
+
+[recommendationsTable]
+
+## 📊 Phân tích kỹ thuật
+
+[keySpecifications]
+
+## 💰 Thông tin giá cả
+
+[pricingInfo]
+
+Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
+	`.trim(),
 };
 
-// Template components for building responses
+// Component templates that can be composed into larger responses
 export const TEMPLATE_COMPONENTS = {
-	// Table format for recommendations
+	// Pricing information component
+	pricingInfo: `
+## 💰 Thông tin giá cả
+
+ - Giá thấp nhất: [basePrice]đ
+ - Tổng chi phí: [totalPrice]đ
+ - Tiết kiệm: [savings]đ ([discountPercentage]%)
+	`.trim(),
+
+	// Key specifications component
+	keySpecifications: `
+## 📊 Thông số kỹ thuật chính
+
+ - Thông số chính: [keySpecifications]
+	`.trim(),
+
+	// Recommendations table component
 	recommendationsTable: `
-| Sản phẩm | Giá | Độ tin cậy | Đặc điểm nổi bật |
-|----------|-----|------------|------------------|
-[recommendationsRows]
-  `,
+## 🎯 Các lựa chọn được đề xuất
 
-	// Confidence note based on confidence score
-	confidenceNotes: {
-		high: "Thông tin trên được phân tích với độ chính xác cao từ chuyên gia của SSTC.",
-		medium:
-			"Thông tin trên được phân tích từ cơ sở dữ liệu sản phẩm của SSTC với độ tin cậy trung bình.",
-		low: "Thông tin trên là kết quả phân tích sơ bộ, quý khách có thể yêu cầu thêm chi tiết nếu cần.",
-	},
-
-	// Call to action options
-	callToActions: {
-		purchase: "Quý khách có muốn em giúp đặt hàng sản phẩm này không ạ?",
-		moreInfo:
-			"Quý khách muốn em giải thích thêm về thông số kỹ thuật nào không ạ?",
-		compare: "Quý khách có muốn em so sánh thêm với các sản phẩm khác không ạ?",
-		general: "Quý khách có câu hỏi nào khác về sản phẩm không ạ?",
-	},
+[recommendations]
+	`.trim(),
 };
 
-// Validation schemas cho từng loại specialist data
-export const SPECIALIST_DATA_VALIDATIONS: Record<
-	string,
-	SpecialistDataValidation
-> = {
-	ram: {
-		type: "ram",
-		requiredFields: [
-			"type",
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
-		validationRules: {
-			type: (value) => value === "ram",
-			recommendations: (value) => Array.isArray(value) && value.length > 0,
-			"pricingInfo.basePrice": (value) =>
-				typeof value === "number" && value >= 0,
-		},
-	},
-
-	gpu: {
-		type: "gpu",
-		requiredFields: [
-			"type",
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
-		validationRules: {
-			type: (value) => value === "gpu",
-			recommendations: (value) => Array.isArray(value) && value.length > 0,
-			"pricingInfo.basePrice": (value) =>
-				typeof value === "number" && value >= 0,
-		},
-	},
-
-	cpu: {
-		type: "cpu",
-		requiredFields: [
-			"type",
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
-		validationRules: {
-			type: (value) => value === "cpu",
-			recommendations: (value) => Array.isArray(value) && value.length > 0,
-			"pricingInfo.basePrice": (value) =>
-				typeof value === "number" && value >= 0,
-		},
-	},
-
-	storage: {
-		type: "storage",
-		requiredFields: [
-			"type",
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
-		validationRules: {
-			type: (value) => value === "storage",
-			recommendations: (value) => Array.isArray(value) && value.length > 0,
-			"pricingInfo.basePrice": (value) =>
-				typeof value === "number" && value >= 0,
-		},
-	},
-};
-
-// Helper function để format giá tiền
+// Utility functions for formatting data in templates
 export function formatPrice(price: number): string {
 	return new Intl.NumberFormat("vi-VN").format(price);
 }
 
-// Helper function để validate specialist data
 export function validateSpecialistData(data: any): {
 	isValid: boolean;
 	errors: string[];
 } {
-	if (!data || !data.type) {
-		return { isValid: false, errors: ["Missing specialist data type"] };
+	const errors: string[] = [];
+
+	if (!data) {
+		return { isValid: false, errors: ["Missing specialist data"] };
+	}
+
+	if (!data.type) {
+		errors.push("Missing specialist data type");
 	}
 
 	const validation = SPECIALIST_DATA_VALIDATIONS[data.type];
@@ -600,7 +494,7 @@ export function validateSpecialistData(data: any): {
 
 	const errors: string[] = [];
 
-	// Kiểm tra required fields
+	// Check required fields
 	for (const field of validation.requiredFields) {
 		const value = getNestedValue(data, field);
 		if (value === undefined || value === null) {
@@ -608,7 +502,7 @@ export function validateSpecialistData(data: any): {
 		}
 	}
 
-	// Kiểm tra validation rules
+	// Check validation rules
 	for (const [field, rule] of Object.entries(validation.validationRules)) {
 		const value = getNestedValue(data, field);
 		if (!rule(value)) {
@@ -619,12 +513,12 @@ export function validateSpecialistData(data: any): {
 	return { isValid: errors.length === 0, errors };
 }
 
-// Helper function để lấy giá trị nested
+// Helper function to get value from nested object
 function getNestedValue(obj: any, path: string): any {
 	return path.split(".").reduce((current, key) => current?.[key], obj);
 }
 
-// Helper function để chọn template phù hợp
+// Helper function to select template
 export function selectTemplate(
 	dataType: string,
 	variant: string = "default",
