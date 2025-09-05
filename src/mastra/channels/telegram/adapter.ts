@@ -3,10 +3,10 @@
  * INTEGRATES with existing maiSale agent and message workflows
  */
 
-import { validateTelegramConfig, type TelegramConfig } from "./config";
+import TelegramBot from "node-telegram-bot-api";
 import type { ChannelAdapter } from "../../core/channels/interface";
 import { messageProcessor } from "../../core/processor/message-processor";
-import TelegramBot from "node-telegram-bot-api";
+import { type TelegramConfig, validateTelegramConfig } from "./config";
 
 export class TelegramChannelAdapter implements ChannelAdapter {
 	private bot: any;
@@ -877,5 +877,22 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 	 */
 	async deleteWebhook(): Promise<boolean> {
 		return await this.bot.deleteWebHook();
+	}
+
+	/**
+	 * Send message directly to Telegram chat
+	 * For holding messages during parallel processing
+	 */
+	public async sendMessage(chatId: string, message: string): Promise<boolean> {
+		try {
+			await this.bot.sendMessage(chatId, message, {
+				parse_mode: "Markdown",
+			});
+			console.log(`✅ [Telegram] Direct message sent to ${chatId}`);
+			return true;
+		} catch (error) {
+			console.error(`❌ [Telegram] Failed to send direct message:`, error);
+			return false;
+		}
 	}
 }

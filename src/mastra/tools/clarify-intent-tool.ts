@@ -196,7 +196,7 @@ export const clarifyIntentTool = createTool({
 		await new Promise((resolve) => setTimeout(resolve, 150));
 
 		// Calculate intent scores
-		let score = {
+		const score = {
 			purchaseScore: 0,
 			warrantyScore: 0,
 			technicalScore: 0,
@@ -211,7 +211,7 @@ export const clarifyIntentTool = createTool({
 					scoreValue += intentData.confidenceBoost;
 				}
 			}
-			(score as any)[intentKey + "Score"] = Math.min(scoreValue, 1.0);
+			(score as any)[`${intentKey}Score`] = Math.min(scoreValue, 1.0);
 		}
 
 		// Calculate specialist scores

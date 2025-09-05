@@ -3,10 +3,10 @@
  * INTEGRATES with existing maiSale agent and message workflows
  */
 
-import { validateZaloConfig, type ZaloConfig } from "./config";
+import { Zalo } from "zca-js";
 import type { ChannelAdapter } from "../../core/channels/interface";
 import { messageProcessor } from "../../core/processor/message-processor";
-import { Zalo } from "zca-js";
+import { validateZaloConfig, type ZaloConfig } from "./config";
 
 export class ZaloChannelAdapter implements ChannelAdapter {
 	private zalo: any;
@@ -154,7 +154,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 				content,
 				contentType,
 				senderId: zaloMessage.data.uidFrom?.toString() || "unknown",
-				timestamp: new Date(parseInt(zaloMessage.data.ts) || Date.now()),
+				timestamp: new Date(parseInt(zaloMessage.data.ts, 10) || Date.now()),
 				messageId: zaloMessage.data.msgId?.toString() || Date.now().toString(),
 				threadId:
 					zaloMessage.threadId?.toString() ||
@@ -181,7 +181,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 			);
 			console.log("📄 [Zalo] Message structure:", {
 				hasMessage: !!zaloMessage,
-				hasSender: !!(zaloMessage && zaloMessage.sender),
+				hasSender: !!zaloMessage?.sender,
 				availableKeys: zaloMessage ? Object.keys(zaloMessage) : [],
 			});
 
@@ -296,7 +296,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 					? `${zaloMessage.data.content.substring(0, 50)}...`
 					: "[No content]",
 				timestamp: new Date(
-					parseInt(zaloMessage.data.ts) || Date.now(),
+					parseInt(zaloMessage.data.ts, 10) || Date.now(),
 				).toISOString(),
 			});
 		} else {
@@ -320,9 +320,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 		}
 
 		// Validate that we have the minimum required information
-		const hasValidSender =
-			(zaloMessage.data && zaloMessage.data.uidFrom) ||
-			(zaloMessage.sender && zaloMessage.sender.id);
+		const hasValidSender = zaloMessage.data?.uidFrom || zaloMessage.sender?.id;
 
 		if (!hasValidSender) {
 			console.log(
@@ -585,6 +583,24 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 
 		if (rawMessage && typeof rawMessage === "object" && rawMessage.id) {
 			await this.handleZaloMessage(rawMessage);
+		}
+	}
+
+	/**
+	 * Send message directly to Zalo thread
+	 * For holding messages during parallel processing
+	 */
+	public async sendMessage(
+		threadId: string,
+		message: string,
+	): Promise<boolean> {
+		try {
+			await this.api.sendMessage(message, threadId);
+			console.log(`✅ [Zalo] Direct message sent to ${threadId}`);
+			return true;
+		} catch (error) {
+			console.error(`❌ [Zalo] Failed to send direct message:`, error);
+			return false;
 		}
 	}
 }

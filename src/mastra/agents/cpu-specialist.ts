@@ -1,26 +1,24 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-
-import { getLibSQLConfig } from "../database/libsql";
-import { chromaVector } from "../vector/chroma";
-import { mastraModelProvider } from "../llm/provider";
-import { embedder } from "../embedding/provider";
-import { userProfileSchema } from "../core/models/user-profile-schema";
-import { cpuDatabaseTool } from "../tools/cpu-database-tool";
-import type { CPUSpecialistData } from "../core/models/specialist-data-models";
 import { sharedContextManager } from "../core/memory/shared-context-manager";
+import type { CPUSpecialistData } from "../core/models/specialist-data-models";
+import { userProfileSchema } from "../core/models/user-profile-schema";
+import { getLibSQLConfig } from "../database/libsql";
+import { embedder } from "../embedding/provider";
+import { mastraModelProvider } from "../llm/provider";
 import {
-	cpuKnowledgeBase,
-	type CPUProductInfo,
-	type SearchCriteria,
-	type CompatibilityResult,
-} from "./cpu-knowledge-base";
-import { 
-	SpecialistSummarySchema, 
 	CPUSummarySchema,
-	type SummaryModeContext 
+	type SummaryModeContext,
 } from "../schemas/specialist-summary-schemas";
+import { cpuDatabaseTool } from "../tools/cpu-database-tool";
+import { chromaVector } from "../vector/chroma";
+import {
+	type CompatibilityResult,
+	type CPUProductInfo,
+	cpuKnowledgeBase,
+	type SearchCriteria,
+} from "./cpu-knowledge-base";
 
 // CPU Specialist Personality - Multi-mode operation for parallel processing
 const CPU_SPECIALIST_PERSONALITY = `# CPU Specialist - SSTC Processor Expert
@@ -563,10 +561,10 @@ Include Prices: ${context.include_prices}
 
 			// Check timeout
 			if (processingTime > context.timeout_ms) {
-				console.warn(
-					"⚠️ [CPU Specialist] Summary generation exceeded timeout",
-					{ processingTime, timeout: context.timeout_ms },
-				);
+				console.warn("⚠️ [CPU Specialist] Summary generation exceeded timeout", {
+					processingTime,
+					timeout: context.timeout_ms,
+				});
 				return {
 					status: "timeout",
 					error: "Response generation exceeded timeout",
@@ -574,10 +572,13 @@ Include Prices: ${context.include_prices}
 				};
 			}
 
-			console.log("✅ [CPU Specialist] Summary response generated successfully", {
-				processingTime,
-				hasData: !!response?.object,
-			});
+			console.log(
+				"✅ [CPU Specialist] Summary response generated successfully",
+				{
+					processingTime,
+					hasData: !!response?.object,
+				},
+			);
 
 			return {
 				status: "success",

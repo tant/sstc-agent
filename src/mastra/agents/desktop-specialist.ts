@@ -1,18 +1,16 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-
-import { getLibSQLConfig } from "../database/libsql";
-import { chromaVector } from "../vector/chroma";
-import { mastraModelProvider } from "../llm/provider";
-import { embedder } from "../embedding/provider";
 import { userProfileSchema } from "../core/models/user-profile-schema";
-import { desktopDatabaseTool } from "../tools/desktop-database-tool";
-import { 
-	SpecialistSummarySchema, 
+import { getLibSQLConfig } from "../database/libsql";
+import { embedder } from "../embedding/provider";
+import { mastraModelProvider } from "../llm/provider";
+import {
 	DesktopSummarySchema,
-	type SummaryModeContext 
+	type SummaryModeContext,
 } from "../schemas/specialist-summary-schemas";
+import { desktopDatabaseTool } from "../tools/desktop-database-tool";
+import { chromaVector } from "../vector/chroma";
 
 // Multi-mode Desktop Specialist Personality
 const DESKTOP_SPECIALIST_PERSONALITY = `# Desktop Specialist - SSTC PC Builder Expert
@@ -94,68 +92,69 @@ Response Format (JSON):
 `;
 
 export class DesktopSpecialist extends Agent {
-  constructor() {
-    super({
-      name: "Desktop Specialist",
-      description: "Provides expert advice and configuration for complete desktop PC builds.",
-      instructions: DESKTOP_SPECIALIST_PERSONALITY,
-      model: mastraModelProvider(),
-      tools: {
-        desktopDatabaseTool,
-      },
-      memory: (() => {
-        const db = getLibSQLConfig();
-        return new Memory({
-          storage: new LibSQLStore({
-            url: db.url,
-            authToken: db.authToken,
-          }),
-          vector: chromaVector,
-          embedder: embedder,
-          options: {
-            lastMessages: 10,
-            workingMemory: {
-              enabled: true,
-              scope: "resource",
-              schema: userProfileSchema,
-            },
-            semanticRecall: {
-              topK: 3,
-              messageRange: 2,
-              scope: "resource",
-            },
-          },
-        });
-      })(),
-    });
-  }
+	constructor() {
+		super({
+			name: "Desktop Specialist",
+			description:
+				"Provides expert advice and configuration for complete desktop PC builds.",
+			instructions: DESKTOP_SPECIALIST_PERSONALITY,
+			model: mastraModelProvider(),
+			tools: {
+				desktopDatabaseTool,
+			},
+			memory: (() => {
+				const db = getLibSQLConfig();
+				return new Memory({
+					storage: new LibSQLStore({
+						url: db.url,
+						authToken: db.authToken,
+					}),
+					vector: chromaVector,
+					embedder: embedder,
+					options: {
+						lastMessages: 10,
+						workingMemory: {
+							enabled: true,
+							scope: "resource",
+							schema: userProfileSchema,
+						},
+						semanticRecall: {
+							topK: 3,
+							messageRange: 2,
+							scope: "resource",
+						},
+					},
+				});
+			})(),
+		});
+	}
 
-  // Simple method to check if the specialist is working
-  isReady(): boolean {
-    return true;
-  }
+	// Simple method to check if the specialist is working
+	isReady(): boolean {
+		return true;
+	}
 
-  // NEW: Method for generating summary responses in parallel processing
-  async generateSummaryResponse(
-    message: string,
-    context: SummaryModeContext,
-  ): Promise<{
-    status: "success" | "failed" | "timeout";
-    data?: any;
-    error?: string;
-    processingTime?: number;
-  }> {
-    const startTime = Date.now();
+	// NEW: Method for generating summary responses in parallel processing
+	async generateSummaryResponse(
+		message: string,
+		context: SummaryModeContext,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
 
-    console.log("🔄 [Desktop Specialist] Generating summary response", {
-      messageLength: message.length,
-      intent: context.user_intent,
-      timeoutMs: context.timeout_ms,
-    });
+		console.log("🔄 [Desktop Specialist] Generating summary response", {
+			messageLength: message.length,
+			intent: context.user_intent,
+			timeoutMs: context.timeout_ms,
+		});
 
-    try {
-      // Create enhanced instructions for summary mode
-      const summaryInstructions = `${DESKTOP_SPECIALIST_PERSONALITY}
+		try {
+			// Create enhanced instructions for summary mode
+			const summaryInstructions = `${DESKTOP_SPECIALIST_PERSONALITY}
 
 **CURRENT MODE: QUICK_SUMMARY**
 
@@ -166,82 +165,85 @@ Include Prices: ${context.include_prices}
 
 **IMPORTANT**: Respond ONLY with valid JSON matching DesktopSummarySchema. No additional text or explanations.`;
 
-      // Generate response with enhanced instructions
-      const response = await this.generate(
-        [
-          {
-            role: "system",
-            content: summaryInstructions,
-          },
-          {
-            role: "user",
-            content: `Provide quick Desktop PC summary for: "${message}"`,
-          },
-        ],
-        {
-          structuredOutput: {
-            schema: DesktopSummarySchema,
-          },
-        },
-      );
+			// Generate response with enhanced instructions
+			const response = await this.generate(
+				[
+					{
+						role: "system",
+						content: summaryInstructions,
+					},
+					{
+						role: "user",
+						content: `Provide quick Desktop PC summary for: "${message}"`,
+					},
+				],
+				{
+					structuredOutput: {
+						schema: DesktopSummarySchema,
+					},
+				},
+			);
 
-      const processingTime = Date.now() - startTime;
+			const processingTime = Date.now() - startTime;
 
-      // Check timeout
-      if (processingTime > context.timeout_ms) {
-        console.warn(
-          "⚠️ [Desktop Specialist] Summary generation exceeded timeout",
-          { processingTime, timeout: context.timeout_ms },
-        );
-        return {
-          status: "timeout",
-          error: "Response generation exceeded timeout",
-          processingTime,
-        };
-      }
+			// Check timeout
+			if (processingTime > context.timeout_ms) {
+				console.warn(
+					"⚠️ [Desktop Specialist] Summary generation exceeded timeout",
+					{ processingTime, timeout: context.timeout_ms },
+				);
+				return {
+					status: "timeout",
+					error: "Response generation exceeded timeout",
+					processingTime,
+				};
+			}
 
-      console.log("✅ [Desktop Specialist] Summary response generated successfully", {
-        processingTime,
-        hasData: !!response?.object,
-      });
+			console.log(
+				"✅ [Desktop Specialist] Summary response generated successfully",
+				{
+					processingTime,
+					hasData: !!response?.object,
+				},
+			);
 
-      return {
-        status: "success",
-        data: response?.object || null,
-        processingTime,
-      };
-    } catch (error: any) {
-      const processingTime = Date.now() - startTime;
-      console.error(
-        "❌ [Desktop Specialist] Summary response generation failed:",
-        error.message,
-      );
+			return {
+				status: "success",
+				data: response?.object || null,
+				processingTime,
+			};
+		} catch (error: any) {
+			const processingTime = Date.now() - startTime;
+			console.error(
+				"❌ [Desktop Specialist] Summary response generation failed:",
+				error.message,
+			);
 
-      return {
-        status: "failed",
-        error: error.message,
-        processingTime,
-      };
-    }
-  }
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime,
+			};
+		}
+	}
 
-  // NEW: Quick summary method for simple calls
-  async getQuickSummary(
-    message: string,
-    intent: string = "general_inquiry",
-  ): Promise<any> {
-    const context: SummaryModeContext = {
-      mode: "quick-summary",
-      user_intent: intent,
-      original_message: message,
-      timeout_ms: 3000,
-      max_products: 3,
-      include_prices: true,
-    };
+	// NEW: Quick summary method for simple calls
+	async getQuickSummary(
+		message: string,
+		intent: string = "general_inquiry",
+	): Promise<any> {
+		const context: SummaryModeContext = {
+			mode: "quick-summary",
+			user_intent: intent,
+			original_message: message,
+			timeout_ms: 3000,
+			max_products: 3,
+			include_prices: true,
+		};
 
-    const result = await this.generateSummaryResponse(message, context);
-    return result.data;
-  }
+		const result = await this.generateSummaryResponse(message, context);
+		return result.data;
+	}
 }
 
 // Export the single, unified desktop specialist instance

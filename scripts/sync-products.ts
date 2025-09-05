@@ -2,6 +2,7 @@
 
 // Load environment variables at the very top
 import dotenv from "dotenv";
+
 dotenv.config();
 
 /**
@@ -17,16 +18,15 @@ dotenv.config();
  * WARNING: This script will DELETE ALL existing product data and recreate it.
  */
 
-import * as fs from "fs/promises"; // Use promise-based fs
-import path from "path";
-import csvParser from "csv-parser";
-import { createClient, type Client, type InValue } from "@libsql/client";
-import { Readable } from "stream";
-
+import { createOpenAI } from "@ai-sdk/openai";
+import { type Client, createClient, type InValue } from "@libsql/client";
 // Import project modules
 // We will create the chroma and embedder instances locally in main()
 import { ChromaVector } from "@mastra/chroma";
-import { createOpenAI } from "@ai-sdk/openai";
+import csvParser from "csv-parser";
+import * as fs from "fs/promises"; // Use promise-based fs
+import path from "path";
+import { Readable } from "stream";
 
 // --- CONFIGURATION ---
 

@@ -1,20 +1,13 @@
-import cors from "cors";
-import express from "express";
+import { mastra } from "./mastra/index";
 import { unifiedMemoryManager } from "./mastra/core/memory/unified-memory-manager";
-import { channelMessageWorkflow } from "./mastra/workflows/message-processor";
 
-const app = express();
-const PORT = process.env.PORT || 3001;
+/**
+ * Enhanced API server using proper Mastra patterns
+ * This replaces the standalone Express server with Mastra-integrated endpoints
+ */
 
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-
-console.log("🚀 SSTC Agent API Server starting up...");
-
-// Health check endpoint
-app.get("/health", async (_req, res) => {
+// Health check endpoint integrated with Mastra
+export const healthEndpoint = async (req: any, res: any) => {
 	try {
 		const healthCheck = await unifiedMemoryManager.healthCheck();
 
@@ -24,20 +17,24 @@ app.get("/health", async (_req, res) => {
 			timestamp: new Date().toISOString(),
 			uptime: process.uptime(),
 			memory: process.memoryUsage(),
+			mastra: {
+				agents: Object.keys(mastra.agents || {}),
+				workflows: Object.keys(mastra.workflows || {}),
+			},
 		});
-	} catch (error) {
+	} catch (error: any) {
 		res.status(500).json({
 			status: "unhealthy",
 			message: `Health check failed: ${error.message}`,
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
-// Main chat processing endpoint
-app.post("/chat", async (req, res) => {
+// Chat processing endpoint using proper Mastra workflow execution
+export const chatEndpoint = async (req: any, res: any) => {
 	try {
-		const { channelId, message, senderId } = req.body;
+		const { channelId, message, senderId, chatId } = req.body;
 
 		// Validate required fields
 		if (!channelId || !message || !senderId) {
@@ -45,33 +42,40 @@ app.post("/chat", async (req, res) => {
 				error: "Missing required fields",
 				required: ["channelId", "message", "senderId"],
 				example: {
-					channelId: "telegram",
-					message: {
-						content: "Xin chào!",
-						senderId: "user123",
-						timestamp: new Date(),
-					},
-					senderId: "user123", // Redundant but keep for simplicity
+					channelId: "web",
+					message: "Xin chào!",
+					senderId: "user123",
+					chatId: "optional-chat-id",
 				},
 			});
 		}
 
 		console.log(
-			`📨 [API] New chat message from ${senderId} on ${channelId}: ${message.content?.substring(0, 50)}...`,
+			`📨 [API] New chat message from ${senderId} on ${channelId}: ${message.substring(0, 50)}...`,
 		);
 
-		// Process message through workflow
-		const result = await processMessage(channelId, message);
+		// Use proper Mastra workflow execution
+		const result = await mastra.run({
+			workflowId: "channel-message-processor", // Matches the workflow ID from message-processor.ts
+			triggerData: {
+				channelId,
+				userId: senderId,
+				chatId: chatId || senderId, // Use chatId or fallback to senderId
+				message,
+				timestamp: new Date().toISOString(),
+			},
+		});
 
 		console.log(`✅ [API] Chat processed successfully for ${senderId}`);
 
 		res.json({
 			success: true,
-			response: result.response,
-			metadata: result.metadata,
+			response: result?.data?.response || "Processed successfully",
+			metadata: result?.data?.metadata || {},
 			processedAt: new Date().toISOString(),
+			workflowStatus: result?.status || "completed",
 		});
-	} catch (error) {
+	} catch (error: any) {
 		console.error(`❌ [API] Chat processing failed:`, error);
 
 		res.status(500).json({
@@ -80,41 +84,10 @@ app.post("/chat", async (req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
-// Simplified message processor function
-async function processMessage(channelId: string, message: any) {
-	// Create workflow input
-	const workflowInput = {
-		channelId,
-		message: {
-			content: message.content,
-			senderId: message.senderId || message.senderId,
-			timestamp: message.timestamp ? new Date(message.timestamp) : new Date(),
-			attachments: message.attachments || [],
-		},
-	};
-
-	try {
-		// Process through channel message workflow
-		const workflowResult = await channelMessageWorkflow.execute(workflowInput);
-
-		return {
-			response: workflowResult.response,
-			metadata: workflowResult.metadata,
-		};
-	} catch (error) {
-		console.error("❌ [API] Workflow failed:", error);
-		return {
-			response:
-				"Xin lỗi, tôi gặp sự cố khi xử lý tin nhắn của bạn. Vui lòng thử lại sau.",
-			metadata: { error: error.message },
-		};
-	}
-}
-
-// Get user chat history
-app.get("/memory/:userId/history", async (req, res) => {
+// Memory endpoints
+export const getUserHistoryEndpoint = async (req: any, res: any) => {
 	try {
 		const { userId } = req.params;
 		const { limit = 10, channelFilter } = req.query;
@@ -146,11 +119,8 @@ app.get("/memory/:userId/history", async (req, res) => {
 			})),
 			retrievedAt: new Date().toISOString(),
 		});
-	} catch (error) {
-		console.error(
-			`❌ [API] Failed to get history for ${req.params.userId}:`,
-			error,
-		);
+	} catch (error: any) {
+		console.error(`❌ [API] Failed to get history for ${req.params.userId}:`, error);
 
 		res.status(500).json({
 			success: false,
@@ -158,10 +128,10 @@ app.get("/memory/:userId/history", async (req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
-// Get system analytics
-app.get("/analytics", async (_req, res) => {
+// Analytics endpoint
+export const analyticsEndpoint = async (req: any, res: any) => {
 	try {
 		console.log("📊 [API] Getting system analytics");
 
@@ -170,6 +140,11 @@ app.get("/analytics", async (_req, res) => {
 		res.json({
 			success: true,
 			memory: memoryStats,
+			mastra: {
+				agents: Object.keys(mastra.agents || {}),
+				workflows: Object.keys(mastra.workflows || {}),
+				version: "1.0.0", // You might want to read this from package.json
+			},
 			system: {
 				uptime: process.uptime(),
 				memoryUsage: process.memoryUsage(),
@@ -177,7 +152,7 @@ app.get("/analytics", async (_req, res) => {
 			},
 			timestamp: new Date().toISOString(),
 		});
-	} catch (error) {
+	} catch (error: any) {
 		console.error(`❌ [API] Failed to get analytics:`, error);
 
 		res.status(500).json({
@@ -186,10 +161,10 @@ app.get("/analytics", async (_req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
-// Reset user memory (for testing/admin purposes)
-app.post("/memory/:userId/reset", async (req, res) => {
+// Reset user memory endpoint
+export const resetUserMemoryEndpoint = async (req: any, res: any) => {
 	try {
 		const { userId } = req.params;
 		const { confirm } = req.body;
@@ -210,11 +185,8 @@ app.post("/memory/:userId/reset", async (req, res) => {
 			message: `Memory reset for user ${userId}`,
 			timestamp: new Date().toISOString(),
 		});
-	} catch (error) {
-		console.error(
-			`❌ [API] Failed to reset memory for ${req.params.userId}:`,
-			error,
-		);
+	} catch (error: any) {
+		console.error(`❌ [API] Failed to reset memory for ${req.params.userId}:`, error);
 
 		res.status(500).json({
 			success: false,
@@ -222,17 +194,16 @@ app.post("/memory/:userId/reset", async (req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
-// Greeting control status for user
-app.get("/greeting/:userId/status", async (req, res) => {
+// Greeting status endpoint
+export const greetingStatusEndpoint = async (req: any, res: any) => {
 	try {
 		const { userId } = req.params;
 
 		console.log(`👋 [API] Checking greeting status for ${userId}`);
 
-		const hasBeenGreeted =
-			await unifiedMemoryManager.hasUserBeenGreeted(userId);
+		const hasBeenGreeted = await unifiedMemoryManager.hasUserBeenGreeted(userId);
 
 		res.json({
 			success: true,
@@ -243,11 +214,8 @@ app.get("/greeting/:userId/status", async (req, res) => {
 				: "[FIRST TIME USER NEEDS GREETING]",
 			timestamp: new Date().toISOString(),
 		});
-	} catch (error) {
-		console.error(
-			`❌ [API] Failed to check greeting for ${req.params.userId}:`,
-			error,
-		);
+	} catch (error: any) {
+		console.error(`❌ [API] Failed to check greeting for ${req.params.userId}:`, error);
 
 		res.status(500).json({
 			success: false,
@@ -255,61 +223,50 @@ app.get("/greeting/:userId/status", async (req, res) => {
 			timestamp: new Date().toISOString(),
 		});
 	}
-});
+};
 
 // API documentation endpoint
-app.get("/", (_req, res) => {
+export const docsEndpoint = (req: any, res: any) => {
 	res.json({
 		name: "SSTC Agent API",
 		version: "1.0.0",
-		description: "REST API for SSTC chat agents and memory system",
+		description: "REST API for SSTC chat agents using Mastra framework",
 		endpoints: {
 			"GET /health": "System health check",
-			"POST /chat": "Process chat message through workflow",
+			"POST /chat": "Process chat message through Mastra workflow",
 			"GET /memory/:userId/history": "Get user chat history",
 			"GET /analytics": "Get system analytics",
 			"POST /memory/:userId/reset": "Reset user memory (admin)",
 			"GET /greeting/:userId/status": "Check greeting status for user",
 		},
-		workflow: {
-			agents: [
-				"maiSale",
-				"purchase",
-				"warranty",
-				"clarification",
-				"anDataAnalyst",
+		mastra: {
+			agents: Object.keys(mastra.agents || {}),
+			workflows: Object.keys(mastra.workflows || {}),
+			channels: ["telegram", "zalo", "web"],
+			features: [
+				"parallel processing",
+				"2-phase responses", 
+				"Vietnamese language support",
+				"multi-specialist coordination",
+				"unified memory",
+				"timeout handling",
 			],
-			channels: ["telegram", "whatsapp", "web", "zalo"],
-			features: ["greeting control", "unified memory", "agent routing"],
 		},
 		timestamp: new Date().toISOString(),
 	});
-});
+};
 
-// Error handling middleware
-app.use(
-	(
-		err: any,
-		_req: express.Request,
-		res: express.Response,
-		_next: express.NextFunction,
-	) => {
-		console.error("❌ [API] Unhandled error:", err);
+// Export all endpoint functions for Mastra server configuration
+export const apiEndpoints = {
+	healthEndpoint,
+	chatEndpoint,
+	getUserHistoryEndpoint,
+	analyticsEndpoint,
+	resetUserMemoryEndpoint,
+	greetingStatusEndpoint,
+	docsEndpoint,
+};
 
-		res.status(500).json({
-			success: false,
-			error: "Internal server error",
-			timestamp: new Date().toISOString(),
-		});
-	},
-);
-
-// Start server
-app.listen(PORT, () => {
-	console.log("🎉 SSTC Agent API Server started!");
-	console.log(`🔗 Available at: http://localhost:${PORT}`);
-	console.log(`🏥 Health check: http://localhost:${PORT}/health`);
-	console.log(`📄 API docs: http://localhost:${PORT}`);
-});
-
-export { app };
+console.log("🔧 [API] Mastra-integrated API endpoints configured");
+console.log("💡 [API] Use these endpoints with Mastra server custom routes");
+console.log("📚 [API] Available endpoints:", Object.keys(apiEndpoints));

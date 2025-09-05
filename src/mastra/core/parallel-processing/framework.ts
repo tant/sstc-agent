@@ -1,4 +1,4 @@
-import { Agent } from "@mastra/core/agent";
+import type { Agent } from "@mastra/core/agent";
 import { TimeoutManager } from "./timeout-manager";
 
 export interface ProcessingResult {
@@ -127,7 +127,7 @@ export class ParallelProcessingFrameworkImpl
 			const messages = [{ role: "user", content: customerMessage }];
 
 			// Add context if available
-			if (context && context.chatHistory) {
+			if (context?.chatHistory) {
 				const recentHistory = context.chatHistory.slice(-3);
 				const historyMessages = recentHistory.map((msg: any) => ({
 					role: msg.role,

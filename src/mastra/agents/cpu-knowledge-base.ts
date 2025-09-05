@@ -129,8 +129,8 @@ export class CPUProductKnowledgeBase {
 				const price = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
 
 				// Parse cores and threads
-				const cores = parseInt(row.cores || "0");
-				const threads = parseInt(row.threads || "0");
+				const cores = parseInt(row.cores || "0", 10);
+				const threads = parseInt(row.threads || "0", 10);
 
 				return {
 					sku: row.SKU || "",
@@ -151,9 +151,7 @@ export class CPUProductKnowledgeBase {
 					compatibility: row["Tương thích CPU"]
 						? row["Tương thích CPU"].split(",")
 						: [],
-					useCases: row["Recommended_Use"]
-						? row["Recommended_Use"].split(",")
-						: [],
+					useCases: row.Recommended_Use ? row.Recommended_Use.split(",") : [],
 					stockStatus: row.Availability || "unknown",
 					description: row.USP || "",
 					tdp: row.TDP || "",
@@ -265,7 +263,7 @@ export class CPUProductKnowledgeBase {
 			// Filter use case
 			if (criteria.useCase) {
 				const hasUseCase = product.useCases.some((uc) =>
-					uc.toLowerCase().includes(criteria.useCase!.toLowerCase()),
+					uc.toLowerCase().includes(criteria.useCase?.toLowerCase()),
 				);
 				if (!hasUseCase) {
 					return false;
@@ -277,7 +275,7 @@ export class CPUProductKnowledgeBase {
 				const hasCompatibility = product.compatibility.some((comp) =>
 					comp
 						.toLowerCase()
-						.includes(criteria.motherboardCompatibility!.toLowerCase()),
+						.includes(criteria.motherboardCompatibility?.toLowerCase()),
 				);
 				if (!hasCompatibility) {
 					return false;
@@ -288,7 +286,7 @@ export class CPUProductKnowledgeBase {
 			if (criteria.chipset) {
 				const compatibleChipsets = this.getCompatibleChipsets(product.socket);
 				const hasChipset = compatibleChipsets.some((chipset) =>
-					chipset.toLowerCase().includes(criteria.chipset!.toLowerCase()),
+					chipset.toLowerCase().includes(criteria.chipset?.toLowerCase()),
 				);
 				if (!hasChipset) {
 					return false;
@@ -419,12 +417,12 @@ export class CPUProductKnowledgeBase {
 				)
 			) {
 				return (
-					CPU_CHIPSET_COMPATIBILITY["LGA1700_13TH"] ||
-					CPU_CHIPSET_COMPATIBILITY["LGA1700"] ||
+					CPU_CHIPSET_COMPATIBILITY.LGA1700_13TH ||
+					CPU_CHIPSET_COMPATIBILITY.LGA1700 ||
 					[]
 				);
 			}
-			return CPU_CHIPSET_COMPATIBILITY["LGA1700"] || [];
+			return CPU_CHIPSET_COMPATIBILITY.LGA1700 || [];
 		}
 
 		// Trả về theo socket thông thường

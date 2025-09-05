@@ -1,9 +1,10 @@
 /**
  * Unified test script: validate env, test agent, test LLM connection
  */
+
+import path from "node:path";
 import axios from "axios";
 import dotenv from "dotenv";
-import path from "node:path";
 
 // Load environment variables from .env file explicitly
 const envPath = path.resolve(process.cwd(), ".env");

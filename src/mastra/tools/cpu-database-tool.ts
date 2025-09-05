@@ -1,10 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import {
-	SpecialistData,
-	CPUSpecialistData,
+import type {
 	CPUProductRecommendation,
-	CPUTechnicalAnalysis,
+	CPUSpecialistData,
 } from "../core/models/specialist-data-models";
 
 // Input schema for CPU database tool
@@ -175,8 +173,8 @@ export const cpuDatabaseTool = createTool({
 					brand: row.brand || "",
 					series: row.series || "",
 					socket: row.socket || "",
-					cores: parseInt(row.cores || "0"),
-					threads: parseInt(row.threads || "0"),
+					cores: parseInt(row.cores || "0", 10),
+					threads: parseInt(row.threads || "0", 10),
 					baseClock: row.base_clock || "",
 					boostClock: row.boost_clock || "",
 					powerConsumption: row.power_consumption || "",
@@ -187,9 +185,7 @@ export const cpuDatabaseTool = createTool({
 					compatibility: row["Tương thích CPU"]
 						? row["Tương thích CPU"].split(",")
 						: [],
-					useCases: row["Recommended_Use"]
-						? row["Recommended_Use"].split(",")
-						: [],
+					useCases: row.Recommended_Use ? row.Recommended_Use.split(",") : [],
 					score: 0, // Will be calculated later
 					stockStatus: row.Availability || "unknown",
 					description: row.USP || "",
@@ -365,6 +361,7 @@ export const cpuDatabaseTool = createTool({
 														"W",
 														"",
 													) || "65",
+													10,
 												) /
 													2,
 										),
@@ -382,6 +379,7 @@ export const cpuDatabaseTool = createTool({
 														"W",
 														"",
 													) || "65",
+													10,
 												) /
 													3,
 										),

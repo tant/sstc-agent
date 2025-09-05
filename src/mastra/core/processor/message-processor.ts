@@ -3,8 +3,8 @@
  * This is WHERE YOUR BUSINESS LOGIC LIVES
  */
 
-import type { NormalizedMessage, ProcessedResponse } from "../models/message";
 import { channelMessageWorkflow } from "../../workflows/message-processor";
+import type { NormalizedMessage, ProcessedResponse } from "../models/message";
 
 export class CentralMessageProcessor {
 	private processingQueue: Array<{

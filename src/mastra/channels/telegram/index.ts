@@ -4,7 +4,7 @@
 
 export { TelegramChannelAdapter } from "./adapter";
 export type { TelegramConfig } from "./config";
-export { validateTelegramConfig, defaultTelegramConfig } from "./config";
+export { defaultTelegramConfig, validateTelegramConfig } from "./config";
 
 // Channel identifier
 export const CHANNEL_NAME = "telegram";

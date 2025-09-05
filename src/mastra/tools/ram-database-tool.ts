@@ -1,10 +1,8 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
-import {
-	SpecialistData,
-	RAMSpecialistData,
+import type {
 	RAMProductRecommendation,
-	RAMTechnicalAnalysis,
+	RAMSpecialistData,
 } from "../core/models/specialist-data-models";
 
 // Input schema for RAM database tool
@@ -169,9 +167,7 @@ export const ramDatabaseTool = createTool({
 					compatibility: row["Tương thích RAM"]
 						? row["Tương thích RAM"].split(",")
 						: [],
-					useCases: row["Recommended_Use"]
-						? row["Recommended_Use"].split(",")
-						: [],
+					useCases: row.Recommended_Use ? row.Recommended_Use.split(",") : [],
 					score: 0, // Will be calculated later
 					stockStatus: row.Availability || "unknown",
 					description: row.USP || "",
@@ -309,6 +305,7 @@ export const ramDatabaseTool = createTool({
 											0,
 											(parseInt(
 												scoredProducts[0].speed?.replace("MHz", "") || "2400",
+												10,
 											) /
 												5000) *
 												100,
@@ -324,6 +321,7 @@ export const ramDatabaseTool = createTool({
 											100 -
 												parseInt(
 													scoredProducts[0].latency?.replace("CL", "") || "16",
+													10,
 												) *
 													2,
 										),

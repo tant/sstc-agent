@@ -33,7 +33,7 @@ export class TimeoutManager {
 		maxRetries: number = 3,
 		initialDelay: number = 100,
 	): Promise<T | null> {
-		let lastError: any = null;
+		let _lastError: any = null;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
@@ -50,15 +50,15 @@ export class TimeoutManager {
 					`⚠️ [TimeoutManager] Retry attempt ${attempt} failed:`,
 					error?.message,
 				);
-				lastError = error;
+				_lastError = error;
 
 				// Don't delay on the last attempt
 				if (attempt < maxRetries) {
 					// Exponential backoff
 					const delay = Math.min(
 						initialDelay *
-							Math.pow(this.RETRY_STRATEGY.backoffMultiplier, attempt - 1),
-						this.RETRY_STRATEGY.maxDelay,
+							TimeoutManager.RETRY_STRATEGY.backoffMultiplier ** (attempt - 1),
+						TimeoutManager.RETRY_STRATEGY.maxDelay,
 					);
 					console.log(
 						`⏱️ [TimeoutManager] Waiting ${delay}ms before next retry`,
@@ -83,14 +83,14 @@ export class TimeoutManager {
 		} = {},
 	): Promise<T | null> {
 		const {
-			maxRetries = this.RETRY_STRATEGY.maxRetries,
-			initialDelay = this.RETRY_STRATEGY.initialDelay,
-			timeoutMs = this.TIMEOUT_STRATEGY.maximum,
+			maxRetries = TimeoutManager.RETRY_STRATEGY.maxRetries,
+			initialDelay = TimeoutManager.RETRY_STRATEGY.initialDelay,
+			timeoutMs = TimeoutManager.TIMEOUT_STRATEGY.maximum,
 			circuitBreakerThreshold = 3,
 		} = options;
 
 		let consecutiveFailures = 0;
-		let lastError: any = null;
+		let _lastError: any = null;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			// Circuit breaker check
@@ -107,7 +107,7 @@ export class TimeoutManager {
 				);
 
 				// Wrap operation with timeout
-				const result = await this.waitForData(operation(), timeoutMs);
+				const result = await TimeoutManager.waitForData(operation(), timeoutMs);
 
 				if (result !== null) {
 					console.log(
@@ -123,7 +123,7 @@ export class TimeoutManager {
 					`⚠️ [TimeoutManager] Retry attempt ${attempt} failed:`,
 					error?.message,
 				);
-				lastError = error;
+				_lastError = error;
 				consecutiveFailures++;
 
 				// Don't delay on the last attempt
@@ -131,8 +131,8 @@ export class TimeoutManager {
 					// Exponential backoff with jitter
 					const delay = Math.min(
 						initialDelay *
-							Math.pow(this.RETRY_STRATEGY.backoffMultiplier, attempt - 1),
-						this.RETRY_STRATEGY.maxDelay,
+							TimeoutManager.RETRY_STRATEGY.backoffMultiplier ** (attempt - 1),
+						TimeoutManager.RETRY_STRATEGY.maxDelay,
 					);
 
 					// Add jitter (±25%)
@@ -160,7 +160,7 @@ export class TimeoutManager {
 		maxRetries: number = 3,
 		initialDelay: number = 100,
 	): Promise<T | null> {
-		let lastError: any = null;
+		let _lastError: any = null;
 
 		for (let attempt = 1; attempt <= maxRetries; attempt++) {
 			try {
@@ -177,7 +177,7 @@ export class TimeoutManager {
 					`⚠️ [TimeoutManager] Retry attempt ${attempt} failed:`,
 					error?.message,
 				);
-				lastError = error;
+				_lastError = error;
 
 				// Kiểm tra điều kiện retry
 				if (!shouldRetry(error)) {
@@ -190,8 +190,8 @@ export class TimeoutManager {
 					// Exponential backoff
 					const delay = Math.min(
 						initialDelay *
-							Math.pow(this.RETRY_STRATEGY.backoffMultiplier, attempt - 1),
-						this.RETRY_STRATEGY.maxDelay,
+							TimeoutManager.RETRY_STRATEGY.backoffMultiplier ** (attempt - 1),
+						TimeoutManager.RETRY_STRATEGY.maxDelay,
 					);
 					console.log(
 						`⏱️ [TimeoutManager] Waiting ${delay}ms before next retry`,
@@ -223,16 +223,16 @@ export class TimeoutManager {
 		);
 
 		// Base timeout
-		let timeout = this.TIMEOUT_STRATEGY.initial;
+		let timeout = TimeoutManager.TIMEOUT_STRATEGY.initial;
 
 		// Increase timeout based on query length
 		if (length > 100) {
-			timeout = this.TIMEOUT_STRATEGY.extended;
+			timeout = TimeoutManager.TIMEOUT_STRATEGY.extended;
 		}
 
 		// Increase timeout based on complexity keywords
 		if (foundKeywords.length > 2) {
-			timeout = this.TIMEOUT_STRATEGY.maximum;
+			timeout = TimeoutManager.TIMEOUT_STRATEGY.maximum;
 		}
 
 		console.log("⏱️ [TimeoutManager] Determined timeout for query:", {
@@ -245,10 +245,10 @@ export class TimeoutManager {
 	}
 
 	static getTimeoutStrategy(): typeof this.TIMEOUT_STRATEGY {
-		return this.TIMEOUT_STRATEGY;
+		return TimeoutManager.TIMEOUT_STRATEGY;
 	}
 
 	static getRetryStrategy(): typeof this.RETRY_STRATEGY {
-		return this.RETRY_STRATEGY;
+		return TimeoutManager.RETRY_STRATEGY;
 	}
 }

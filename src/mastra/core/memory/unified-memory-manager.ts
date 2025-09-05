@@ -1,8 +1,8 @@
-import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
-import { chromaVector } from "../../vector/chroma";
-import { embedder } from "../../embedding/provider";
+import { Memory } from "@mastra/memory";
 import { getLibSQLConfig } from "../../database/libsql";
+import { embedder } from "../../embedding/provider";
+import { chromaVector } from "../../vector/chroma";
 import { userProfileSchema } from "../models/user-profile-schema";
 
 export interface MemoryQueryOptions {
@@ -48,7 +48,6 @@ export interface MemoryStats {
 export class UnifiedMemoryManager {
 	private static instance: UnifiedMemoryManager;
 	private memory: Memory;
-	private initialized: boolean = false;
 	private cache: Map<string, any> = new Map(); // Simple in-memory cache
 
 	private constructor() {
@@ -270,7 +269,7 @@ export class UnifiedMemoryManager {
 			);
 
 			// Create resource ID for working memory
-			const resource = `user_${userId}`;
+			const _resource = `user_${userId}`;
 
 			// Current working memory implementation - this will be updated when API is clarified
 			const profileUpdate = {
@@ -315,7 +314,7 @@ export class UnifiedMemoryManager {
 			);
 
 			const threadId = `${channel}_user_${userId}`;
-			const messageWithMetadata = {
+			const _messageWithMetadata = {
 				role,
 				content,
 				timestamp: new Date().toISOString(),
@@ -360,10 +359,10 @@ export class UnifiedMemoryManager {
 			const agentInteractions: Record<string, number> = {};
 			const channelInteractions: Record<string, number> = {};
 			const intentBreakdown: Record<string, number> = {};
-			const topicAnalysis: Record<string, number> = {};
+			const _topicAnalysis: Record<string, number> = {};
 
-			let totalResponseTime = 0;
-			let messagePairs = 0;
+			const totalResponseTime = 0;
+			const messagePairs = 0;
 
 			for (let i = 0; i < history.length; i++) {
 				const msg = history[i];
@@ -478,7 +477,7 @@ export class UnifiedMemoryManager {
 			console.log("🏥 [UnifiedMemory] Health check initiated");
 
 			// Simple health check
-			const stats = await this.getMemoryStats();
+			const _stats = await this.getMemoryStats();
 
 			return {
 				status: "healthy",

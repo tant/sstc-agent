@@ -1,26 +1,24 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-
-import { getLibSQLConfig } from "../database/libsql";
-import { chromaVector } from "../vector/chroma";
-import { mastraModelProvider } from "../llm/provider";
-import { embedder } from "../embedding/provider";
-import { userProfileSchema } from "../core/models/user-profile-schema";
-import { bareboneDatabaseTool } from "../tools/barebone-database-tool";
-import type { BareboneSpecialistData } from "../core/models/specialist-data-models";
 import { sharedContextManager } from "../core/memory/shared-context-manager";
+import type { BareboneSpecialistData } from "../core/models/specialist-data-models";
+import { userProfileSchema } from "../core/models/user-profile-schema";
+import { getLibSQLConfig } from "../database/libsql";
+import { embedder } from "../embedding/provider";
+import { mastraModelProvider } from "../llm/provider";
 import {
-  bareboneKnowledgeBase,
-  type BareboneProductInfo,
-  type SearchCriteria,
-  type CompatibilityResult,
-} from "./barebone-knowledge-base";
-import { 
-	SpecialistSummarySchema, 
 	BareboneSummarySchema,
-	type SummaryModeContext 
+	type SummaryModeContext,
 } from "../schemas/specialist-summary-schemas";
+import { bareboneDatabaseTool } from "../tools/barebone-database-tool";
+import { chromaVector } from "../vector/chroma";
+import {
+	type BareboneProductInfo,
+	bareboneKnowledgeBase,
+	type CompatibilityResult,
+	type SearchCriteria,
+} from "./barebone-knowledge-base";
 
 // Multi-mode Barebone Specialist Personality
 const BAREBONE_SPECIALIST_PERSONALITY = `# Barebone Specialist - SSTC System Expert
@@ -101,329 +99,343 @@ Response Format (JSON):
 `;
 
 export class BareboneSpecialist extends Agent {
-  constructor() {
-    super({
-      name: "Barebone Specialist",
-      description: "Provides expert advice and data analysis for barebone (case) products.",
-      instructions: BAREBONE_SPECIALIST_PERSONALITY,
-      model: mastraModelProvider(),
-      tools: {
-        bareboneDatabaseTool,
-      },
-      memory: (() => {
-        const db = getLibSQLConfig();
-        return new Memory({
-          storage: new LibSQLStore({
-            url: db.url,
-            authToken: db.authToken,
-          }),
-          vector: chromaVector,
-          embedder: embedder,
-          options: {
-            lastMessages: 10,
-            workingMemory: {
-              enabled: true,
-              scope: "resource",
-              schema: userProfileSchema,
-            },
-            semanticRecall: {
-              topK: 3,
-              messageRange: 2,
-              scope: "resource",
-            },
-          },
-        });
-      })(),
-    });
+	constructor() {
+		super({
+			name: "Barebone Specialist",
+			description:
+				"Provides expert advice and data analysis for barebone (case) products.",
+			instructions: BAREBONE_SPECIALIST_PERSONALITY,
+			model: mastraModelProvider(),
+			tools: {
+				bareboneDatabaseTool,
+			},
+			memory: (() => {
+				const db = getLibSQLConfig();
+				return new Memory({
+					storage: new LibSQLStore({
+						url: db.url,
+						authToken: db.authToken,
+					}),
+					vector: chromaVector,
+					embedder: embedder,
+					options: {
+						lastMessages: 10,
+						workingMemory: {
+							enabled: true,
+							scope: "resource",
+							schema: userProfileSchema,
+						},
+						semanticRecall: {
+							topK: 3,
+							messageRange: 2,
+							scope: "resource",
+						},
+					},
+				});
+			})(),
+		});
 
-    // Initialize Barebone Knowledge Base
-    this.initializeKnowledgeBase();
-  }
+		// Initialize Barebone Knowledge Base
+		this.initializeKnowledgeBase();
+	}
 
-  // Method to initialize knowledge base
-  private async initializeKnowledgeBase(): Promise<void> {
-    try {
-      console.log("🏗️ [Barebone Specialist] Initializing Barebone Knowledge Base...");
-      await bareboneKnowledgeBase.initialize();
-      console.log(
-        "✅ [Barebone Specialist] Barebone Knowledge Base initialized successfully",
-      );
+	// Method to initialize knowledge base
+	private async initializeKnowledgeBase(): Promise<void> {
+		try {
+			console.log(
+				"🏗️ [Barebone Specialist] Initializing Barebone Knowledge Base...",
+			);
+			await bareboneKnowledgeBase.initialize();
+			console.log(
+				"✅ [Barebone Specialist] Barebone Knowledge Base initialized successfully",
+			);
 
-      // Display basic statistics
-      const stats = bareboneKnowledgeBase.getStatistics();
-      console.log("📊 [Barebone Specialist] Knowledge Base Statistics:", {
-        totalProducts: stats.totalProducts,
-        caseSizes: stats.caseSizes.length,
-        formFactors: stats.formFactors.length,
-        avgPrice: stats.avgPrice,
-      });
-    } catch (error) {
-      console.error(
-        "❌ [Barebone Specialist] Failed to initialize Knowledge Base:",
-        error,
-      );
-    }
-  }
+			// Display basic statistics
+			const stats = bareboneKnowledgeBase.getStatistics();
+			console.log("📊 [Barebone Specialist] Knowledge Base Statistics:", {
+				totalProducts: stats.totalProducts,
+				caseSizes: stats.caseSizes.length,
+				formFactors: stats.formFactors.length,
+				avgPrice: stats.avgPrice,
+			});
+		} catch (error) {
+			console.error(
+				"❌ [Barebone Specialist] Failed to initialize Knowledge Base:",
+				error,
+			);
+		}
+	}
 
-  // Method to get structured data recommendations
-  async getStructuredRecommendations(
-    message: string,
-    context: any = {},
-    conversationId?: string,
-  ): Promise<BareboneSpecialistData | null> {
-    const startTime = Date.now();
-    console.log("🧠 [Barebone Specialist] Generating structured recommendations", {
-      messageLength: message.length,
-      conversationId,
-    });
+	// Method to get structured data recommendations
+	async getStructuredRecommendations(
+		message: string,
+		context: any = {},
+		conversationId?: string,
+	): Promise<BareboneSpecialistData | null> {
+		const startTime = Date.now();
+		console.log(
+			"🧠 [Barebone Specialist] Generating structured recommendations",
+			{
+				messageLength: message.length,
+				conversationId,
+			},
+		);
 
-    try {
-      if (!bareboneKnowledgeBase.isReady()) {
-        console.warn(
-          "⚠️ [Barebone Specialist] Knowledge Base not ready, attempting to initialize...",
-        );
-        await bareboneKnowledgeBase.initialize();
-        if (!bareboneKnowledgeBase.isReady()) {
-          throw new Error("Knowledge Base failed to initialize.");
-        }
-      }
+		try {
+			if (!bareboneKnowledgeBase.isReady()) {
+				console.warn(
+					"⚠️ [Barebone Specialist] Knowledge Base not ready, attempting to initialize...",
+				);
+				await bareboneKnowledgeBase.initialize();
+				if (!bareboneKnowledgeBase.isReady()) {
+					throw new Error("Knowledge Base failed to initialize.");
+				}
+			}
 
-      let sharedContext: any = null;
-      if (conversationId) {
-        sharedContext = await sharedContextManager.getContext(conversationId);
-      }
+			let sharedContext: any = null;
+			if (conversationId) {
+				sharedContext = await sharedContextManager.getContext(conversationId);
+			}
 
-      const extendedContext = { ...context, sharedContext };
+			const extendedContext = { ...context, sharedContext };
 
-      // Use the knowledge base to search for barebones
-      const searchResults = bareboneKnowledgeBase.searchBarebones({
-        query: message,
-        budget: extendedContext.budget,
-        caseSize: extendedContext.caseSize,
-        motherboardFormFactor: extendedContext.motherboardFormFactor,
-        supportedSocket: extendedContext.supportedSocket,
-        ramSupport: extendedContext.ramSupport,
-        maxRamCapacity: extendedContext.maxRamCapacity,
-        coolingType: extendedContext.coolingType,
-        aestheticsStyle: extendedContext.aestheticsStyle,
-      });
+			// Use the knowledge base to search for barebones
+			const searchResults = bareboneKnowledgeBase.searchBarebones({
+				query: message,
+				budget: extendedContext.budget,
+				caseSize: extendedContext.caseSize,
+				motherboardFormFactor: extendedContext.motherboardFormFactor,
+				supportedSocket: extendedContext.supportedSocket,
+				ramSupport: extendedContext.ramSupport,
+				maxRamCapacity: extendedContext.maxRamCapacity,
+				coolingType: extendedContext.coolingType,
+				aestheticsStyle: extendedContext.aestheticsStyle,
+			});
 
-      // Map searchResults (BareboneProductInfo[]) to BareboneSpecialistData
-      const specialistData: BareboneSpecialistData = {
-        type: "barebone",
-        recommendations: searchResults.map((product) => ({
-          productId: product.sku,
-          productName: product.name,
-          specifications: {
-            caseSize: product.caseSize,
-            motherboardFormFactor: product.motherboardFormFactor,
-            supportedCpus: product.supportedSockets,
-            ramSlots: product.ramSlots,
-            maxRam: product.maxRamCapacity,
-            coolingSystem: product.coolingSupport,
-            aesthetics: product.aesthetics,
-          },
-          price: product.price,
-          availability: product.stockStatus as
-            | "in_stock"
-            | "low_stock"
-            | "out_of_stock",
-          recommendationScore: 0, // Score needs to be calculated based on relevance
-          keyFeatures: product.description ? [product.description] : [],
-          useCases: product.useCases as (
-            | "gaming"
-            | "content-creation"
-            | "office"
-            | "professional"
-          )[],
-          imageUrl: undefined,
-          description: product.description,
-        })),
-        technicalAnalysis: {
-          keySpecifications: {
-            caseSize: extendedContext.caseSize || "mid-tower",
-            motherboardFormFactor: extendedContext.motherboardFormFactor || "ATX",
-            supportedSocket: extendedContext.supportedSocket || "LGA1700",
-            ramSupport: extendedContext.ramSupport || "DDR5",
-            maxRamCapacity: extendedContext.maxRamCapacity || 128,
-            ramSlots: 4,
-            coolingType: extendedContext.coolingType || "air",
-            aestheticsStyle: extendedContext.aestheticsStyle || "minimalist",
-          },
-          performanceMetrics: {
-            expandability: 85,
-            coolingEfficiency: 80,
-            aestheticAppeal: 90,
-            pricePerformance: 88,
-          },
-          technicalRequirements: [
-            "Compatible with selected motherboard form factor",
-            "Adequate space for selected components",
-            "Proper cooling solution clearance",
-          ],
-        },
-        compatibilityCheck: {
-          isCompatible: true,
-          compatibilityIssues: [],
-          recommendations: [
-            "Ensure PSU fits in selected case",
-            "Check GPU clearance",
-            "Verify CPU cooler height clearance",
-          ],
-        },
-        pricingInfo: {
-          basePrice:
-            searchResults.length > 0
-              ? Math.min(...searchResults.map((p) => p.price))
-              : 0,
-          totalPrice:
-            searchResults.length > 0
-              ? searchResults.reduce((sum, p) => sum + p.price, 0)
-              : 0,
-          savings: 0,
-          discountPercentage: 0,
-          currency: "VND",
-        },
-        availability: {
-          inStock: searchResults.some((p) => p.stockStatus === "in_stock"),
-          estimatedDelivery: "2-5 business days",
-          quantityAvailable: searchResults.filter(
-            (p) => p.stockStatus === "in_stock",
-          ).length,
-          warehouseLocation: "Ho Chi Minh City Warehouse",
-        },
-        confidenceScore: searchResults.length > 0 ? 0.8 : 0.1, // Placeholder confidence
-        processingMetadata: {
-          processingTime: Date.now() - startTime,
-          dataSources: ["SSTC Barebone Knowledge Base"],
-          completeness: searchResults.length > 0 ? 100 : 0,
-        },
-      };
+			// Map searchResults (BareboneProductInfo[]) to BareboneSpecialistData
+			const specialistData: BareboneSpecialistData = {
+				type: "barebone",
+				recommendations: searchResults.map((product) => ({
+					productId: product.sku,
+					productName: product.name,
+					specifications: {
+						caseSize: product.caseSize,
+						motherboardFormFactor: product.motherboardFormFactor,
+						supportedCpus: product.supportedSockets,
+						ramSlots: product.ramSlots,
+						maxRam: product.maxRamCapacity,
+						coolingSystem: product.coolingSupport,
+						aesthetics: product.aesthetics,
+					},
+					price: product.price,
+					availability: product.stockStatus as
+						| "in_stock"
+						| "low_stock"
+						| "out_of_stock",
+					recommendationScore: 0, // Score needs to be calculated based on relevance
+					keyFeatures: product.description ? [product.description] : [],
+					useCases: product.useCases as (
+						| "gaming"
+						| "content-creation"
+						| "office"
+						| "professional"
+					)[],
+					imageUrl: undefined,
+					description: product.description,
+				})),
+				technicalAnalysis: {
+					keySpecifications: {
+						caseSize: extendedContext.caseSize || "mid-tower",
+						motherboardFormFactor:
+							extendedContext.motherboardFormFactor || "ATX",
+						supportedSocket: extendedContext.supportedSocket || "LGA1700",
+						ramSupport: extendedContext.ramSupport || "DDR5",
+						maxRamCapacity: extendedContext.maxRamCapacity || 128,
+						ramSlots: 4,
+						coolingType: extendedContext.coolingType || "air",
+						aestheticsStyle: extendedContext.aestheticsStyle || "minimalist",
+					},
+					performanceMetrics: {
+						expandability: 85,
+						coolingEfficiency: 80,
+						aestheticAppeal: 90,
+						pricePerformance: 88,
+					},
+					technicalRequirements: [
+						"Compatible with selected motherboard form factor",
+						"Adequate space for selected components",
+						"Proper cooling solution clearance",
+					],
+				},
+				compatibilityCheck: {
+					isCompatible: true,
+					compatibilityIssues: [],
+					recommendations: [
+						"Ensure PSU fits in selected case",
+						"Check GPU clearance",
+						"Verify CPU cooler height clearance",
+					],
+				},
+				pricingInfo: {
+					basePrice:
+						searchResults.length > 0
+							? Math.min(...searchResults.map((p) => p.price))
+							: 0,
+					totalPrice:
+						searchResults.length > 0
+							? searchResults.reduce((sum, p) => sum + p.price, 0)
+							: 0,
+					savings: 0,
+					discountPercentage: 0,
+					currency: "VND",
+				},
+				availability: {
+					inStock: searchResults.some((p) => p.stockStatus === "in_stock"),
+					estimatedDelivery: "2-5 business days",
+					quantityAvailable: searchResults.filter(
+						(p) => p.stockStatus === "in_stock",
+					).length,
+					warehouseLocation: "Ho Chi Minh City Warehouse",
+				},
+				confidenceScore: searchResults.length > 0 ? 0.8 : 0.1, // Placeholder confidence
+				processingMetadata: {
+					processingTime: Date.now() - startTime,
+					dataSources: ["SSTC Barebone Knowledge Base"],
+					completeness: searchResults.length > 0 ? 100 : 0,
+				},
+			};
 
-      console.log(
-        "✅ [Barebone Specialist] Structured data retrieved from Knowledge Base",
-        {
-          productsFound: specialistData.recommendations.length,
-          confidenceScore: specialistData.confidenceScore,
-          processingTime: Date.now() - startTime,
-        },
-      );
+			console.log(
+				"✅ [Barebone Specialist] Structured data retrieved from Knowledge Base",
+				{
+					productsFound: specialistData.recommendations.length,
+					confidenceScore: specialistData.confidenceScore,
+					processingTime: Date.now() - startTime,
+				},
+			);
 
-      return specialistData;
-    } catch (error: any) {
-      console.error(
-        "❌ [Barebone Specialist] Failed to get structured recommendations from Knowledge Base:",
-        error.message,
-      );
-      return null;
-    }
-  }
+			return specialistData;
+		} catch (error: any) {
+			console.error(
+				"❌ [Barebone Specialist] Failed to get structured recommendations from Knowledge Base:",
+				error.message,
+			);
+			return null;
+		}
+	}
 
-  // Method to generate a human-readable response from the data
-  generateHumanReadableResponse(data: BareboneSpecialistData): string {
-    if (!data || !data.recommendations || data.recommendations.length === 0) {
-      return "Xin lỗi, tôi không tìm thấy sản phẩm barebone nào phù hợp với yêu cầu của bạn.";
-    }
+	// Method to generate a human-readable response from the data
+	generateHumanReadableResponse(data: BareboneSpecialistData): string {
+		if (!data || !data.recommendations || data.recommendations.length === 0) {
+			return "Xin lỗi, tôi không tìm thấy sản phẩm barebone nào phù hợp với yêu cầu của bạn.";
+		}
 
-    const { recommendations, technicalAnalysis, confidenceScore } = data;
+		const { recommendations, technicalAnalysis, confidenceScore } = data;
 
-    let response = `Dựa trên phân tích, tôi có một vài đề xuất barebone cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
+		let response = `Dựa trên phân tích, tôi có một vài đề xuất barebone cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
 
-    recommendations.forEach((rec, index) => {
-      response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ\n`;
-      response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}\n`;
-      response += `   - **Thông số**: ${rec.specifications.caseSize} ${rec.specifications.motherboardFormFactor}, Hỗ trợ ${rec.specifications.supportedCpus.join(", ")}\n`;
-      if (rec.recommendationScore > 8) {
-        // Assuming score is out of 10
-        response += `   - **Độ phù hợp**: Rất cao\n`;
-      } else if (rec.recommendationScore > 5) {
-        response += `   - **Độ phù hợp**: Cao\n`;
-      }
-    });
+		recommendations.forEach((rec, index) => {
+			response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ\n`;
+			response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}\n`;
+			response += `   - **Thông số**: ${rec.specifications.caseSize} ${rec.specifications.motherboardFormFactor}, Hỗ trợ ${rec.specifications.supportedCpus.join(", ")}\n`;
+			if (rec.recommendationScore > 8) {
+				// Assuming score is out of 10
+				response += `   - **Độ phù hợp**: Rất cao\n`;
+			} else if (rec.recommendationScore > 5) {
+				response += `   - **Độ phù hợp**: Cao\n`;
+			}
+		});
 
-    if (technicalAnalysis.keySpecifications) {
-      response += `\n**Tóm tắt thông số chính**:\n - Kích thước case: ${technicalAnalysis.keySpecifications.caseSize}\n - Form factor: ${technicalAnalysis.keySpecifications.motherboardFormFactor}\n - Socket hỗ trợ: ${technicalAnalysis.keySpecifications.supportedSocket}\n`;
-    }
+		if (technicalAnalysis.keySpecifications) {
+			response += `\n**Tóm tắt thông số chính**:\n - Kích thước case: ${technicalAnalysis.keySpecifications.caseSize}\n - Form factor: ${technicalAnalysis.keySpecifications.motherboardFormFactor}\n - Socket hỗ trợ: ${technicalAnalysis.keySpecifications.supportedSocket}\n`;
+		}
 
-    return response;
-  }
+		return response;
+	}
 
-  // Internal API methods delegating to bareboneKnowledgeBase
-  async getProductInfo(bareboneModel: string): Promise<BareboneProductInfo | null> {
-    if (!bareboneKnowledgeBase.isReady()) {
-      console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
-      return null;
-    }
-    return bareboneKnowledgeBase.getProductInfo(bareboneModel);
-  }
+	// Internal API methods delegating to bareboneKnowledgeBase
+	async getProductInfo(
+		bareboneModel: string,
+	): Promise<BareboneProductInfo | null> {
+		if (!bareboneKnowledgeBase.isReady()) {
+			console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
+			return null;
+		}
+		return bareboneKnowledgeBase.getProductInfo(bareboneModel);
+	}
 
-  async searchBarebones(criteria: SearchCriteria): Promise<BareboneProductInfo[]> {
-    if (!bareboneKnowledgeBase.isReady()) {
-      console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
-      return [];
-    }
-    return bareboneKnowledgeBase.searchBarebones(criteria);
-  }
+	async searchBarebones(
+		criteria: SearchCriteria,
+	): Promise<BareboneProductInfo[]> {
+		if (!bareboneKnowledgeBase.isReady()) {
+			console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
+			return [];
+		}
+		return bareboneKnowledgeBase.searchBarebones(criteria);
+	}
 
-  async checkCompatibility(
-    bareboneModel: string,
-    motherboardOrChipset: string,
-  ): Promise<CompatibilityResult> {
-    if (!bareboneKnowledgeBase.isReady()) {
-      console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
-      return {
-        isCompatible: false,
-        compatibleCases: [],
-        issues: ["Knowledge base not initialized"],
-        recommendations: ["Please initialize the knowledge base"],
-      };
-    }
-    return bareboneKnowledgeBase.checkCompatibility(bareboneModel, motherboardOrChipset);
-  }
+	async checkCompatibility(
+		bareboneModel: string,
+		motherboardOrChipset: string,
+	): Promise<CompatibilityResult> {
+		if (!bareboneKnowledgeBase.isReady()) {
+			console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
+			return {
+				isCompatible: false,
+				compatibleCases: [],
+				issues: ["Knowledge base not initialized"],
+				recommendations: ["Please initialize the knowledge base"],
+			};
+		}
+		return bareboneKnowledgeBase.checkCompatibility(
+			bareboneModel,
+			motherboardOrChipset,
+		);
+	}
 
-  async getAllBarebones(): Promise<BareboneProductInfo[]> {
-    if (!bareboneKnowledgeBase.isReady()) {
-      console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
-      return [];
-    }
-    return bareboneKnowledgeBase.getAllBarebones();
-  }
+	async getAllBarebones(): Promise<BareboneProductInfo[]> {
+		if (!bareboneKnowledgeBase.isReady()) {
+			console.warn("⚠️ [Barebone Specialist] Knowledge Base not ready");
+			return [];
+		}
+		return bareboneKnowledgeBase.getAllBarebones();
+	}
 
-  isKnowledgeBaseReady(): boolean {
-    return bareboneKnowledgeBase.isReady();
-  }
+	isKnowledgeBaseReady(): boolean {
+		return bareboneKnowledgeBase.isReady();
+	}
 
-  getKnowledgeBaseStats(): any {
-    if (!bareboneKnowledgeBase.isReady()) {
-      return { ready: false };
-    }
-    return {
-      ready: true,
-      ...bareboneKnowledgeBase.getStatistics(),
-    };
-  }
+	getKnowledgeBaseStats(): any {
+		if (!bareboneKnowledgeBase.isReady()) {
+			return { ready: false };
+		}
+		return {
+			ready: true,
+			...bareboneKnowledgeBase.getStatistics(),
+		};
+	}
 
-  // NEW: Method for generating summary responses in parallel processing
-  async generateSummaryResponse(
-    message: string,
-    context: SummaryModeContext,
-  ): Promise<{
-    status: "success" | "failed" | "timeout";
-    data?: any;
-    error?: string;
-    processingTime?: number;
-  }> {
-    const startTime = Date.now();
+	// NEW: Method for generating summary responses in parallel processing
+	async generateSummaryResponse(
+		message: string,
+		context: SummaryModeContext,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
 
-    console.log("🔄 [Barebone Specialist] Generating summary response", {
-      messageLength: message.length,
-      intent: context.user_intent,
-      timeoutMs: context.timeout_ms,
-    });
+		console.log("🔄 [Barebone Specialist] Generating summary response", {
+			messageLength: message.length,
+			intent: context.user_intent,
+			timeoutMs: context.timeout_ms,
+		});
 
-    try {
-      // Create enhanced instructions for summary mode
-      const summaryInstructions = `${BAREBONE_SPECIALIST_PERSONALITY}
+		try {
+			// Create enhanced instructions for summary mode
+			const summaryInstructions = `${BAREBONE_SPECIALIST_PERSONALITY}
 
 **CURRENT MODE: QUICK_SUMMARY**
 
@@ -434,82 +446,85 @@ Include Prices: ${context.include_prices}
 
 **IMPORTANT**: Respond ONLY with valid JSON matching BareboneSummarySchema. No additional text or explanations.`;
 
-      // Generate response with enhanced instructions
-      const response = await this.generate(
-        [
-          {
-            role: "system",
-            content: summaryInstructions,
-          },
-          {
-            role: "user",
-            content: `Provide quick Barebone summary for: "${message}"`,
-          },
-        ],
-        {
-          structuredOutput: {
-            schema: BareboneSummarySchema,
-          },
-        },
-      );
+			// Generate response with enhanced instructions
+			const response = await this.generate(
+				[
+					{
+						role: "system",
+						content: summaryInstructions,
+					},
+					{
+						role: "user",
+						content: `Provide quick Barebone summary for: "${message}"`,
+					},
+				],
+				{
+					structuredOutput: {
+						schema: BareboneSummarySchema,
+					},
+				},
+			);
 
-      const processingTime = Date.now() - startTime;
+			const processingTime = Date.now() - startTime;
 
-      // Check timeout
-      if (processingTime > context.timeout_ms) {
-        console.warn(
-          "⚠️ [Barebone Specialist] Summary generation exceeded timeout",
-          { processingTime, timeout: context.timeout_ms },
-        );
-        return {
-          status: "timeout",
-          error: "Response generation exceeded timeout",
-          processingTime,
-        };
-      }
+			// Check timeout
+			if (processingTime > context.timeout_ms) {
+				console.warn(
+					"⚠️ [Barebone Specialist] Summary generation exceeded timeout",
+					{ processingTime, timeout: context.timeout_ms },
+				);
+				return {
+					status: "timeout",
+					error: "Response generation exceeded timeout",
+					processingTime,
+				};
+			}
 
-      console.log("✅ [Barebone Specialist] Summary response generated successfully", {
-        processingTime,
-        hasData: !!response?.object,
-      });
+			console.log(
+				"✅ [Barebone Specialist] Summary response generated successfully",
+				{
+					processingTime,
+					hasData: !!response?.object,
+				},
+			);
 
-      return {
-        status: "success",
-        data: response?.object || null,
-        processingTime,
-      };
-    } catch (error: any) {
-      const processingTime = Date.now() - startTime;
-      console.error(
-        "❌ [Barebone Specialist] Summary response generation failed:",
-        error.message,
-      );
+			return {
+				status: "success",
+				data: response?.object || null,
+				processingTime,
+			};
+		} catch (error: any) {
+			const processingTime = Date.now() - startTime;
+			console.error(
+				"❌ [Barebone Specialist] Summary response generation failed:",
+				error.message,
+			);
 
-      return {
-        status: "failed",
-        error: error.message,
-        processingTime,
-      };
-    }
-  }
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime,
+			};
+		}
+	}
 
-  // NEW: Quick summary method for simple calls
-  async getQuickSummary(
-    message: string,
-    intent: string = "general_inquiry",
-  ): Promise<any> {
-    const context: SummaryModeContext = {
-      mode: "quick-summary",
-      user_intent: intent,
-      original_message: message,
-      timeout_ms: 3000,
-      max_products: 3,
-      include_prices: true,
-    };
+	// NEW: Quick summary method for simple calls
+	async getQuickSummary(
+		message: string,
+		intent: string = "general_inquiry",
+	): Promise<any> {
+		const context: SummaryModeContext = {
+			mode: "quick-summary",
+			user_intent: intent,
+			original_message: message,
+			timeout_ms: 3000,
+			max_products: 3,
+			include_prices: true,
+		};
 
-    const result = await this.generateSummaryResponse(message, context);
-    return result.data;
-  }
+		const result = await this.generateSummaryResponse(message, context);
+		return result.data;
+	}
 }
 
 // Export the single, unified barebone specialist instance

@@ -1,4 +1,4 @@
-import { type ResponseTemplate } from '../core/models/response-template';
+import type { ResponseTemplate } from "../core/models/response-template";
 
 // Template library for Mai to use when integrating specialist data into responses
 // Templates are organized by data type and variant
@@ -36,11 +36,7 @@ Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gi
 
 Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
+		variables: ["recommendations", "technicalAnalysis", "pricingInfo"],
 		examples: [],
 	},
 
@@ -65,10 +61,7 @@ Dạ quý khách, đây là bảng so sánh các lựa chọn RAM mà chuyên gi
 
 Quý khách có muốn biết thêm thông tin chi tiết về mẫu nào ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-		],
+		variables: ["recommendations", "technicalAnalysis"],
 		examples: [],
 	},
 
@@ -105,7 +98,7 @@ Hoặc nếu quý khách muốn xem các sản phẩm SSD khác, em có thể gi
 			"writeSpeed",
 			"price",
 			"useCases",
-			"formattedPrice"
+			"formattedPrice",
 		],
 		examples: [],
 	},
@@ -126,12 +119,10 @@ Dạ quý khách, em xin phép giới thiệu một số lựa chọn SSD phổ 
 
 Quý khách quan tâm đến mẫu nào trong số này, hay muốn em tìm các lựa chọn theo tiêu chí cụ thể hơn ạ?
 `.trim(),
-		variables: [
-			"recommendations"
-		],
+		variables: ["recommendations"],
 		examples: [],
 	},
-	
+
 	// New Storage Product List Template
 	"storage-product-list": {
 		type: "storage",
@@ -154,9 +145,7 @@ Ví dụ như:
 - Giao tiếp: SATA, NVMe
 - Mục đích: Gaming, Văn phòng, Sáng tạo nội dung
 		`.trim(),
-		variables: [
-			"recommendations"
-		],
+		variables: ["recommendations"],
 		examples: [],
 	},
 
@@ -195,11 +184,7 @@ Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gi
 
 Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
+		variables: ["recommendations", "technicalAnalysis", "pricingInfo"],
 		examples: [],
 	},
 
@@ -223,10 +208,7 @@ Dạ quý khách, đây là bảng so sánh các lựa chọn CPU mà chuyên gi
 
 Quý khách có muốn biết thêm thông tin chi tiết về mẫu nào ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-		],
+		variables: ["recommendations", "technicalAnalysis"],
 		examples: [],
 	},
 
@@ -264,11 +246,7 @@ Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gi
 
 Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
+		variables: ["recommendations", "technicalAnalysis", "pricingInfo"],
 		examples: [],
 	},
 
@@ -310,11 +288,7 @@ Dạ quý khách, em vừa nhận được thông tin chi tiết từ chuyên gi
 
 Quý khách có muốn biết thêm về mẫu nào cụ thể không ạ?
 		`.trim(),
-		variables: [
-			"recommendations",
-			"technicalAnalysis",
-			"pricingInfo",
-		],
+		variables: ["recommendations", "technicalAnalysis", "pricingInfo"],
 		examples: [],
 	},
 
@@ -338,7 +312,6 @@ Em đang thử lại, quý khách vui lòng chờ trong giây lát...
 		variables: [],
 		examples: [],
 	},
-
 };
 
 // Template for integrating specialist data into Mai's responses
@@ -468,6 +441,8 @@ export const TEMPLATE_COMPONENTS = {
 // Utility functions for formatting data in templates
 export function formatPrice(price: number): string {
 	return new Intl.NumberFormat("vi-VN").format(price);
+}
+
 export function validateSpecialistData(data: any): {
 	isValid: boolean;
 	errors: string[];

@@ -12,7 +12,6 @@ import { sharedContextManager } from "../core/memory/shared-context-manager";
 import {
 	SPECIALIST_RESPONSE_TEMPLATES as RESPONSE_TEMPLATES,
 	validateSpecialistData,
-	formatPrice,
 	selectTemplate,
 } from "./mai-response-templates";
 import { findPromotionsTool } from "../tools/find-promotions-tool";
@@ -150,7 +149,7 @@ export class MaiSale extends Agent {
 	// Method to initialize all specialists
 	private async initializeSpecialists(): Promise<void> {
 		console.log("🏗️ [Mai] Initializing all specialists behind the scenes...");
-		
+
 		try {
 			// Initialize each specialist (they handle their own initialization)
 			await Promise.all([
@@ -160,7 +159,7 @@ export class MaiSale extends Agent {
 				bareboneSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
 				desktopSpecialist.initializeKnowledgeBase?.() || Promise.resolve(),
 			]);
-			
+
 			console.log("✅ [Mai] All specialists initialized successfully");
 		} catch (error) {
 			console.error("❌ [Mai] Failed to initialize specialists:", error);
@@ -179,10 +178,13 @@ export class MaiSale extends Agent {
 
 		try {
 			// Determine which specialist is most relevant
-			const relevantSpecialist = this.identifyRelevantSpecialist(customerMessage);
-			
+			const relevantSpecialist =
+				this.identifyRelevantSpecialist(customerMessage);
+
 			if (!relevantSpecialist) {
-				console.log("🔍 [Mai] No specific specialist identified, using general approach");
+				console.log(
+					"🔍 [Mai] No specific specialist identified, using general approach",
+				);
 				return null;
 			}
 
@@ -205,28 +207,41 @@ export class MaiSale extends Agent {
 	// Method to identify the most relevant specialist based on customer message
 	private identifyRelevantSpecialist(message: string): any {
 		const lowerMessage = message.toLowerCase();
-		
+
 		// Check for keywords to identify relevant specialist
-		if (lowerMessage.includes("cpu") || lowerMessage.includes("bộ xử lý") || lowerMessage.includes("intel") || lowerMessage.includes("amd")) {
+		if (
+			lowerMessage.includes("cpu") ||
+			lowerMessage.includes("bộ xử lý") ||
+			lowerMessage.includes("intel") ||
+			lowerMessage.includes("amd")
+		) {
 			return cpuSpecialist;
 		}
-		
+
 		if (lowerMessage.includes("ram") || lowerMessage.includes("bộ nhớ")) {
 			return ramSpecialist;
 		}
-		
+
 		if (lowerMessage.includes("ssd") || lowerMessage.includes("ổ cứng")) {
 			return ssdSpecialist;
 		}
-		
-		if (lowerMessage.includes("case") || lowerMessage.includes("vỏ máy") || lowerMessage.includes("barebone")) {
+
+		if (
+			lowerMessage.includes("case") ||
+			lowerMessage.includes("vỏ máy") ||
+			lowerMessage.includes("barebone")
+		) {
 			return bareboneSpecialist;
 		}
-		
-		if (lowerMessage.includes("pc") || lowerMessage.includes("máy tính") || lowerMessage.includes("desktop")) {
+
+		if (
+			lowerMessage.includes("pc") ||
+			lowerMessage.includes("máy tính") ||
+			lowerMessage.includes("desktop")
+		) {
 			return desktopSpecialist;
 		}
-		
+
 		// Return null if no specific specialist is identified
 		return null;
 	}
@@ -237,8 +252,10 @@ export class MaiSale extends Agent {
 		message: string,
 	): Promise<any> {
 		try {
-			console.log(`🔄 [Mai] Requesting data from ${specialist.constructor?.name || 'specialist'}`);
-			
+			console.log(
+				`🔄 [Mai] Requesting data from ${specialist.constructor?.name || "specialist"}`,
+			);
+
 			// Check if specialist has a method to generate structured data
 			if (typeof specialist.generateStructuredResponse === "function") {
 				// Prepare data for the specialist
@@ -247,22 +264,25 @@ export class MaiSale extends Agent {
 					query: message,
 					context: {},
 				};
-				
-				const response = await specialist.generateStructuredResponse(requestData);
+
+				const response =
+					await specialist.generateStructuredResponse(requestData);
 				return response;
 			}
-			
+
 			// Check if specialist has a generate method
 			if (typeof specialist.generate === "function") {
 				const response = await specialist.generate(message, {});
 				return response;
 			}
-			
-			console.warn(`⚠️ [Mai] Specialist ${specialist.constructor?.name || 'specialist'} has no generate method`);
+
+			console.warn(
+				`⚠️ [Mai] Specialist ${specialist.constructor?.name || "specialist"} has no generate method`,
+			);
 			return null;
 		} catch (error: any) {
 			console.error(
-				`❌ [Mai] Failed to request data from ${specialist.constructor?.name || 'specialist'}:`,
+				`❌ [Mai] Failed to request data from ${specialist.constructor?.name || "specialist"}:`,
 				error.message,
 			);
 			return null;
@@ -351,10 +371,17 @@ export class MaiSale extends Agent {
 		const template = selectTemplate(specialistData.type, "default");
 
 		// Prepare data for template
-		const templateData = this.prepareTemplateData(specialistData, sharedContext);
+		const templateData = this.prepareTemplateData(
+			specialistData,
+			sharedContext,
+		);
 
 		// Render template
-		let response = this.renderTemplate(template.template, templateData, sharedContext);
+		let response = this.renderTemplate(
+			template.template,
+			templateData,
+			sharedContext,
+		);
 
 		// Personalize with customer name if available
 		if (sharedContext?.userProfile?.name) {
@@ -374,7 +401,10 @@ export class MaiSale extends Agent {
 	}
 
 	// Method to prepare template data
-	private prepareTemplateData(specialistData: any, sharedContext: any = null): any {
+	private prepareTemplateData(
+		specialistData: any,
+		sharedContext: any = null,
+	): any {
 		console.log("🧮 [Mai] Preparing template data", {
 			dataType: specialistData.type,
 			hasSharedContext: !!sharedContext,
@@ -415,7 +445,7 @@ export class MaiSale extends Agent {
 		// Handle conditional blocks (simplified)
 		rendered = rendered.replace(
 			/{{#if ([^}]+)}}([\s\S]*?){{\/if}}/g,
-			(match, condition, content) => {
+			(_match, condition, content) => {
 				const conditionValue = this.getNestedValue(data, condition);
 				return conditionValue ? content : "";
 			},
@@ -424,7 +454,7 @@ export class MaiSale extends Agent {
 		// Handle each blocks (simplified)
 		rendered = rendered.replace(
 			/{{#each ([^}]+)}}([\s\S]*?){{\/each}}/g,
-			(match, arrayPath, content) => {
+			(_match, arrayPath, content) => {
 				const arrayValue = this.getNestedValue(data, arrayPath);
 				if (Array.isArray(arrayValue)) {
 					return arrayValue
@@ -475,19 +505,41 @@ export class MaiSale extends Agent {
 		const lowerMessage = customerMessage.toLowerCase();
 
 		if (lowerMessage.includes("xin chào") || lowerMessage.includes("chào")) {
-			response = "Xin chào quý khách! Em là Mai, rất vui được tư vấn về SSD, mainboard, RAM, CPU, barebone case và lắp ráp PC hoàn chỉnh của SSTC cho quý khách ạ!";
-		} else if (lowerMessage.includes("ssd") || lowerMessage.includes("ổ cứng")) {
-			response = "Dạ quý khách, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
-		} else if (lowerMessage.includes("ram") || lowerMessage.includes("bộ nhớ")) {
-			response = "Dạ quý khách, về sản phẩm RAM, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
-		} else if (lowerMessage.includes("cpu") || lowerMessage.includes("bộ xử lý")) {
-			response = "Dạ quý khách, về sản phẩm CPU, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
-		} else if (lowerMessage.includes("case") || lowerMessage.includes("barebone")) {
-			response = "Dạ quý khách, về sản phẩm barebone case, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
-		} else if (lowerMessage.includes("pc") || lowerMessage.includes("máy tính")) {
-			response = "Dạ quý khách, về việc lắp ráp PC hoàn chỉnh, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+			response =
+				"Xin chào quý khách! Em là Mai, rất vui được tư vấn về SSD, mainboard, RAM, CPU, barebone case và lắp ráp PC hoàn chỉnh của SSTC cho quý khách ạ!";
+		} else if (
+			lowerMessage.includes("ssd") ||
+			lowerMessage.includes("ổ cứng")
+		) {
+			response =
+				"Dạ quý khách, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (
+			lowerMessage.includes("ram") ||
+			lowerMessage.includes("bộ nhớ")
+		) {
+			response =
+				"Dạ quý khách, về sản phẩm RAM, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (
+			lowerMessage.includes("cpu") ||
+			lowerMessage.includes("bộ xử lý")
+		) {
+			response =
+				"Dạ quý khách, về sản phẩm CPU, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (
+			lowerMessage.includes("case") ||
+			lowerMessage.includes("barebone")
+		) {
+			response =
+				"Dạ quý khách, về sản phẩm barebone case, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
+		} else if (
+			lowerMessage.includes("pc") ||
+			lowerMessage.includes("máy tính")
+		) {
+			response =
+				"Dạ quý khách, về việc lắp ráp PC hoàn chỉnh, em vừa nhận được thông tin chi tiết từ hệ thống SSTC. Theo như phân tích thì...";
 		} else {
-			response = "Dạ quý khách, em đang kiểm tra thông tin chi tiết từ hệ thống SSTC. Xin vui lòng chờ trong giây lát...";
+			response =
+				"Dạ quý khách, em đang kiểm tra thông tin chi tiết từ hệ thống SSTC. Xin vui lòng chờ trong giây lát...";
 		}
 
 		// Append user profile update section (required)
@@ -497,14 +549,14 @@ export class MaiSale extends Agent {
 	}
 
 	// Override the generate method to implement behind-the-scenes specialist coordination
-	async generate(
-		messages: any[],
-		options: any = {},
-	): Promise<any> {
-		console.log("🚀 [Mai] Generating response with behind-the-scenes coordination", {
-			messagesCount: messages.length,
-			hasOptions: Object.keys(options).length > 0,
-		});
+	async generate(messages: any[], options: any = {}): Promise<any> {
+		console.log(
+			"🚀 [Mai] Generating response with behind-the-scenes coordination",
+			{
+				messagesCount: messages.length,
+				hasOptions: Object.keys(options).length > 0,
+			},
+		);
 
 		try {
 			// Extract the customer message (assuming it's the last message)
@@ -667,7 +719,9 @@ export class MaiSale extends Agent {
 		let renderedResponse = this.renderTemplate(
 			template.template,
 			{},
-			conversationId ? await sharedContextManager.getContext(conversationId) : null,
+			conversationId
+				? await sharedContextManager.getContext(conversationId)
+				: null,
 		);
 
 		// Personalize if user profile is available
@@ -718,7 +772,10 @@ export class MaiSale extends Agent {
 		}
 
 		// Prepare data for processing
-		const preparedData = this.prepareTemplateData(specialistData, sharedContext);
+		const preparedData = this.prepareTemplateData(
+			specialistData,
+			sharedContext,
+		);
 
 		// Select template
 		const template = selectTemplate(specialistData.type, "default");

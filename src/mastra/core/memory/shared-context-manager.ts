@@ -1,8 +1,8 @@
-import { Memory } from "@mastra/memory";
 import { LibSQLStore } from "@mastra/libsql";
+import { Memory } from "@mastra/memory";
 import { getLibSQLConfig } from "../../database/libsql";
-import { chromaVector } from "../../vector/chroma";
 import { embedder } from "../../embedding/provider";
+import { chromaVector } from "../../vector/chroma";
 
 // Interface cho shared context
 export interface SharedContext {
@@ -114,7 +114,7 @@ export class SharedContextManager {
 			// Lấy từ memory
 			const memoryResult = await this.memory.get(conversationId);
 
-			if (memoryResult && memoryResult.data) {
+			if (memoryResult?.data) {
 				const context: SharedContext = {
 					conversationId,
 					userId: memoryResult.data.userId || "",
@@ -264,7 +264,7 @@ export class SharedContextManager {
 
 		try {
 			// Lấy context hiện tại
-			let context = await this.getContext(conversationId);
+			const context = await this.getContext(conversationId);
 
 			if (!context) {
 				console.warn("⚠️ [SharedContextManager] No existing context found");
@@ -305,7 +305,7 @@ export class SharedContextManager {
 
 		try {
 			// Lấy context hiện tại
-			let context = await this.getContext(conversationId);
+			const context = await this.getContext(conversationId);
 
 			if (!context) {
 				console.warn("⚠️ [SharedContextManager] No existing context found");
@@ -354,7 +354,7 @@ export class SharedContextManager {
 
 		try {
 			// Lấy context hiện tại
-			let context = await this.getContext(conversationId);
+			const context = await this.getContext(conversationId);
 
 			if (!context) {
 				console.warn("⚠️ [SharedContextManager] No existing context found");

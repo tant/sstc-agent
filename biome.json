@@ -7,11 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": [
-			"**/*",
-			"!.mastra/.build",
-			"!src/lib"
-		]
+		"includes": ["**/*", "!.mastra/.build", "!src/lib"]
 	},
 	"formatter": {
 		"enabled": true,
@@ -44,10 +40,7 @@
 	},
 	"overrides": [
 		{
-			"includes": [
-				"tests/**/*.ts",
-				"tests/**/*.js"
-			],
+			"includes": ["tests/**/*.ts", "tests/**/*.js"],
 			"linter": {
 				"rules": {
 					"suspicious": {

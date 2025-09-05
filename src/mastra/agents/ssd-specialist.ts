@@ -1,26 +1,24 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-
-import { getLibSQLConfig } from "../database/libsql";
-import { chromaVector } from "../vector/chroma";
-import { mastraModelProvider } from "../llm/provider";
-import { embedder } from "../embedding/provider";
-import { userProfileSchema } from "../core/models/user-profile-schema";
-import { ssdDatabaseTool } from "../tools/ssd-database-tool";
-import type { StorageSpecialistData } from "../core/models/specialist-data-models";
 import { sharedContextManager } from "../core/memory/shared-context-manager";
+import type { StorageSpecialistData } from "../core/models/specialist-data-models";
+import { userProfileSchema } from "../core/models/user-profile-schema";
+import { getLibSQLConfig } from "../database/libsql";
+import { embedder } from "../embedding/provider";
+import { mastraModelProvider } from "../llm/provider";
 import {
-	ssdKnowledgeBase,
-	type SSDProductInfo,
-	type SearchCriteria,
-	type CompatibilityResult,
-} from "./ssd-knowledge-base";
-import { 
-	SpecialistSummarySchema, 
 	SSDSummarySchema,
-	type SummaryModeContext 
+	type SummaryModeContext,
 } from "../schemas/specialist-summary-schemas";
+import { ssdDatabaseTool } from "../tools/ssd-database-tool";
+import { chromaVector } from "../vector/chroma";
+import {
+	type CompatibilityResult,
+	type SearchCriteria,
+	type SSDProductInfo,
+	ssdKnowledgeBase,
+} from "./ssd-knowledge-base";
 
 // Multi-mode SSD Specialist Personality
 const SSD_SPECIALIST_PERSONALITY = `# SSD Specialist - SSTC Storage Expert
@@ -450,10 +448,10 @@ Include Prices: ${context.include_prices}
 
 			// Check timeout
 			if (processingTime > context.timeout_ms) {
-				console.warn(
-					"⚠️ [SSD Specialist] Summary generation exceeded timeout",
-					{ processingTime, timeout: context.timeout_ms },
-				);
+				console.warn("⚠️ [SSD Specialist] Summary generation exceeded timeout", {
+					processingTime,
+					timeout: context.timeout_ms,
+				});
 				return {
 					status: "timeout",
 					error: "Response generation exceeded timeout",
@@ -461,10 +459,13 @@ Include Prices: ${context.include_prices}
 				};
 			}
 
-			console.log("✅ [SSD Specialist] Summary response generated successfully", {
-				processingTime,
-				hasData: !!response?.object,
-			});
+			console.log(
+				"✅ [SSD Specialist] Summary response generated successfully",
+				{
+					processingTime,
+					hasData: !!response?.object,
+				},
+			);
 
 			return {
 				status: "success",

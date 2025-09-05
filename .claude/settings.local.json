@@ -1,4 +1,10 @@
 {
+  "permissions": {
+    "allow": [
+      "Bash(OPENAI_API_KEY=dummy-key pnpm run dev)",
+      "WebFetch(domain:mastra.ai)"
+    ]
+  },
   "claude": {
     "projectName": "SSTC Agent",
     "projectDescription": "Multi-agent AI system built with Mastra framework for SSTC hardware sales and support",
@@ -39,7 +45,7 @@
     "primaryAgent": "mai-agent",
     "specialists": [
       "cpu-specialist",
-      "ram-specialist", 
+      "ram-specialist",
       "ssd-specialist",
       "barebone-specialist",
       "desktop-specialist"
@@ -61,7 +67,7 @@
   },
   "channels": [
     "telegram",
-    "zalo", 
+    "zalo",
     "web"
   ],
   "preferences": {

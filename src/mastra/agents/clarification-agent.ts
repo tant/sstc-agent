@@ -1,12 +1,11 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-
-import { getLibSQLConfig } from "../database/libsql";
-import { chromaVector } from "../vector/chroma";
-import { mastraModelProvider } from "../llm/provider";
-import { embedder } from "../embedding/provider";
 import { userProfileSchema } from "../core/models/user-profile-schema";
+import { getLibSQLConfig } from "../database/libsql";
+import { embedder } from "../embedding/provider";
+import { mastraModelProvider } from "../llm/provider";
+import { chromaVector } from "../vector/chroma";
 
 const EMBEDDED_PERSONALITY = `# Clarification Agent - SSTC Query Specialist
 
