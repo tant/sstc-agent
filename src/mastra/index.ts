@@ -2,20 +2,20 @@ import { Mastra } from "@mastra/core/mastra";
 import { LibSQLStore } from "@mastra/libsql";
 import { PinoLogger } from "@mastra/loggers";
 
-// Import pure Mastra agents
-import { pureMaiAgent } from "./agents/pure-mai-agent";
+// Import agents
+import { maiSale } from "./agents/mai-agent";
 
-// Import simple workflow
-import { simpleMessageWorkflow } from "./workflows/simple-message-processor";
+// Import workflows
+import { channelMessageWorkflow } from "./workflows/message-processor";
 
 console.log("🚀 [Mastra] Initializing with simplified configuration...");
 
 export const mastra = new Mastra({
 	workflows: {
-		simpleMessageWorkflow,
+		channelMessageWorkflow,
 	},
 	agents: {
-		maiSale: pureMaiAgent,
+		mai: maiSale,
 	},
 	storage: new LibSQLStore({
 		url: ":memory:", // Use in-memory storage to avoid database issues

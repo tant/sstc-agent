@@ -13,12 +13,86 @@ import {
 } from "../schemas/specialist-summary-schemas";
 import { cpuDatabaseTool } from "../tools/cpu-database-tool";
 import { chromaVector } from "../vector/chroma";
-import {
-	type CompatibilityResult,
-	type CPUProductInfo,
-	cpuKnowledgeBase,
-	type SearchCriteria,
-} from "./cpu-knowledge-base";
+// Embedded interfaces from cpu-knowledge-base
+
+// Interface for a single CPU product's detailed information
+export interface CPUProductInfo {
+	sku: string;
+	name: string;
+	model: string;
+	brand: string;
+	series: string;
+	socket: string;
+	cores: number;
+	threads: number;
+	baseClock: string;
+	boostClock: string;
+	powerConsumption: string;
+	l3Cache: string;
+	architecture: string;
+	integratedGraphics?: string;
+	price: number;
+	compatibility: string[];
+	useCases: string[];
+	stockStatus: string;
+	description: string;
+	tdp: string;
+	benchmarkScore?: string;
+	pricePerPerformance?: string;
+	futureProofing?: string;
+}
+
+// Interface for compatibility results
+export interface CompatibilityResult {
+	isCompatible: boolean;
+	compatibleChipsets: string[];
+	compatibleMotherboards: string[];
+	issues: string[];
+	recommendations: string[];
+}
+
+// Interface for search criteria
+export interface SearchCriteria {
+	brand?: string;
+	series?: string;
+	socket?: string;
+	cores?: number;
+	minCores?: number;
+	maxCores?: number;
+	minPrice?: number;
+	maxPrice?: number;
+	useCase?: string;
+	motherboardCompatibility?: string;
+	chipset?: string;
+}
+
+// CPU Chipset compatibility mapping
+const CPU_CHIPSET_COMPATIBILITY: Record<string, string[]> = {
+	// Intel 12th Gen (Alder Lake)
+	LGA1700: ["Z690", "B660", "H610"],
+
+	// Intel 13th Gen (Raptor Lake)
+	LGA1700_13TH: ["Z790", "B760", "H770"],
+
+	// Intel 14th Gen (Raptor Lake Refresh)
+	LGA1700_14TH: ["Z790", "B760", "H770"],
+
+	// AMD AM4
+	AM4: ["B550", "X570", "B450", "X470", "A320"],
+
+	// AMD AM5 (Zen 4/5)
+	AM5: ["X670", "B650", "X670E", "B650E"],
+};
+
+// Chipset motherboard brands mapping
+const CHIPSET_MOTHERBOARD_BRANDS: Record<string, string[]> = {
+	Z790: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+	B760: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+	Z690: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+	B660: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+	X670: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+	B650: ["ASUS", "MSI", "Gigabyte", "ASRock"],
+};
 
 // CPU Specialist Personality - Multi-mode operation for parallel processing
 const CPU_SPECIALIST_PERSONALITY = `# CPU Specialist - SSTC Processor Expert
@@ -136,6 +210,10 @@ Khi được gọi trực tiếp để tư vấn khách hàng:
 - Luôn tập trung vào giá trị và lợi ích cho khách hàng`;
 
 export class CPUSpecialist extends Agent {
+	// Embedded knowledge base properties
+	private products: CPUProductInfo[] = [];
+	private isKnowledgeBaseInitialized: boolean = false;
+
 	constructor() {
 		super({
 			name: "CPU Specialist",
@@ -172,32 +250,66 @@ export class CPUSpecialist extends Agent {
 			})(),
 		});
 
-		// Khởi tạo CPU Knowledge Base
+		console.log("📚 [CPU Specialist] Initializing embedded knowledge base...");
+		// Initialize embedded knowledge base
 		this.initializeKnowledgeBase();
 	}
 
-	// Phương thức khởi tạo knowledge base
+	// Embedded knowledge base initialization method
 	private async initializeKnowledgeBase(): Promise<void> {
-		try {
-			console.log("🏗️ [CPU Specialist] Initializing CPU Knowledge Base...");
-			await cpuKnowledgeBase.initialize();
-			console.log(
-				"✅ [CPU Specialist] CPU Knowledge Base initialized successfully",
-			);
+		if (this.isKnowledgeBaseInitialized) {
+			console.log("📚 [CPU Specialist] Knowledge base already initialized.");
+			return;
+		}
 
-			// Hiển thị thống kê cơ bản
-			const stats = cpuKnowledgeBase.getStatistics();
-			console.log("📊 [CPU Specialist] Knowledge Base Statistics:", {
-				totalProducts: stats.totalProducts,
-				brands: stats.brands.length,
-				sockets: stats.sockets.length,
-				avgPrice: stats.avgPrice,
+		console.log("📚 [CPU Specialist] Loading all CPU products...");
+		try {
+			// Use the cpuDatabaseTool to fetch all products
+			const toolResult = await cpuDatabaseTool.execute({
+				context: { query: "cpu", budget: { max: 999999999 } } as any,
+				mastra: null, // Tool needs to be independent
 			});
+
+			if (toolResult.specialistData?.recommendations) {
+				this.products = toolResult.specialistData.recommendations.map(
+					(rec) => ({
+						sku: rec.productId,
+						name: rec.productName,
+						model: rec.specifications.model || rec.productName,
+						brand: rec.specifications.brand,
+						series: rec.specifications.series || "",
+						socket: rec.specifications.socket,
+						cores: rec.specifications.cores,
+						threads: rec.specifications.threads,
+						baseClock: rec.specifications.baseClock || "",
+						boostClock: rec.specifications.boostClock || "",
+						powerConsumption: rec.specifications.powerConsumption || "",
+						l3Cache: rec.specifications.l3Cache || "",
+						architecture: rec.specifications.architecture || "",
+						integratedGraphics: rec.specifications.integratedGraphics,
+						price: rec.price,
+						compatibility: [], // Tool output doesn't provide this directly, needs mapping
+						useCases: rec.useCases || [],
+						stockStatus: rec.availability,
+						description: rec.description || "",
+						tdp: rec.specifications.powerConsumption || "",
+						benchmarkScore: rec.specifications.benchmarkScore,
+						pricePerPerformance: rec.specifications.pricePerPerformance,
+						futureProofing: rec.specifications.futureProofing,
+					}),
+				);
+				this.isKnowledgeBaseInitialized = true;
+				console.log(
+					`✅ [CPU Specialist] Loaded ${this.products.length} CPU products.`,
+				);
+			} else {
+				console.warn(
+					"⚠️ [CPU Specialist] No CPU products found during initialization.",
+				);
+			}
 		} catch (error) {
-			console.error(
-				"❌ [CPU Specialist] Failed to initialize Knowledge Base:",
-				error,
-			);
+			console.error("❌ [CPU Specialist] Failed to initialize:", error);
+			this.isKnowledgeBaseInitialized = false;
 		}
 	}
 
@@ -432,42 +544,175 @@ export class CPUSpecialist extends Agent {
 		}
 	}
 
-	// Phương thức API nội bộ: Lấy thông tin chi tiết CPU
-	async getProductInfo(cpuModel: string): Promise<CPUProductInfo | null> {
-		if (!cpuKnowledgeBase.isReady()) {
-			console.warn(
-				"⚠️ [CPU Specialist] Knowledge Base not ready, falling back to database tool",
+	// Embedded knowledge base methods
+	private getProductInfoInternal(cpuModel: string): CPUProductInfo | null {
+		return (
+			this.products.find(
+				(p) =>
+					p.name.toLowerCase().includes(cpuModel.toLowerCase()) ||
+					p.model.toLowerCase().includes(cpuModel.toLowerCase()),
+			) || null
+		);
+	}
+
+	private searchCPUsInternal(criteria: SearchCriteria): CPUProductInfo[] {
+		let results = [...this.products];
+
+		if (criteria.brand) {
+			results = results.filter(
+				(cpu) => cpu.brand.toLowerCase() === criteria.brand?.toLowerCase(),
 			);
-			// Fallback to database tool if knowledge base not ready
+		}
+
+		if (criteria.series) {
+			results = results.filter(
+				(cpu) => cpu.series.toLowerCase().includes(criteria.series!.toLowerCase()),
+			);
+		}
+
+		if (criteria.socket) {
+			results = results.filter(
+				(cpu) => cpu.socket.toLowerCase() === criteria.socket?.toLowerCase(),
+			);
+		}
+
+		if (criteria.cores !== undefined) {
+			results = results.filter((cpu) => cpu.cores === criteria.cores);
+		}
+
+		if (criteria.minCores !== undefined) {
+			results = results.filter((cpu) => cpu.cores >= criteria.minCores!);
+		}
+
+		if (criteria.maxCores !== undefined) {
+			results = results.filter((cpu) => cpu.cores <= criteria.maxCores!);
+		}
+
+		if (criteria.minPrice !== undefined) {
+			results = results.filter((cpu) => cpu.price >= criteria.minPrice!);
+		}
+
+		if (criteria.maxPrice !== undefined) {
+			results = results.filter((cpu) => cpu.price <= criteria.maxPrice!);
+		}
+
+		if (criteria.useCase) {
+			const useCase = criteria.useCase.toLowerCase();
+			results = results.filter((cpu) =>
+				cpu.useCases.some((uc) => uc.toLowerCase().includes(useCase)),
+			);
+		}
+
+		return results;
+	}
+
+	private checkCompatibilityInternal(
+		cpuModel: string,
+		motherboardOrChipset: string,
+	): CompatibilityResult {
+		const cpu = this.getProductInfoInternal(cpuModel);
+		if (!cpu) {
+			return {
+				isCompatible: false,
+				compatibleChipsets: [],
+				compatibleMotherboards: [],
+				issues: [`CPU model '${cpuModel}' not found.`],
+				recommendations: [],
+			};
+		}
+
+		const socket = cpu.socket;
+		const compatibleChipsets = CPU_CHIPSET_COMPATIBILITY[socket] || [];
+		const issues: string[] = [];
+		const recommendations: string[] = [];
+		let isCompatible = false;
+
+		// Check if the motherboard/chipset is compatible
+		if (compatibleChipsets.length > 0) {
+			isCompatible = compatibleChipsets.some((chipset) =>
+				motherboardOrChipset.toLowerCase().includes(chipset.toLowerCase()),
+			);
+
+			if (!isCompatible) {
+				issues.push(
+					`This ${cpu.brand} ${cpu.model} (${socket}) requires a compatible chipset: ${compatibleChipsets.join(", ")}`,
+				);
+				recommendations.push(
+					`Look for motherboards with ${compatibleChipsets.join(", ")} chipsets`,
+				);
+			}
+		} else {
+			issues.push(`Compatibility data not available for socket ${socket}`);
+			recommendations.push(
+				"Please check motherboard manual for socket compatibility",
+			);
+		}
+
+		// Get compatible motherboard brands
+		let compatibleMotherboards: string[] = [];
+		for (const chipset of compatibleChipsets) {
+			const brands = CHIPSET_MOTHERBOARD_BRANDS[chipset] || [];
+			compatibleMotherboards = [...compatibleMotherboards, ...brands];
+		}
+
+		return {
+			isCompatible,
+			compatibleChipsets,
+			compatibleMotherboards: [...new Set(compatibleMotherboards)], // Remove duplicates
+			issues,
+			recommendations,
+		};
+	}
+
+	private getStatisticsInternal(): any {
+		if (!this.isKnowledgeBaseReady()) {
+			return {
+				totalProducts: 0,
+				brands: [],
+				sockets: [],
+				avgPrice: 0,
+			};
+		}
+
+		const brands = [...new Set(this.products.map((p) => p.brand))];
+		const sockets = [...new Set(this.products.map((p) => p.socket))];
+		const avgPrice =
+			this.products.length > 0
+				? this.products.reduce((sum, p) => sum + p.price, 0) /
+					this.products.length
+				: 0;
+
+		return {
+			totalProducts: this.products.length,
+			brands,
+			sockets,
+			avgPrice: parseFloat(avgPrice.toFixed(2)),
+		};
+	}
+
+	// Public API methods using embedded functionality
+	async getProductInfo(cpuModel: string): Promise<CPUProductInfo | null> {
+		if (!this.isKnowledgeBaseReady()) {
+			console.warn("⚠️ [CPU Specialist] Knowledge Base not ready");
 			return null;
 		}
-
-		return cpuKnowledgeBase.getProductInfo(cpuModel);
+		return this.getProductInfoInternal(cpuModel);
 	}
 
-	// Phương thức API nội bộ: Tìm kiếm CPU theo tiêu chí
 	async searchCPUs(criteria: SearchCriteria): Promise<CPUProductInfo[]> {
-		if (!cpuKnowledgeBase.isReady()) {
-			console.warn(
-				"⚠️ [CPU Specialist] Knowledge Base not ready, falling back to database tool",
-			);
-			// Fallback to database tool if knowledge base not ready
+		if (!this.isKnowledgeBaseReady()) {
+			console.warn("⚠️ [CPU Specialist] Knowledge Base not ready");
 			return [];
 		}
-
-		return cpuKnowledgeBase.searchCPUs(criteria);
+		return this.searchCPUsInternal(criteria);
 	}
 
-	// Phương thức API nội bộ: Kiểm tra tương thích
 	async checkCompatibility(
 		cpuModel: string,
 		motherboardOrChipset: string,
 	): Promise<CompatibilityResult> {
-		if (!cpuKnowledgeBase.isReady()) {
-			console.warn(
-				"⚠️ [CPU Specialist] Knowledge Base not ready, falling back to database tool",
-			);
-			// Fallback to database tool if knowledge base not ready
+		if (!this.isKnowledgeBaseReady()) {
+			console.warn("⚠️ [CPU Specialist] Knowledge Base not ready");
 			return {
 				isCompatible: false,
 				compatibleChipsets: [],
@@ -476,34 +721,28 @@ export class CPUSpecialist extends Agent {
 				recommendations: ["Please initialize the knowledge base"],
 			};
 		}
-
-		return cpuKnowledgeBase.checkCompatibility(cpuModel, motherboardOrChipset);
+		return this.checkCompatibilityInternal(cpuModel, motherboardOrChipset);
 	}
 
-	// Phương thức API nội bộ: Lấy tất cả CPU
 	async getAllCPUs(): Promise<CPUProductInfo[]> {
-		if (!cpuKnowledgeBase.isReady()) {
+		if (!this.isKnowledgeBaseReady()) {
 			console.warn("⚠️ [CPU Specialist] Knowledge Base not ready");
 			return [];
 		}
-
-		return cpuKnowledgeBase.getAllCPUs();
+		return [...this.products];
 	}
 
-	// Phương thức API nội bộ: Kiểm tra trạng thái knowledge base
 	isKnowledgeBaseReady(): boolean {
-		return cpuKnowledgeBase.isReady();
+		return this.isKnowledgeBaseInitialized;
 	}
 
-	// Phương thức API nội bộ: Lấy thống kê
 	getKnowledgeBaseStats(): any {
-		if (!cpuKnowledgeBase.isReady()) {
+		if (!this.isKnowledgeBaseReady()) {
 			return { ready: false };
 		}
-
 		return {
 			ready: true,
-			...cpuKnowledgeBase.getStatistics(),
+			...this.getStatisticsInternal(),
 		};
 	}
 

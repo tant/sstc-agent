@@ -14,6 +14,7 @@ console.log("[LLM Provider] model:", GENERATE_MODEL);
 /**
  * Creates a new OpenAI LLM provider instance with custom base URL.
  * Optionally accepts a model name to override the default.
+ * AI SDK 5.0 uses strict compatibility by default for vLLM servers.
  */
 export function createLLMProvider(modelName?: string) {
 	return createOpenAI({
