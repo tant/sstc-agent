@@ -28,8 +28,7 @@ export const ssdDatabaseTool = createTool({
 	name: "SSD Database Tool",
 	description: "Search and retrieve SSD product information from SSTC database",
 	inputSchema: ssdSearchInputSchema,
-	execute: async ({ context, mastra }) => {
-		const data = context as z.infer<typeof ssdSearchInputSchema>;
+	execute: async (data) => {
 
 		console.log("🔍 [SSD Database] Searching with:", {
 			query: data.query,

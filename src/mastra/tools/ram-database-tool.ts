@@ -42,8 +42,7 @@ export const ramDatabaseTool = createTool({
 		"Search SSTC RAM product database and return structured data for specialist agents",
 	inputSchema: ramSearchInputSchema,
 	outputSchema: ramSearchOutputSchema,
-	execute: async ({ context, mastra }) => {
-		const inputData = context as any;
+	execute: async (inputData) => {
 		const {
 			query,
 			capacity,

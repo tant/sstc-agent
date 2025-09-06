@@ -30,7 +30,7 @@ export const findPromotionsTool = createTool({
 		"Applies a standard 5% discount to a given price. Use this when a customer hesitates on price, to offer a small goodwill discount.",
 	inputSchema: findPromotionsInputSchema,
 	outputSchema: findPromotionsOutputSchema,
-	execute: async ({ context }) => {
+	execute: async (context) => {
 		const { price, productId } = context as any;
 
 		console.log("💸 [Find Promotions Tool] Applying 5% discount for:", {

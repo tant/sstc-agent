@@ -57,7 +57,7 @@ export const desktopDatabaseTool = createTool({
 		"Search SSTC desktop PC configuration database and return structured data for specialist agents",
 	inputSchema: desktopSearchInputSchema,
 	outputSchema: desktopSearchOutputSchema,
-	execute: async ({ context }) => {
+	execute: async (context) => {
 		const startTime = Date.now();
 		console.log("🔍 [DesktopDatabaseTool] Executing with context:", context);
 

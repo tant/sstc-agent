@@ -47,8 +47,7 @@ export const cpuDatabaseTool = createTool({
 		"Search SSTC CPU product database and return structured data for specialist agents",
 	inputSchema: cpuSearchInputSchema,
 	outputSchema: cpuSearchOutputSchema,
-	execute: async ({ context, mastra }) => {
-		const inputData = context as any;
+	execute: async (inputData) => {
 		const {
 			query,
 			brand,

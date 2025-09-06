@@ -58,8 +58,7 @@ export const bareboneDatabaseTool = createTool({
 	description:
 		"Search SSTC barebone system database and return structured data for specialist agents",
 	inputSchema: bareboneSearchInputSchema,
-	execute: async ({ context }) => {
-		const data = context as z.infer<typeof bareboneSearchInputSchema>;
+	execute: async (data) => {
 		const startTime = Date.now();
 
 		console.log("🔍 [Barebone Database] Searching with:", {
