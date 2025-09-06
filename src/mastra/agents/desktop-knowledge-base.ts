@@ -163,19 +163,19 @@ export class DesktopKnowledgeBase {
 
 		if (criteria.budget?.min !== undefined) {
 			results = results.filter(
-				(config) => config.price >= criteria.budget?.min!,
+				(config) => config.price >= (criteria.budget?.min ?? 0),
 			);
 		}
 
 		if (criteria.budget?.max !== undefined) {
 			results = results.filter(
-				(config) => config.price <= criteria.budget?.max!,
+				(config) => config.price <= (criteria.budget?.max ?? Infinity),
 			);
 		}
 
 		if (criteria.useCase) {
 			results = results.filter((config) =>
-				config.useCases.includes(criteria.useCase!),
+				config.useCases.includes(criteria.useCase ?? ''),
 			);
 		}
 
@@ -190,7 +190,7 @@ export class DesktopKnowledgeBase {
 		if (criteria.ramCapacity !== undefined) {
 			results = results.filter((config) => {
 				const ramCapacity = parseInt(config.ramConfiguration.capacity, 10);
-				return ramCapacity >= criteria.ramCapacity!;
+				return ramCapacity >= (criteria.ramCapacity ?? 0);
 			});
 		}
 
@@ -212,7 +212,7 @@ export class DesktopKnowledgeBase {
 					config.storageConfiguration.capacity,
 					10,
 				);
-				return storageCapacity >= criteria.storageCapacity!;
+				return storageCapacity >= (criteria.storageCapacity ?? 0);
 			});
 		}
 
@@ -226,7 +226,7 @@ export class DesktopKnowledgeBase {
 			results = results.filter((config) =>
 				config.coolingSolution
 					.toLowerCase()
-					.includes(criteria.coolingPreference!),
+					.includes(criteria.coolingPreference ?? ''),
 			);
 		}
 

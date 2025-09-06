@@ -66,7 +66,7 @@ if (process.env.TELEGRAM_BOT_TOKEN) {
 				adapter,
 				{
 					initTime: new Date().toISOString(),
-					token: process.env.TELEGRAM_BOT_TOKEN?.substring(0, 10) + "...",
+					token: `${process.env.TELEGRAM_BOT_TOKEN?.substring(0, 10)}...`,
 					polling: true,
 				}
 			);
@@ -133,7 +133,7 @@ if (
 				adapter,
 				{
 					initTime: new Date().toISOString(),
-					cookie: process.env.ZALO_COOKIE?.substring(0, 20) + "...",
+					cookie: `${process.env.ZALO_COOKIE?.substring(0, 20)}...`,
 					polling: true,
 				}
 			);

@@ -657,13 +657,6 @@ export class RAMSpecialist extends Agent {
 		return productName.split(' ')[0];
 	}
 
-	// Enhanced RAM specification detection
-	private detectRAMGeneration(ram: RAMProductInfo): string {
-		if (ram.type.toLowerCase().includes('ddr5')) return 'DDR5';
-		if (ram.type.toLowerCase().includes('ddr4')) return 'DDR4';
-		if (ram.type.toLowerCase().includes('ddr3')) return 'DDR3';
-		return 'Unknown';
-	}
 
 	private getStatisticsInternal(): any {
 		const brands = new Set(this.products.map((p) => this.extractBrand(p.name)));

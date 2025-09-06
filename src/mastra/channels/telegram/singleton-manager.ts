@@ -230,7 +230,7 @@ export class TelegramSingletonManager {
 			this.botInstance = new TelegramBot(config.token, botOptions);
 
 			// Test connection
-			const botInfo = await this.botInstance!.getMe();
+			const botInfo = await this.botInstance?.getMe();
 			console.log("✅ [TelegramSingleton] Bot connected successfully:", {
 				username: botInfo.username,
 				firstName: botInfo.first_name,
@@ -238,12 +238,12 @@ export class TelegramSingletonManager {
 			});
 
 			// Setup error handlers
-			this.botInstance!.on("polling_error", (error: any) => {
+			this.botInstance?.on("polling_error", (error: any) => {
 				console.error("❌ [TelegramSingleton] Bot polling error:", error);
 				this.handleBotError(error);
 			});
 
-			this.botInstance!.on("webhook_error", (error: any) => {
+			this.botInstance?.on("webhook_error", (error: any) => {
 				console.error("❌ [TelegramSingleton] Bot webhook error:", error);
 				this.handleBotError(error);
 			});

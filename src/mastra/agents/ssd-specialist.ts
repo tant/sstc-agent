@@ -666,13 +666,6 @@ Em có thể giúp tìm các lựa chọn phù hợp hơn với nhu cầu cụ t
 		return productName.split(' ')[0];
 	}
 
-	// Enhanced SSD specification detection
-	private detectSSDInterface(ssd: SSDProductInfo): string {
-		if (ssd.interface.toLowerCase().includes('nvme')) return 'NVMe';
-		if (ssd.interface.toLowerCase().includes('sata')) return 'SATA';
-		if (ssd.interface.toLowerCase().includes('pcie')) return 'PCIe';
-		return 'Unknown';
-	}
 
 	private getStatisticsInternal(): any {
 		const brands = new Set(this.products.map((p) => this.extractBrand(p.name)));

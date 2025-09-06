@@ -569,7 +569,7 @@ export class CPUSpecialist extends Agent {
 
 		if (criteria.series) {
 			results = results.filter((cpu) =>
-				cpu.series.toLowerCase().includes(criteria.series!.toLowerCase()),
+				cpu.series.toLowerCase().includes(criteria.series?.toLowerCase() ?? ''),
 			);
 		}
 
@@ -584,19 +584,19 @@ export class CPUSpecialist extends Agent {
 		}
 
 		if (criteria.minCores !== undefined) {
-			results = results.filter((cpu) => cpu.cores >= criteria.minCores!);
+			results = results.filter((cpu) => cpu.cores >= (criteria.minCores ?? 0));
 		}
 
 		if (criteria.maxCores !== undefined) {
-			results = results.filter((cpu) => cpu.cores <= criteria.maxCores!);
+			results = results.filter((cpu) => cpu.cores <= (criteria.maxCores ?? Infinity));
 		}
 
 		if (criteria.minPrice !== undefined) {
-			results = results.filter((cpu) => cpu.price >= criteria.minPrice!);
+			results = results.filter((cpu) => cpu.price >= (criteria.minPrice ?? 0));
 		}
 
 		if (criteria.maxPrice !== undefined) {
-			results = results.filter((cpu) => cpu.price <= criteria.maxPrice!);
+			results = results.filter((cpu) => cpu.price <= (criteria.maxPrice ?? Infinity));
 		}
 
 		if (criteria.useCase) {
@@ -680,25 +680,6 @@ export class CPUSpecialist extends Agent {
 		return productName.split(' ')[0];
 	}
 
-	// Enhanced CPU generation detection
-	private detectCPUGeneration(cpu: CPUProductInfo): string {
-		// Intel generation detection
-		if (cpu.brand.toLowerCase().includes('intel')) {
-			if (cpu.architecture?.includes('Alder Lake') || cpu.series?.includes('12')) return '12th Gen';
-			if (cpu.architecture?.includes('Raptor Lake') || cpu.series?.match(/13th|14th/)) return '13th/14th Gen';
-			if (cpu.series?.includes('11')) return '11th Gen';
-			if (cpu.series?.includes('10')) return '10th Gen';
-		}
-		
-		// AMD generation detection  
-		if (cpu.brand.toLowerCase().includes('amd')) {
-			if (cpu.architecture?.includes('Zen 4') || cpu.socket === 'AM5') return 'Zen 4';
-			if (cpu.architecture?.includes('Zen 3') || cpu.socket === 'AM4') return 'Zen 3';
-			if (cpu.architecture?.includes('Zen 2')) return 'Zen 2';
-		}
-		
-		return 'Unknown';
-	}
 
 	private getStatisticsInternal(): any {
 		if (!this.isKnowledgeBaseReady()) {
@@ -833,7 +814,7 @@ export class CPUSpecialist extends Agent {
 	async getStructuredRecommendations(
 		message: string,
 		context: any = {},
-		conversationId?: string,
+		_conversationId?: string,
 	): Promise<CPUSpecialistData | null> {
 		return this.processCPUQueryForMai(message, context);
 	}

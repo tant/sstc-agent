@@ -675,15 +675,6 @@ export class BareboneSpecialist extends Agent {
 		return productName.split(' ')[0];
 	}
 
-	// Enhanced Barebone specification detection
-	private detectFormFactor(barebone: BareboneProductInfo): string {
-		const formFactor = barebone.motherboardFormFactor.toLowerCase();
-		if (formFactor.includes('atx') && !formFactor.includes('micro') && !formFactor.includes('mini')) return 'ATX';
-		if (formFactor.includes('micro') || formFactor.includes('matx')) return 'Micro-ATX';
-		if (formFactor.includes('mini')) return 'Mini-ITX';
-		if (formFactor.includes('e-atx')) return 'E-ATX';
-		return 'Unknown';
-	}
 
 	private getStatisticsInternal(): {
 		totalProducts: number;
