@@ -8,13 +8,65 @@ import type { ChannelAdapter } from "../../core/channels/interface";
 import { messageProcessor } from "../../core/optimized-processing";
 import { validateZaloConfig, type ZaloConfig } from "./config";
 
+interface ConnectionHealth {
+	isConnected: boolean;
+	lastHealthCheck: number;
+	consecutiveFailures: number;
+	lastError?: string;
+}
+
 export class ZaloChannelAdapter implements ChannelAdapter {
+	private static globalInstance: ZaloChannelAdapter | null = null;
 	private zalo: any;
 	private api: any;
 	private config: ZaloConfig;
 	private _isShutdown: boolean = false;
+	private healthCheck: NodeJS.Timeout | null = null;
+	private connectionHealth: ConnectionHealth;
+	
+	// Connection settings
+	private readonly MAX_CONSECUTIVE_FAILURES = 5;
+	private readonly HEALTH_CHECK_INTERVAL = 60 * 1000; // 1 minute
 
 	channelId = "zalo";
+
+	/**
+	 * Factory method - đảm bảo singleton
+	 */
+	static async create(config: Partial<ZaloConfig>): Promise<ZaloChannelAdapter | null> {
+		console.log("🔍 [Zalo] Checking for existing instances across system...");
+		
+		// Return existing healthy instance
+		if (ZaloChannelAdapter.globalInstance) {
+			const instance = ZaloChannelAdapter.globalInstance;
+			if (!instance._isShutdown && instance.isHealthy()) {
+				console.log("♻️ [Zalo] Returning existing healthy instance");
+				return instance;
+			} else {
+				console.log("🔄 [Zalo] Existing instance unhealthy, shutting down...");
+				await instance.forceShutdown();
+				ZaloChannelAdapter.globalInstance = null;
+			}
+		}
+
+		// Create new instance
+		try {
+			const instance = new ZaloChannelAdapter(config);
+			const success = await instance.initialize();
+			
+			if (success) {
+				ZaloChannelAdapter.globalInstance = instance;
+				console.log("✅ [Zalo] Singleton instance created successfully");
+				return instance;
+			} else {
+				await instance.forceShutdown();
+				return null;
+			}
+		} catch (error) {
+			console.error("❌ [Zalo] Singleton creation failed:", error);
+			return null;
+		}
+	}
 
 	/**
 	 * Check if adapter is shutdown
@@ -23,7 +75,18 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 		return this._isShutdown;
 	}
 
-	constructor(config: Partial<ZaloConfig>) {
+	/**
+	 * Check if adapter is healthy
+	 */
+	isHealthy(): boolean {
+		return this.connectionHealth.isConnected && 
+		       this.connectionHealth.consecutiveFailures < this.MAX_CONSECUTIVE_FAILURES;
+	}
+
+	/**
+	 * Private constructor - use factory method
+	 */
+	private constructor(config: Partial<ZaloConfig>) {
 		console.log("🔧 [Zalo] Initializing adapter with config", {
 			hasCookie: !!config.cookie,
 			hasImei: !!config.imei,
@@ -33,50 +96,73 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 			logging: config.logging,
 		});
 
-		// Use existing validation function
 		this.config = validateZaloConfig(config);
+		
+		this.connectionHealth = {
+			isConnected: false,
+			lastHealthCheck: 0,
+			consecutiveFailures: 0,
+		};
 
-		// Initialize Zalo client
 		this.zalo = new Zalo({
 			selfListen: this.config.selfListen,
 			checkUpdate: this.config.checkUpdate,
 			logging: this.config.logging,
 		});
-
-		console.log("✅ [Zalo] Adapter initialized successfully");
 	}
 
 	/**
-	 * Start the Zalo adapter
+	 * Initialize adapter with connection
+	 */
+	private async initialize(): Promise<boolean> {
+		console.log("🔧 [Zalo] Starting initialization...");
+		
+		try {
+			await this.connectToZalo();
+			this.startHealthMonitoring();
+			
+			this.connectionHealth.isConnected = true;
+			this.connectionHealth.lastHealthCheck = Date.now();
+			this.connectionHealth.consecutiveFailures = 0;
+			
+			console.log("✅ [Zalo] Initialization completed successfully");
+			return true;
+		} catch (error) {
+			console.error("❌ [Zalo] Initialization failed:", error);
+			this.connectionHealth.isConnected = false;
+			this.connectionHealth.lastError = error instanceof Error ? error.message : String(error);
+			return false;
+		}
+	}
+
+	/**
+	 * Connect to Zalo (legacy method for compatibility)
 	 */
 	async start(): Promise<void> {
-		try {
-			console.log("🔍 [Zalo] Logging in with provided credentials", {
-				hasCookie: !!this.config.cookie,
-				cookieLength:
-					typeof this.config.cookie === "string"
-						? this.config.cookie.length
-						: "object",
-				imeiLength: this.config.imei?.length || 0,
-				userAgentLength: this.config.userAgent?.length || 0,
-			});
-
-			this.api = await this.zalo.login({
-				cookie: this.config.cookie,
-				imei: this.config.imei,
-				userAgent: this.config.userAgent,
-			});
-
-			console.log("✅ [Zalo] Logged in successfully");
-
-			// Set up message handlers
-			this.setupMessageHandlers();
-
-			console.log("✅ [Zalo] Adapter started successfully");
-		} catch (error) {
-			console.error("❌ [Zalo] Error starting adapter:", error);
-			throw error;
+		if (this._isShutdown) {
+			throw new Error("Cannot start shutdown adapter");
 		}
+		const success = await this.initialize();
+		if (!success) {
+			throw new Error("Failed to initialize Zalo adapter");
+		}
+	}
+
+	/**
+	 * Connect to Zalo service
+	 */
+	private async connectToZalo(): Promise<void> {
+		console.log("🔍 [Zalo] Logging in with credentials...");
+
+		this.api = await this.zalo.login({
+			cookie: this.config.cookie,
+			imei: this.config.imei,
+			userAgent: this.config.userAgent,
+		});
+
+		console.log("✅ [Zalo] Logged in successfully");
+		this.setupMessageHandlers();
+		console.log("✅ [Zalo] Connection established");
 	}
 
 	/**
@@ -92,6 +178,7 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 		// Error handling
 		this.api.listener.on("error", (error: any) => {
 			console.error("❌ [Zalo] Listener error:", error);
+			this.handleConnectionError(error);
 		});
 
 		// Start listening
@@ -542,36 +629,165 @@ export class ZaloChannelAdapter implements ChannelAdapter {
 	}
 
 	/**
-	 * Cleanup method for graceful shutdown
+	 * Start health monitoring
+	 */
+	private startHealthMonitoring(): void {
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+		}
+
+		this.healthCheck = setInterval(async () => {
+			await this.performHealthCheck();
+		}, this.HEALTH_CHECK_INTERVAL);
+
+		console.log("💓 [Zalo] Health monitoring started");
+	}
+
+	/**
+	 * Perform health check
+	 */
+	private async performHealthCheck(): Promise<void> {
+		try {
+			if (!this.api || this._isShutdown) {
+				return;
+			}
+
+			// Simple health check - verify API is available
+			if (this.api?.listener) {
+				this.updateHealthStatus(true);
+				console.log("💓 [Zalo] Health check passed");
+			} else {
+				throw new Error("API or listener unavailable");
+			}
+		} catch (error) {
+			console.error("❌ [Zalo] Health check failed:", error);
+			this.updateHealthStatus(false);
+			
+			// Trigger reconnection if too many failures
+			if (this.connectionHealth.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+				console.error("🚨 [Zalo] Too many failures, attempting reconnection");
+				await this.attemptReconnection();
+			}
+		}
+	}
+
+	/**
+	 * Update health status
+	 */
+	private updateHealthStatus(success: boolean): void {
+		this.connectionHealth.lastHealthCheck = Date.now();
+		
+		if (success) {
+			this.connectionHealth.isConnected = true;
+			this.connectionHealth.consecutiveFailures = 0;
+			delete this.connectionHealth.lastError;
+		} else {
+			this.connectionHealth.isConnected = false;
+			this.connectionHealth.consecutiveFailures++;
+		}
+	}
+
+	/**
+	 * Handle connection errors
+	 */
+	private handleConnectionError(error: any): void {
+		console.error("🚨 [Zalo] Connection error:", error);
+		
+		this.connectionHealth.lastError = error instanceof Error ? error.message : String(error);
+		this.updateHealthStatus(false);
+	}
+
+	/**
+	 * Attempt reconnection
+	 */
+	private async attemptReconnection(): Promise<void> {
+		console.log("🔄 [Zalo] Attempting reconnection");
+
+		try {
+			// Wait before reconnection
+			await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds
+
+			// Stop current listener
+			if (this.api?.listener) {
+				try {
+					this.api.listener.stop();
+				} catch (error) {
+					console.warn("⚠️ [Zalo] Error stopping listener:", error);
+				}
+			}
+
+			// Reconnect to Zalo
+			await this.connectToZalo();
+			
+			this.updateHealthStatus(true);
+			console.log("✅ [Zalo] Reconnection successful");
+		} catch (error) {
+			console.error("❌ [Zalo] Reconnection failed:", error);
+			this.updateHealthStatus(false);
+		}
+	}
+
+	/**
+	 * Force shutdown (immediate cleanup)
+	 */
+	async forceShutdown(): Promise<void> {
+		console.log("💥 [Zalo] Force shutdown initiated");
+		this._isShutdown = true;
+		
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+			this.healthCheck = null;
+		}
+		
+		if (this.api?.listener) {
+			try {
+				this.api.listener.stop();
+			} catch (error) {
+				console.warn("⚠️ [Zalo] Force stop error:", error);
+			}
+		}
+		
+		if (ZaloChannelAdapter.globalInstance === this) {
+			ZaloChannelAdapter.globalInstance = null;
+		}
+		
+		this.api = null;
+		this.zalo = null;
+		this.connectionHealth.isConnected = false;
+	}
+
+	/**
+	 * Graceful shutdown
 	 */
 	async shutdown(): Promise<void> {
-		// Check if already shutdown
 		if (this._isShutdown) {
-			console.log("⚠️ [Zalo] Adapter already shut down, skipping...");
 			return;
 		}
 
-		console.log("🛑 [Zalo] Shutting down adapter...");
-		try {
-			// Stop listener
-			if (this.api?.listener) {
-				console.log("🔄 [Zalo] Stopping listener...");
-				this.api.listener.stop();
-				console.log("✅ [Zalo] Listener stopped successfully");
-			}
+		console.log("🛑 [Zalo] Graceful shutdown");
+		this._isShutdown = true;
 
-			// Mark as shutdown
-			this._isShutdown = true;
-
-			console.log("✅ [Zalo] Adapter shut down successfully");
-		} catch (error) {
-			console.error("❌ [Zalo] Error shutting down adapter:", {
-				errorMessage: error instanceof Error ? error.message : String(error),
-				errorStack: error instanceof Error ? error.stack : undefined,
-			});
-			// Still mark as shutdown to prevent repeated attempts
-			this._isShutdown = true;
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+			this.healthCheck = null;
 		}
+
+		if (this.api?.listener) {
+			try {
+				this.api.listener.stop();
+			} catch (error) {
+				console.warn("⚠️ [Zalo] Shutdown cleanup error:", error);
+			}
+		}
+
+		if (ZaloChannelAdapter.globalInstance === this) {
+			ZaloChannelAdapter.globalInstance = null;
+		}
+
+		this.api = null;
+		this.zalo = null;
+		this.connectionHealth.isConnected = false;
+		console.log("✅ [Zalo] Shutdown completed");
 	}
 
 	/**

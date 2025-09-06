@@ -108,45 +108,62 @@ if (
 	process.env.ZALO_IMEI &&
 	process.env.ZALO_USER_AGENT
 ) {
-	try {
-		console.log("🔍 Attempting to initialize Zalo channel...");
-		// Check if Zalo channel is already registered
-		if (channelRegistry.has("zalo")) {
-			console.log("⚠️ Zalo channel already registered, skipping initialization");
-		} else {
-			zaloAdapter = new ZaloChannelAdapter({
-				cookie: process.env.ZALO_COOKIE,
-				imei: process.env.ZALO_IMEI,
-				userAgent: process.env.ZALO_USER_AGENT,
-				selfListen: process.env.ZALO_SELF_LISTEN === "true",
-				checkUpdate: process.env.ZALO_CHECK_UPDATE !== "false",
-				logging: process.env.ZALO_LOGGING !== "false",
-			});
+	console.log("🔍 [Mastra] Attempting to initialize Zalo channel...");
+	
+	// Clean up stale states first
+	channelRegistry.cleanupStaleStates().catch(error => {
+		console.warn("⚠️ [Mastra] Failed to cleanup stale states:", error);
+	});
 
-			// Start the Zalo adapter
-			zaloAdapter
-				.start()
-				.then(() => {
-					if (zaloAdapter) {
-						channelRegistry.register("zalo", zaloAdapter);
-						console.log("✅ Zalo channel registered in Mastra");
-					}
-				})
-				.catch((error) => {
-					console.error("❌ Failed to start Zalo adapter:", error);
-				});
-
-			// Store cleanup function for graceful shutdown
-			zaloCleanup = async () => {
-				console.log("🧹 Cleaning up Zalo channel...");
-				if (zaloAdapter) {
-					await zaloAdapter.shutdown();
+	// Use factory method with singleton enforcement
+	ZaloChannelAdapter.create({
+		cookie: process.env.ZALO_COOKIE,
+		imei: process.env.ZALO_IMEI,
+		userAgent: process.env.ZALO_USER_AGENT,
+		selfListen: process.env.ZALO_SELF_LISTEN === "true",
+		checkUpdate: process.env.ZALO_CHECK_UPDATE !== "false",
+		logging: process.env.ZALO_LOGGING !== "false",
+	}).then(async (adapter) => {
+		if (adapter) {
+			zaloAdapter = adapter;
+			
+			// Register with enhanced registry (with conflict detection)
+			const registrationResult = await channelRegistry.registerWithLock(
+				"zalo",
+				adapter,
+				{
+					initTime: new Date().toISOString(),
+					cookie: process.env.ZALO_COOKIE?.substring(0, 20) + "...",
+					polling: true,
 				}
-			};
+			);
+
+			if (registrationResult.success) {
+				console.log("✅ [Mastra] Zalo channel registered successfully");
+				
+				// Store cleanup function
+				zaloCleanup = async () => {
+					console.log("🧹 [Mastra] Cleaning up Zalo channel...");
+					if (zaloAdapter) {
+						await channelRegistry.unregisterWithCleanup("zalo");
+					}
+				};
+			} else {
+				console.error("❌ [Mastra] Failed to register Zalo channel:", {
+					reason: registrationResult.reason,
+					conflictingProcess: registrationResult.conflictingProcess,
+				});
+				
+				// Shutdown the adapter since registration failed
+				await adapter.shutdown();
+				zaloAdapter = null;
+			}
+		} else {
+			console.error("❌ [Mastra] Failed to create Zalo adapter");
 		}
-	} catch (error) {
-		console.error("❌ Failed to initialize Zalo channel:", error);
-	}
+	}).catch(error => {
+		console.error("❌ [Mastra] Error initializing Zalo channel:", error);
+	});
 }
 
 // Graceful shutdown
