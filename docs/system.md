@@ -1,167 +1,264 @@
-# Mô tả hệ thống
+# SSTC Multi-Agent System - Current Architecture
 
-Tài liệu này mô tả kiến trúc tổng quan, các thành phần chính và luồng hoạt động của hệ thống SSTC Agent.
+This document describes the current optimized architecture, components, and operational flow of the SSTC Agent system as of September 2025.
 
-## 1. Kiến trúc tổng quan
+## 1. System Overview
 
-Hệ thống được xây dựng dưới dạng một nền tảng chatbot (agent platform) dựa trên framework **Mastra**. Kiến trúc này bao gồm các thành phần chính sau:
+The system is built as a **multi-agent AI platform** using the **Mastra framework**, optimized for SSTC (computer hardware retailer) sales and support operations. The current architecture emphasizes **performance, consistency, and maintainability**.
 
-- **API Server:** Một máy chủ REST API được xây dựng bằng Express.js, đóng vai trò là cổng giao tiếp chính (gateway) cho tất cả các tương tác từ bên ngoài.
-- **Mastra Core Engine:** Hạt nhân của hệ thống, quản lý vòng đời của các agents, workflows, channels và các dịch vụ cốt lõi khác.
-- **Channels:** Các adapter để kết nối với nhiều nền tảng nhắn tin khác nhau (ví dụ: Telegram, Zalo, Web).
-- **Agents:** Các "bộ não" chuyên biệt, mỗi agent chịu trách nhiệm xử lý một nghiệp vụ cụ thể (ví dụ: tư vấn bán hàng, xử lý mua hàng, bảo hành).
-- **Unified Memory:** Một hệ thống bộ nhớ hợp nhất để lưu trữ lịch sử trò chuyện, ngữ cảnh và trạng thái của người dùng trên tất cả các kênh.
-- **Workflow:** Luồng xử lý logic để điều phối thông tin giữa các kênh, bộ nhớ và agents.
+### Core Design Principles
+- **Build-First Development**: Every change must maintain successful project builds
+- **Full System Testing**: Always test with complete 8-agent architecture  
+- **Agent Consistency**: All specialist agents follow identical patterns and structures
+- **Self-hosted AI**: Uses private vLLM and embedding servers (no external API dependencies)
 
-![Agent Architecture](agent-architecture.md)
+## 2. Current Architecture Components
 
-## 2. Các thành phần chính
+### 2.1. Main Entry Point (`src/mastra/index.ts`)
 
-### 2.1. API Server (`src/api-server.ts`)
+**Single, comprehensive configuration** that initializes the complete system:
 
-Đây là điểm vào (entry point) chính của hệ thống cho các yêu cầu HTTP. Nó chịu trách nhiệm:
+- **Full Agent Registry**: All 7 agents loaded by default
+- **Multi-Channel Support**: Telegram, Zalo, Web channels with graceful shutdown
+- **Optimized Memory**: Unified memory management with caching
+- **Signal Handling**: Proper cleanup on termination
 
-- Tiếp nhận tin nhắn từ các kênh hoặc client thông qua endpoint `POST /chat`.
-- Cung cấp các endpoint để quản lý và theo dõi hệ thống.
-- Giao tiếp với `channelMessageWorkflow` để xử lý tin nhắn.
+### 2.2. Agent Architecture (8 Active Agents)
 
-**Các Endpoints chính:**
+**Mai Agent** (`mai-agent.ts`)
+- Central coordinator with warm Vietnamese personality
+- Handles customer-facing interactions
+- Silently coordinates with specialists behind the scenes
 
-- `POST /chat`: Endpoint chính để xử lý một tin nhắn mới.
-  - **Input:** `{ channelId, message, senderId }`
-  - **Processing:** Chuyển tiếp yêu cầu đến `channelMessageWorkflow`.
-- `GET /health`: Kiểm tra "sức khỏe" của hệ thống, bao gồm cả trạng thái của `unifiedMemoryManager`.
-- `GET /memory/:userId/history`: Lấy lịch sử trò chuyện của một người dùng cụ thể.
-- `POST /memory/:userId/reset`: Xóa bộ nhớ của một người dùng (dành cho mục đích quản trị/kiểm thử).
-- `GET /analytics`: Lấy các số liệu thống kê về hệ thống (bộ nhớ, uptime...).
-- `GET /greeting/:userId/status`: Kiểm tra xem một người dùng đã được chào hỏi lần đầu hay chưa (Greeting Control).
+**Hardware Specialists** (Optimized & Consistent)
+- `cpu-specialist.ts` - CPU recommendations and compatibility
+- `ram-specialist.ts` - Memory specifications and compatibility  
+- `ssd-specialist.ts` - Storage solutions and performance
+- `barebone-specialist.ts` - Case and motherboard combinations
+- `desktop-specialist.ts` - Complete PC builds
 
-### 2.2. Mastra Core (`src/mastra/index.ts`)
+**Support Agents**
+- `clarification-agent.ts` - Intent clarification
+- `an-data-analyst.ts` - Data analysis and insights
 
-Tệp này là nơi khởi tạo và cấu hình instance chính của Mastra, liên kết tất cả các thành phần lại với nhau.
+### 2.3. Optimized Core Infrastructure
 
-- **Khởi tạo Mastra:** Tạo một instance `Mastra` và đăng ký các thành phần.
-- **Đăng ký Agents:** Các agent như `maiSale`, `clarificationAgent`, `ramSpecialist` được đăng ký để hệ thống có thể định tuyến yêu cầu đến chúng.
-- **Đăng ký Workflows:** `channelMessageWorkflow` được đăng ký làm workflow xử lý chính.
-- **Cấu hình Storage:** Sử dụng `LibSQLStore` để lưu trữ dữ liệu (telemetry, evals). Mặc định đang được cấu hình để chạy trên bộ nhớ (`:memory:`).
-- **Khởi tạo Channels:**
-  - `TelegramChannelAdapter` và `ZaloChannelAdapter` được khởi tạo và đăng ký vào `channelRegistry` một cách tự động nếu các biến môi trường tương ứng (`TELEGRAM_BOT_TOKEN`, `ZALO_COOKIE`...) được cung cấp.
-  - Điều này cho phép hệ thống có khả năng mở rộng và kết nối với nhiều kênh một cách linh hoạt.
-- **Graceful Shutdown:** Quản lý việc tắt hệ thống một cách an toàn, đảm bảo các kênh được đóng đúng cách.
+**Memory Management** (`src/mastra/core/memory/optimized-memory-manager.ts`)
+- **76% code reduction** from previous implementation
+- Unified singleton pattern with TTL caching
+- Shared context management across all agents
+- User profile tracking and conversation continuity
 
-### 2.3. Workflow (`src/mastra/workflows/message-processor.ts`)
+**Processing Engine** (`src/mastra/core/optimized-processing.ts`)  
+- **76% code reduction** from previous implementation
+- Combined parallel processing, timeout utilities, and signal management
+- Graceful shutdown handling for all channels
+- Background task coordination
 
-- **`channelMessageWorkflow`** là bộ điều phối trung tâm. Khi được `api-server` gọi, nó nhận thông tin tin nhắn và thực hiện các bước logic cần thiết, bao gồm:
-  - Lấy ngữ cảnh từ bộ nhớ.
-  - Định tuyến (route) tin nhắn đến agent phù hợp.
-  - Nhận kết quả từ agent và trả về cho `api-server`.
+**Message Workflow** (`src/mastra/workflows/message-processor.ts`)
+- Single comprehensive workflow for all message routing
+- Intent analysis and agent dispatching
+- Parallel processing for specialist consultation
+- Context preservation across conversations
 
-### 2.4. Quản lý bộ nhớ (`src/mastra/core/memory/unified-memory-manager.ts`)
+## 3. Agent Consistency Standards
 
-- **`unifiedMemoryManager`** cung cấp một giao diện duy nhất để tương tác với bộ nhớ của người dùng.
-- **Chức năng:**
-  - Lưu và truy xuất lịch sử trò chuyện.
-  - **Greeting Control:** Quản lý trạng thái "đã chào hỏi" của người dùng. Agent có thể sử dụng `hasUserBeenGreeted` để quyết định có cần gửi lời chào cho người dùng mới hay không và dùng `markUserAsGreeted` sau khi đã tương tác lần đầu.
-  - Cung cấp các số liệu thống kê về bộ nhớ.
+All hardware specialist agents follow **identical patterns** for maintainability:
 
-## 3. Các ý định (Intents) được hỗ trợ
+### 3.1. Tool Execution Pattern
+```typescript
+// Consistent across CPU, RAM, SSD, Barebone specialists
+const toolResult = await tool.execute({
+  query: "search_query",
+  budget: { min: 0, max: 999999999 },
+  ...params
+} as any);
+```
 
-Hệ thống sử dụng agent `anDataAnalyst` và công cụ `intentAnalyzerTool` để phân tích tin nhắn của người dùng và phân loại chúng vào các ý định (intent) và chủ đề chuyên gia (specialist topics) cụ thể. Việc phân loại này hiện đang dựa trên phương pháp quét từ khóa (keyword-based).
+### 3.2. Null Safety Pattern
+```typescript
+// Consistent null safety across all specialists
+criteria.budget?.min ?? 0
+rec.specifications?.property ?? defaultValue
+```
 
-### 3.1. Ý định chính (`primaryIntent`)
+### 3.3. Structured Output Pattern
+```typescript
+// All specialists include model parameter
+{
+  structuredOutput: { 
+    schema: SpecialistSummarySchema,
+    model: this.model 
+  }
+}
+```
 
-Đây là mục tiêu tổng quát nhất của người dùng.
+### 3.4. Error Handling Pattern
+- Standardized try/catch blocks
+- Consistent logging formats
+- Graceful degradation strategies
 
-*   **`purchase` (Mua hàng):**
-    *   **Mô tả:** Người dùng có ý định tìm hiểu thông tin hoặc mua một sản phẩm.
-    *   **Từ khóa kích hoạt:** `mua`, `buy`, `purchase`, `price`, `cost`, `order`, `dat hang`, `gia`.
+## 4. Multi-Channel Integration
 
-*   **`warranty` (Bảo hành):**
-    *   **Mô tả:** Người dùng đang gặp vấn đề với sản phẩm đã mua và cần hỗ trợ kỹ thuật hoặc bảo hành.
-    *   **Từ khóa kích hoạt:** `bao hanh`, `warranty`, `guarantee`, `hong`, `broken`, `sua chua`, `bảo hành`.
+### 4.1. Channel Support
+- **Telegram**: Bot integration with auto-initialization
+- **Zalo**: Vietnamese messaging platform with lifecycle management  
+- **Web**: HTTP API endpoints via Mastra server
 
-*   **`mixed` (Hỗn hợp):**
-    *   **Mô tả:** Tin nhắn của người dùng chứa từ khóa của cả hai ý định trên, cho thấy một yêu cầu phức tạp.
+### 4.2. Channel Registry (`src/mastra/core/channels/registry.ts`)
+- Centralized channel management
+- Dynamic registration/deregistration
+- Graceful shutdown coordination
 
-*   **`unknown` (Không xác định):**
-    *   **Mô tả:** Hệ thống không tìm thấy đủ từ khóa để phân loại ý định một cách tự tin. Trong trường hợp này, `clarificationAgent` hoặc `maiSale` sẽ được sử dụng để làm rõ yêu cầu.
+## 5. Data Architecture
 
-### 3.2. Chủ đề chuyên gia (`specialistNeeded`)
+### 5.1. AI Services (Self-hosted)
+**vLLM Server** (LLM Provider)
+- Model: `gpt-oss-20b` (configurable via `GENERATE_MODEL`)
+- OpenAI-compatible endpoints
+- Environment: `VLLM_BASE_URL`, `VLLM_API_KEY`
 
-Đây là các chủ đề kỹ thuật cụ thể. Khi được nhắc đến, hệ thống sẽ kích hoạt luồng xử lý song song để lấy thông tin chuyên sâu từ các agent backend.
+**Embedding Server**
+- Model: `BAAI/bge-m3-unsupervised` (configurable via `EMBEDDER_MODEL`)
+- Used for product semantic search
+- Environment: `EMBEDDER_BASE_URL`, `EMBEDDER_API_KEY`
 
-*   **`ram`:** Các yêu cầu liên quan đến bộ nhớ RAM.
-    *   **Từ khóa:** `ram`, `memory`, `ddr4`, `ddr5`, `bộ nhớ`, `ram desktop`, `ram laptop`, `dual channel`, `single channel`.
+### 5.2. Database Layer
+**Vector Database**: ChromaDB
+- Product embeddings and semantic search
+- Hardware specification matching
 
-*   **`gpu`:** Các yêu cầu liên quan đến card đồ họa.
-    *   **Từ khóa:** `gpu`, `graphics card`, `card đồ họa`, `rtx`, `gtx`, `rx`.
+**Structured Storage**: LibSQL  
+- Conversation history and telemetry
+- In-memory for development (`:memory:`)
+- Can persist with `file:../mastra.db` configuration
 
-*   **`cpu`:** Các yêu cầu liên quan đến bộ vi xử lý.
-    *   **Từ khóa:** `cpu`, `processor`, `vi xử lý`, `intel`, `amd`, `ryzen`.
+### 5.3. Product Database Tools
+Consistent database tools for each product category:
+- `cpu-database-tool.ts` - Intel/AMD CPU product queries
+- `ram-database-tool.ts` - DDR4/DDR5 memory product queries
+- `ssd-database-tool.ts` - Storage device product queries
+- `barebone-database-tool.ts` - Case/motherboard product queries
+- `desktop-database-tool.ts` - Complete build product queries
 
-*   **`storage`:** Các yêu cầu liên quan đến thiết bị lưu trữ.
-    *   **Từ khóa:** `ssd`, `hdd`, `ổ cứng`, `storage`, `drive`.
+## 6. Message Processing Flow
 
-*   **`none`:** Không cần chuyên gia.
+### 6.1. Request Lifecycle
+1. **Message Reception**: Via Telegram, Zalo, or Web API
+2. **Channel Routing**: Channel registry forwards to message processor
+3. **Intent Analysis**: `anDataAnalyst` determines user intent and needs
+4. **Agent Selection**: Route to appropriate agent based on analysis
+5. **Specialist Consultation**: Parallel processing for hardware expertise
+6. **Response Generation**: Mai agent creates customer-friendly response
+7. **Context Preservation**: Update shared memory with conversation state
 
-## 4. Luồng xử lý tin nhắn chi tiết (Message Flow)
+### 6.2. Parallel Processing for Specialists
 
-Luồng xử lý được định nghĩa trong `channelMessageWorkflow` (`src/mastra/workflows/message-processor.ts`) và bao gồm 2 bước chính nối tiếp nhau: **`intent-analysis`** (Phân tích ý định) và **`agent-dispatcher`** (Điều phối Agent).
+When hardware expertise is needed:
 
-### 4.1. Bước 1: Phân tích ý định & Chuẩn bị ngữ cảnh (`intent-analysis`)
+1. **Immediate Response**: Mai provides acknowledgment ("Em đang kiểm tra...")
+2. **Background Processing**: Relevant specialist queries database
+3. **Data Integration**: Specialist data merged with Mai's response  
+4. **Timeout Handling**: 3-second limit with graceful fallback
 
-Mục tiêu của bước này là hiểu người dùng muốn gì và thu thập tất cả dữ liệu cần thiết để xử lý.
+### 6.3. Conversation Context Management
 
-1.  **Tạo/Lấy ID Cuộc hội thoại:**
-    - Một `conversationId` duy nhất được tạo ra cho mỗi người dùng trên mỗi kênh trong ngày. ID này là chìa khóa để truy xuất và lưu trữ ngữ cảnh cho toàn bộ cuộc trò chuyện.
+**Conversation ID Generation**
+- Unique per user per channel per day
+- Key for context retrieval and storage
 
-2.  **Quản lý Ngữ cảnh (`sharedContextManager`):**
-    - Hệ thống sử dụng `conversationId` để tìm kiếm **ngữ cảnh chung (`sharedContext`)** đã có.
-    - Nếu chưa có, một ngữ cảnh mới sẽ được tạo, bao gồm `chatHistory` (lịch sử trò chuyện) và `userProfile` (thông tin người dùng).
-    - Tin nhắn mới của người dùng ngay lập tức được thêm vào `sharedContext`.
+**Shared Context**
+- Chat history preservation
+- User profile building
+- Cross-agent information sharing
+- Greeting status tracking
 
-3.  **Phân tích ý định bằng AI (`anDataAnalyst`):**
-    - Hệ thống sử dụng agent `anDataAnalyst` với công cụ `intentAnalyzerTool` để phân tích tin nhắn và xác định `primaryIntent` và `specialistNeeded` dựa trên các từ khóa được định nghĩa ở trên.
+## 7. API Architecture
 
-3.  **Phân tích bằng từ khóa (Dự phòng):**
-    - Nếu `anDataAnalyst` không phát hiện ra nhu cầu cần chuyên gia, hệ thống sẽ quét tin nhắn để tìm các từ khóa như `ssd`, `ổ cứng`, `cpu`, `intel`... để tự động định tuyến đến chuyên gia.
+### 7.1. Mastra Server Endpoints
+**Base URL**: `http://localhost:4111`
 
-4.  **Cập nhật ngữ cảnh:**
-    - Nếu `anDataAnalyst` tìm thấy thông tin mới về người dùng, `userProfile` trong `sharedContext` sẽ được cập nhật.
+**Agent Endpoints**
+- `GET /api/agents` - List all 8 active agents
+- `POST /api/agents/{agentId}/generate/vnext` - AI SDK v5 generation
+- `GET /api/agents/{agentId}/tools/{toolId}` - Agent tool access
 
-**Kết quả của Bước 1:** Dữ liệu đầu vào ban đầu được "làm giàu" thêm với `intent` (ý định), `chatHistory` (lịch sử chat), `specialistRouting` (thông tin định tuyến chuyên gia), và `conversationId`.
+**Workflow Endpoints**  
+- `POST /api/workflows/channelMessageWorkflow/execute` - Main message processing
+- `GET /api/workflows` - List available workflows
 
-### 4.2. Bước 2: Điều phối Agent & Xử lý song song (`agent-dispatcher`)
+**System Endpoints**
+- `GET /api` - System status
+- `GET /openapi.json` - API specification
+- `GET /swagger-ui` - Interactive API testing
 
-Đây là bước cốt lõi, nơi quyết định agent nào sẽ trả lời và cách thức trả lời.
+### 7.2. Current Agent IDs
+- `maiSale` - Main Vietnamese sales agent
+- `cpu` - CPU specialist
+- `ram` - RAM specialist  
+- `ssd` - SSD specialist
+- `barebone` - Case/motherboard specialist
+- `desktop` - Complete PC build specialist
+- `clarification` - Intent clarification
+- `anDataAnalyst` - Data analysis
 
-1.  **Kiểm soát lời chào (Greeting Control):**
-    - Hệ thống kiểm tra trong `sharedContext` xem người dùng này đã được chào hỏi trước đây hay chưa (`hasBeenGreeted`). Đây là cơ sở cho việc quyết định có gửi lời chào lần đầu hay không.
+## 8. Performance Optimizations
 
-2.  **Luồng xử lý song song (Parallel Processing) - Dành cho chuyên gia:**
-    - Đây là một nhánh xử lý rất đặc biệt, được kích hoạt khi `specialistRouting.needed` là `true`.
-    - **Kích hoạt đồng thời:**
-        - **Agent chính (`maiSale`)** được yêu cầu tạo ra một câu trả lời tạm thời ngay lập tức (ví dụ: "Dạ, em đang kiểm tra thông tin về RAM cho mình, anh/chị vui lòng chờ trong giây lát...").
-        - Cùng lúc đó, một **Agent chuyên gia backend** (ví dụ: `backendRAMSpecialist`) được gọi để truy vấn cơ sở dữ liệu hoặc các nguồn kiến thức kỹ thuật.
-    - **Tích hợp kết quả:**
-        - Hệ thống chờ kết quả từ agent chuyên gia trong một khoảng thời gian nhất định (ví dụ: 3 giây).
-        - **Nếu chuyên gia trả về dữ liệu kịp thời:** Agent `maiSale` sẽ được gọi một lần nữa để tạo ra một câu trả lời cuối cùng, **tích hợp dữ liệu kỹ thuật** vừa nhận được.
-        - **Nếu chuyên gia bị trễ (timeout) hoặc lỗi:** Câu trả lời tạm thời của `maiSale` sẽ được gửi đi để người dùng không phải chờ đợi.
+### 8.1. Code Consolidation Achievements
+- **Memory Management**: 76% reduction (40KB → 8KB)
+- **Processing Utilities**: 76% reduction (1,006 lines → 240 lines)
+- **Configuration Simplification**: Single index.ts (removed dual setup)
+- **TypeScript Error Resolution**: All specialist consistency issues fixed
 
-3.  **Luồng xử lý thông thường (Normal Dispatching):**
-    - Nếu không cần chuyên gia, hệ thống sẽ chọn một agent dựa trên ý định đã phân tích ở Bước 1:
-        - Ý định không rõ ràng (`confidence < 0.5`) -> `clarificationAgent` (Agent làm rõ)
-        - Mặc định/Các trường hợp khác (bao gồm purchase/warranty intent) -> `maiSale` (xử lý thông qua specialist)
+### 8.2. Runtime Optimizations
+- **Cached Memory Access**: TTL-based user context caching
+- **Parallel Agent Processing**: Simultaneous specialist consultation
+- **Timeout Management**: Graceful handling of slow responses
+- **Resource Cleanup**: Proper shutdown sequences for all channels
 
-4.  **Thực thi Agent được chọn:**
-    - Agent được chọn sẽ nhận toàn bộ ngữ cảnh, bao gồm lịch sử chat và tin nhắn của người dùng.
-    - **Chỉ thị Greeting Control:** Đây là một chi tiết triển khai quan trọng. Hệ thống sẽ **thêm một chỉ thị ẩn** vào đầu tin nhắn gửi đến agent, ví dụ: `[FIRST TIME USER NEEDS GREETING]` hoặc `[SKIP GREETING]`. Agent sẽ đọc chỉ thị này để quyết định văn phong trả lời (có chào hỏi thân thiện lần đầu hay đi thẳng vào vấn đề).
-    - Agent tạo ra câu trả lời.
+## 9. Development Guidelines
 
-5.  **Cập nhật trạng thái sau khi trả lời:**
-    - Nếu đây là lần tương tác đầu tiên, hệ thống sẽ cập nhật `userProfile` trong `sharedContext` với `hasBeenGreeted: true`.
-    - Câu trả lời của agent cũng được lưu lại vào `chatHistory` của `sharedContext`.
+### 9.1. Critical Success Criteria
+- **Build Success**: Any code change must maintain successful compilation
+- **Agent Consistency**: Changes to one specialist must be applied to all four (CPU, RAM, SSD, Barebone)
+- **Full System Testing**: Never use simplified configurations
 
-6.  **Cơ chế dự phòng (Fallback):**
-    - Nếu agent được chọn (ví dụ: `maiSale` xử lý intent purchase/warranty) gặp lỗi trong quá trình xử lý, hệ thống sẽ tự động chuyển sang `maiSale` để cố gắng đưa ra một câu trả lời hữu ích thay vì im lặng.
-    - Nếu cả `maiSale` cũng lỗi, một thông báo lỗi chung sẽ được trả về.
+### 9.2. Specialist Modification Rules
+When modifying hardware specialists:
+1. Apply identical changes to CPU, RAM, SSD, Barebone agents
+2. Maintain consistent naming conventions
+3. Preserve identical logic flow and structure  
+4. Test build success after each change
+
+### 9.3. Prohibited Actions
+- **No New Agents**: Work with current 7 agents only
+- **No Simplified Testing**: Always use full system configuration
+- **No Pattern Inconsistency**: Maintain established specialist patterns
+
+## 10. Future Considerations
+
+### 10.1. Scalability Readiness
+- Modular agent architecture supports horizontal scaling
+- Channel registry enables easy platform additions
+- Unified memory system supports multi-instance deployments
+
+### 10.2. Maintenance Approach
+- Consolidated codebase reduces maintenance overhead
+- Consistent patterns simplify debugging and updates
+- Self-hosted AI services eliminate external dependencies
+
+### 10.3. Extension Points
+- New product categories can follow existing specialist patterns
+- Additional channels can use established adapter patterns
+- Enhanced analytics through existing data collection points
+
+## 11. System Status Summary
+
+**Current State**: Production-ready multi-agent system
+**Agent Count**: 8 active agents (optimized and consistent)
+**Channel Support**: Telegram, Zalo, Web (full lifecycle management)
+**Code Quality**: TypeScript strict mode, consistent patterns, successful builds
+**Performance**: Optimized memory and processing (76% code reduction)
+**Testing**: Full system configuration, no simplified versions
+
+This architecture represents the mature, optimized state of the SSTC multi-agent system with emphasis on reliability, maintainability, and consistent customer experience across all hardware consultation scenarios.
