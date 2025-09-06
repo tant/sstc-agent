@@ -208,9 +208,9 @@ export class BareboneSpecialist extends Agent {
 		try {
 			// Use the bareboneDatabaseTool to fetch all products
 			const toolResult = await bareboneDatabaseTool.execute({
-				context: { query: "barebone", budget: { max: 999999999 } } as any,
-				mastra: null, // Tool needs to be independent
-			});
+				query: "barebone",
+				budget: { max: 999999999 }
+			} as any);
 
 			if (toolResult.specialistData?.recommendations) {
 				this.products = toolResult.specialistData.recommendations.map(
@@ -282,9 +282,9 @@ export class BareboneSpecialist extends Agent {
 
 			// Use the bareboneDatabaseTool to search for barebones (like CPU specialist)
 			const toolResult = await bareboneDatabaseTool.execute({
-				context: { query: message, ...extendedContext },
-				mastra: null, // Tool needs to be independent
-			});
+				query: message,
+				...extendedContext
+			} as any);
 
 			if (!toolResult.specialistData?.recommendations) {
 				console.warn(
@@ -570,13 +570,13 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.budget?.min !== undefined) {
 			results = results.filter(
-				(product) => product.price >= criteria.budget.min,
+				(product) => product.price >= (criteria.budget?.min ?? 0),
 			);
 		}
 
 		if (criteria.budget?.max !== undefined) {
 			results = results.filter(
-				(product) => product.price <= criteria.budget.max,
+				(product) => product.price <= (criteria.budget?.max ?? Infinity),
 			);
 		}
 
@@ -595,7 +595,7 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.supportedSocket) {
 			results = results.filter((product) =>
-				product.supportedSockets.includes(criteria.supportedSocket),
+				product.supportedSockets.includes(criteria.supportedSocket ?? ""),
 			);
 		}
 
@@ -607,19 +607,19 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.maxRamCapacity !== undefined) {
 			results = results.filter(
-				(product) => product.maxRamCapacity >= criteria.maxRamCapacity,
+				(product) => product.maxRamCapacity >= (criteria.maxRamCapacity ?? 0),
 			);
 		}
 
 		if (criteria.coolingType) {
 			results = results.filter((product) =>
-				product.coolingSupport.toLowerCase().includes(criteria.coolingType),
+				product.coolingSupport.toLowerCase().includes(criteria.coolingType ?? ""),
 			);
 		}
 
 		if (criteria.aestheticsStyle) {
 			results = results.filter((product) =>
-				product.aesthetics.toLowerCase().includes(criteria.aestheticsStyle),
+				product.aesthetics.toLowerCase().includes(criteria.aestheticsStyle ?? ""),
 			);
 		}
 
@@ -824,6 +824,7 @@ Include Prices: ${context.include_prices}
 				{
 					structuredOutput: {
 						schema: BareboneSummarySchema,
+						model: this.model,
 					},
 				},
 			);

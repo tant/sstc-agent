@@ -6,7 +6,7 @@
 import { createStep, createWorkflow } from "@mastra/core/workflows";
 import { z } from "zod";
 import { channelRegistry } from "../core/channels/registry";
-import { unifiedMemoryManager } from "../core/memory/unified-memory-manager";
+import { optimizedMemoryManager } from "../core/memory/optimized-memory-manager";
 
 export const channelMessageWorkflow = createWorkflow({
 	id: "channel-message-processor",
@@ -100,16 +100,18 @@ export const channelMessageWorkflow = createWorkflow({
 				let currentUserProfile: any = {};
 				try {
 					const userId = (inputData as any).message.senderId;
+					const channelId = (inputData as any).channelId;
+					const conversationId = `${channelId}_user_${userId}`;
 
 					console.log(
 						"🔍 [Workflow] Getting chat history via Unified Memory Manager for user:",
 						userId,
+						"conversation:",
+						conversationId,
 					);
 
 					// Use unified memory manager to get chat history across all channels
-					chatHistory = await unifiedMemoryManager.getUserChatHistory(userId, {
-						limit: 5,
-					});
+					chatHistory = await optimizedMemoryManager.getChatHistory(userId, conversationId, 5);
 
 					// For tool context, prepare simplified structure
 					currentUserProfile = {};
@@ -278,6 +280,7 @@ export const channelMessageWorkflow = createWorkflow({
 				const intentType = intent.intent;
 				const confidence = intent.confidence;
 				const userId = message.senderId;
+				const conversationId = `${channelId}_user_${userId}`;
 
 				console.log("🎭 [Workflow] Agent Dispatcher", {
 					channelId,
@@ -285,11 +288,12 @@ export const channelMessageWorkflow = createWorkflow({
 					confidence,
 					messageLength: message.content.length,
 					senderId: userId,
+					conversationId,
 				});
 
 				// 🏁 GREETING CONTROL LOGIC 🏁
 				const hasBeenGreeted =
-					await unifiedMemoryManager.hasUserBeenGreeted(userId);
+					await optimizedMemoryManager.hasBeenGreeted(userId, conversationId);
 				const needsGreeting = !hasBeenGreeted;
 
 				console.log("👋 [GreetingControl] Workflow-level greeting check:", {
@@ -436,7 +440,7 @@ export const channelMessageWorkflow = createWorkflow({
 					// 📝 MARK USER AS GREETED AFTER SUCCESSFUL RESPONSE 📝
 					if (needsGreeting) {
 						try {
-							await unifiedMemoryManager.markUserAsGreeted(
+							await optimizedMemoryManager.markUserAsGreeted(
 								userId,
 								agentType,
 								channelId,

@@ -5,7 +5,7 @@
 
 import { Zalo } from "zca-js";
 import type { ChannelAdapter } from "../../core/channels/interface";
-import { messageProcessor } from "../../core/processor/message-processor";
+import { messageProcessor } from "../../core/optimized-processing";
 import { validateZaloConfig, type ZaloConfig } from "./config";
 
 export class ZaloChannelAdapter implements ChannelAdapter {

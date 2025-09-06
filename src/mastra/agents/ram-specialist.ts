@@ -197,9 +197,9 @@ export class RAMSpecialist extends Agent {
 		try {
 			// Use the ramDatabaseTool to fetch all products
 			const toolResult = await ramDatabaseTool.execute({
-				context: { query: "ram", budget: { max: 999999999 } } as any,
-				mastra: null, // Tool needs to be independent
-			});
+				query: "ram",
+				budget: { max: 999999999 }
+			} as any);
 
 			if (toolResult.specialistData?.recommendations) {
 				this.products = toolResult.specialistData.recommendations.map(
@@ -785,6 +785,7 @@ Include Prices: ${context.include_prices}
 				{
 					structuredOutput: {
 						schema: RAMSummarySchema,
+						model: this.model,
 					},
 				},
 			);

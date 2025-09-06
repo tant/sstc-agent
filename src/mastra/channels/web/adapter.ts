@@ -4,7 +4,7 @@
  */
 
 import type { ChannelAdapter } from "../../core/channels/interface";
-import { messageProcessor } from "../../core/processor/message-processor";
+import { messageProcessor } from "../../core/optimized-processing";
 
 export class WebChannelAdapter implements ChannelAdapter {
 	channelId = "web";

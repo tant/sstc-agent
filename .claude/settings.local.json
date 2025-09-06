@@ -11,7 +11,8 @@
       "Bash(find:*)",
       "Bash(npx:*)",
       "Bash(timeout 10s npx -y @mastra/mcp-docs-server)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(sed:*)"
     ]
   },
   "claude": {

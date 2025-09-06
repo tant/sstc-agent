@@ -272,18 +272,18 @@ export class CPUSpecialist extends Agent {
 		try {
 			// Use the cpuDatabaseTool to fetch all products
 			const toolResult = await cpuDatabaseTool.execute({
-				context: { query: "cpu", budget: { max: 999999999 } } as any,
-				mastra: null, // Tool needs to be independent
-			});
+				query: "cpu",
+				budget: { max: 999999999 }
+			} as any);
 
 			if (toolResult.specialistData?.recommendations) {
 				this.products = toolResult.specialistData.recommendations.map(
 					(rec) => ({
 						sku: rec.productId,
 						name: rec.productName,
-						model: rec.specifications.model || rec.productName,
-						brand: rec.specifications.brand,
-						series: rec.specifications.series || "",
+						model: rec.specifications?.model ?? rec.productName,
+						brand: rec.specifications?.brand ?? "Unknown",
+						series: rec.specifications?.series ?? "",
 						socket: rec.specifications.socket,
 						cores: rec.specifications.cores,
 						threads: rec.specifications.threads,
@@ -299,9 +299,9 @@ export class CPUSpecialist extends Agent {
 						stockStatus: rec.availability,
 						description: rec.description || "",
 						tdp: rec.specifications.powerConsumption || "",
-						benchmarkScore: rec.specifications.benchmarkScore,
-						pricePerPerformance: rec.specifications.pricePerPerformance,
-						futureProofing: rec.specifications.futureProofing,
+						benchmarkScore: rec.specifications?.benchmarkScore ?? "N/A",
+						pricePerPerformance: rec.specifications?.pricePerformance ?? "N/A",
+						futureProofing: rec.specifications?.futureProofing ?? "N/A",
 					}),
 				);
 				this.isKnowledgeBaseInitialized = true;
@@ -332,12 +332,9 @@ export class CPUSpecialist extends Agent {
 		try {
 			// Use the structured CPU database tool to get data
 			const toolResult = await cpuDatabaseTool.execute({
-				context: {
-					query,
-					...context,
-				} as any,
-				mastra: this.mastra, // Pass the mastra instance for database access
-			});
+				query,
+				...context
+			} as any);
 
 			console.log("✅ [CPU Specialist] Structured data retrieved", {
 				productsFound: toolResult.specialistData.recommendations.length,
@@ -887,6 +884,7 @@ Include Prices: ${context.include_prices}
 				{
 					structuredOutput: {
 						schema: CPUSummarySchema,
+						model: this.model,
 					},
 				},
 			);

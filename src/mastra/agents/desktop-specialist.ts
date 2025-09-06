@@ -180,6 +180,7 @@ Include Prices: ${context.include_prices}
 				{
 					structuredOutput: {
 						schema: DesktopSummarySchema,
+						model: this.model,
 					},
 				},
 			);

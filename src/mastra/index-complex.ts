@@ -12,7 +12,7 @@ import { ssdSpecialist } from "./agents/ssd-specialist";
 import { TelegramChannelAdapter } from "./channels/telegram";
 import { ZaloChannelAdapter } from "./channels/zalo";
 import { channelRegistry } from "./core/channels/registry";
-import { signalHandlerManager } from "./core/signals/manager";
+import { signalHandlerManager } from "./core/optimized-processing";
 import { channelMessageWorkflow } from "./workflows/message-processor";
 
 export const mastra = new Mastra({

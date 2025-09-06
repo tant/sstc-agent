@@ -200,9 +200,9 @@ export class SSDSpecialist extends Agent {
 		try {
 			// Use the ssdDatabaseTool to fetch all products
 			const toolResult = await ssdDatabaseTool.execute({
-				context: { query: "ssd", budget: { max: 999999999 } } as any,
-				mastra: null, // Tool needs to be independent
-			});
+				query: "ssd",
+				budget: { max: 999999999 }
+			} as any);
 
 			if (toolResult.specialistData?.recommendations) {
 				this.products = toolResult.specialistData.recommendations.map(
@@ -271,9 +271,9 @@ export class SSDSpecialist extends Agent {
 
 			// Use the ssdDatabaseTool to search for SSDs (like CPU specialist)
 			const toolResult = await ssdDatabaseTool.execute({
-				context: { query: message, ...extendedContext },
-				mastra: null, // Tool needs to be independent
-			});
+				query: message,
+				...extendedContext
+			} as any);
 
 			if (!toolResult.specialistData?.recommendations) {
 				console.warn(
@@ -794,6 +794,7 @@ Include Prices: ${context.include_prices}
 				{
 					structuredOutput: {
 						schema: SSDSummarySchema,
+						model: this.model,
 					},
 				},
 			);

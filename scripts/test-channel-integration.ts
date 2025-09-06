@@ -54,7 +54,7 @@ async function testChannelIntegration() {
 			}
 
 			switch (channelId) {
-				case "telegram":
+				case "telegram": {
 					console.log("📱 Telegram channel logic test");
 					const telegramAdapter = adapter as any;
 					if (telegramAdapter.sendMessage && chatId) {
@@ -65,7 +65,8 @@ async function testChannelIntegration() {
 						console.log(`❌ Telegram adapter missing sendMessage or chatId`);
 						return false;
 					}
-				case "zalo":
+				}
+				case "zalo": {
 					console.log("💬 Zalo channel logic test");
 					const zaloAdapter = adapter as any;
 					if (zaloAdapter.sendMessage) {
@@ -76,6 +77,7 @@ async function testChannelIntegration() {
 						console.log(`❌ Zalo adapter missing sendMessage method`);
 						return false;
 					}
+				}
 				default:
 					console.log(`❌ Unsupported channel: ${channelId}`);
 					return false;
