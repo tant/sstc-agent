@@ -81,16 +81,17 @@ export class OptimizedMemoryManager {
 		}
 
 		try {
-			const result = await this.memory.get(conversationId);
+			// Use Mastra Memory's getThreadById method
+			const result = await this.memory.getThreadById({ threadId: conversationId });
 			
-			if (result?.data) {
+			if (result?.metadata) {
 				const context: UserContext = {
 					userId,
 					conversationId,
-					chatHistory: result.data.chatHistory || [],
-					userProfile: result.data.userProfile || {},
-					specialistData: result.data.specialistData,
-					processingStatus: result.data.processingStatus,
+					chatHistory: result.metadata.chatHistory || [],
+					userProfile: result.metadata.userProfile || {},
+					specialistData: result.metadata.specialistData,
+					processingStatus: result.metadata.processingStatus,
 					lastUpdated: Date.now(),
 				};
 				
@@ -117,13 +118,23 @@ export class OptimizedMemoryManager {
 
 			context.lastUpdated = Date.now();
 
-			await this.memory.save({
-				id: context.conversationId,
-				data: context,
-				metadata: {
-					userId: context.userId,
-					lastUpdated: context.lastUpdated,
-				},
+			// Use Mastra Memory's saveThread method
+			await this.memory.saveThread({
+				thread: {
+					id: context.conversationId,
+					resourceId: context.userId,
+					title: `Conversation ${context.conversationId}`,
+					metadata: {
+						userId: context.userId,
+						lastUpdated: context.lastUpdated,
+						chatHistory: context.chatHistory,
+						userProfile: context.userProfile,
+						specialistData: context.specialistData,
+						processingStatus: context.processingStatus,
+					},
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				}
 			});
 
 			// Update cache

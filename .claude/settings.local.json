@@ -13,7 +13,9 @@
       "Bash(timeout 10s npx -y @mastra/mcp-docs-server)",
       "WebSearch",
       "Bash(sed:*)",
-      "Bash(timeout 20s pnpm run dev)"
+      "Bash(timeout 20s pnpm run dev)",
+      "Bash(timeout 30s pnpm run dev)",
+      "Bash(timeout 45s pnpm run dev)"
     ]
   },
   "claude": {

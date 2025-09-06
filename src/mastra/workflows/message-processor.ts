@@ -8,6 +8,23 @@ import { z } from "zod";
 import { channelRegistry } from "../core/channels/registry";
 import { optimizedMemoryManager } from "../core/memory/optimized-memory-manager";
 
+// Constants for parallel processing detection
+const PARALLEL_KEYWORDS = [
+	["so sánh", "cpu"],
+	["so sánh", "ram"],
+	["so sánh", "ssd"],
+	["tư vấn", "máy tính"],
+	["build", "pc"],
+	["config", "gaming"],
+];
+
+const PARALLEL_INTENTS = [
+	"comparison_request",
+	"build_recommendation", 
+	"multiple_product_inquiry",
+	"general_consultation",
+];
+
 export const channelMessageWorkflow = createWorkflow({
 	id: "channel-message-processor",
 	description: "Process messages from various chat channels",
@@ -532,8 +549,8 @@ export const channelMessageWorkflow = createWorkflow({
 		}),
 	)
 	.branch([
-		{
-			condition: ({ result }) => {
+		[
+			({ result }) => {
 				// Check if message requires parallel processing
 				const message = (result as any)?.message?.content || "";
 				const intent = (result as any)?.intent || {};
@@ -557,7 +574,7 @@ export const channelMessageWorkflow = createWorkflow({
 
 				return hasParallelKeywords || hasParallelIntent || hasMultipleCats;
 			},
-			workflow: createStep({
+			createStep({
 				id: "parallel-specialist-step",
 				description:
 					"Execute multiple specialists in parallel for comprehensive queries",
@@ -694,7 +711,7 @@ export const channelMessageWorkflow = createWorkflow({
 					}
 				},
 			}),
-		},
+		],
 	])
 	.commit();
 
@@ -702,22 +719,7 @@ export const channelMessageWorkflow = createWorkflow({
 // PARALLEL PROCESSING HELPER FUNCTIONS
 // ========================================
 
-// Parallel Mode Triggers
-const PARALLEL_KEYWORDS = [
-	["bạn", "bán", "gì"], // "Bạn bán gì?"
-	["có", "sản phẩm", "gì"], // "Có sản phẩm gì?"
-	["build", "pc"], // "Build PC gaming"
-	["nâng cấp", "ram", "ổ cứng"], // "Nâng cấp RAM và ổ cứng"
-	["so sánh", "tất cả"], // "So sánh tất cả"
-	["tư vấn", "cấu hình"], // "Tư vấn cấu hình"
-];
-
-const PARALLEL_INTENTS = [
-	"product_catalog", // General product inquiry
-	"upgrade_inquiry", // Hardware upgrade
-	"build_pc", // PC building
-	"compare_all", // Product comparison
-];
+// Parallel Mode Triggers (constants already defined above)
 
 // Multiple category detection
 function hasMultipleCategories(content: string): boolean {

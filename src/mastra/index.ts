@@ -169,13 +169,13 @@ if (
 // Graceful shutdown
 const shutdownHandler = async () => {
 	// Check if shutdown is already in progress
-	if (signalHandlerManager.isShutdownInProgress()) {
+	if (signalHandlerManager.isShuttingDown) {
 		console.log("⚠️ Shutdown already in progress, skipping...");
 		return;
 	}
 
 	console.log("\n🛑 Shutting down gracefully...");
-	signalHandlerManager.setShutdownInProgress();
+	signalHandlerManager.isShuttingDown = true;
 
 	try {
 		// Cleanup Telegram if it was initialized
@@ -195,7 +195,7 @@ const shutdownHandler = async () => {
 		await channelRegistry.shutdownAll();
 
 		// Remove all signal handlers
-		signalHandlerManager.removeAllHandlers();
+		signalHandlerManager.cleanup();
 
 		console.log("✅ All channels shut down");
 		process.exit(0);
@@ -206,5 +206,5 @@ const shutdownHandler = async () => {
 };
 
 // Register signal handlers with manager
-signalHandlerManager.registerHandler("SIGINT", shutdownHandler);
-signalHandlerManager.registerHandler("SIGTERM", shutdownHandler);
+signalHandlerManager.register("SIGINT", shutdownHandler);
+signalHandlerManager.register("SIGTERM", shutdownHandler);
