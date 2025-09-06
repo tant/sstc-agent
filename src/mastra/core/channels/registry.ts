@@ -164,7 +164,7 @@ export class ChannelRegistry {
 
 			// Get adapter for shutdown
 			const adapter = this.get(channelId);
-			if (adapter && adapter.shutdown && !adapter.isShutdown?.()) {
+			if (adapter?.shutdown && !adapter.isShutdown?.()) {
 				await adapter.shutdown();
 			}
 
@@ -354,7 +354,7 @@ export class ChannelRegistry {
 		try {
 			process.kill(state.processId, 0);
 			return true;
-		} catch (error) {
+		} catch (_error) {
 			console.log("💀 [ChannelRegistry] Process no longer exists:", {
 				channelId: state.channelId,
 				pid: state.processId,

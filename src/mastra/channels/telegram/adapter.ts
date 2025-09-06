@@ -37,9 +37,12 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 	static async create(config: Partial<TelegramConfig>): Promise<TelegramChannelAdapter | null> {
 		console.log("🔍 [Telegram] Checking for existing instances across system...");
 		
+		// Validate config first
+		const validatedConfig = validateTelegramConfig(config);
+		
 		// Kiểm tra system-wide lock trước khi làm gì khác
 		const singletonManager = TelegramSingletonManager.getInstance();
-		const canAcquireLock = await singletonManager.canAcquireLock(config);
+		const canAcquireLock = await singletonManager.canAcquireLock(validatedConfig);
 		
 		if (!canAcquireLock.canAcquire) {
 			console.error("❌ [Telegram] Cannot create instance - another instance exists:", {
@@ -65,7 +68,7 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 
 		// Create new instance với strict singleton enforcement
 		try {
-			const instance = new TelegramChannelAdapter(config);
+			const instance = new TelegramChannelAdapter(validatedConfig);
 			const success = await instance.initializeWithLock();
 			
 			if (success) {
@@ -85,10 +88,10 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 	/**
 	 * Private constructor - use factory method
 	 */
-	private constructor(config: Partial<TelegramConfig>) {
+	private constructor(config: TelegramConfig) {
 		console.log("🔧 [Telegram] Initializing adapter");
 
-		this.config = validateTelegramConfig(config);
+		this.config = config;
 		this.singletonManager = TelegramSingletonManager.getInstance();
 		
 		this.connectionHealth = {
