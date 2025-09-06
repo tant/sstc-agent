@@ -264,7 +264,10 @@ export const ramDatabaseTool = createTool({
 							| "in_stock"
 							| "low_stock"
 							| "out_of_stock",
-						recommendationScore: product.score,
+						recommendationScore: Math.min(
+							Math.round((product.score / 15) * 10),
+							10,
+						),
 						keyFeatures: product.description ? [product.description] : [],
 						useCases: product.useCases as (
 							| "gaming"

@@ -122,8 +122,8 @@ function hasMultipleCategories(categories: string[]): boolean {
 function checkParallelIntents(intent: string): boolean {
 	const PARALLEL_INTENTS = [
 		"upgrade_request",
-		"consultation_request", 
-		"comparison_request"
+		"consultation_request",
+		"comparison_request",
 	];
 	return PARALLEL_INTENTS.includes(intent);
 }
@@ -139,12 +139,12 @@ function checkParallelKeywords(message: string): boolean {
 		"và",
 		"and",
 		"cùng",
-		"together"
+		"together",
 	];
-	
+
 	const message_lower = message.toLowerCase();
-	return PARALLEL_KEYWORDS.some(keyword => 
-		message_lower.includes(keyword.toLowerCase())
+	return PARALLEL_KEYWORDS.some((keyword) =>
+		message_lower.includes(keyword.toLowerCase()),
 	);
 }
 
@@ -200,10 +200,13 @@ async function testWorkflowLogic() {
 		const hasParallelKeywords = checkParallelKeywords(testCase.message);
 
 		// Determine if should use parallel processing
-		const shouldUseParallel = hasMultiple && (hasParallelIntents || hasParallelKeywords);
+		const shouldUseParallel =
+			hasMultiple && (hasParallelIntents || hasParallelKeywords);
 
 		console.log(`🎯 Intent: ${intent}`);
-		console.log(`📊 Categories: [${categories.join(", ")}] (${categories.length})`);
+		console.log(
+			`📊 Categories: [${categories.join(", ")}] (${categories.length})`,
+		);
 		console.log(`🔄 Multiple categories: ${hasMultiple}`);
 		console.log(`🔄 Parallel intents: ${hasParallelIntents}`);
 		console.log(`🔄 Parallel keywords: ${hasParallelKeywords}`);
@@ -223,7 +226,7 @@ async function testWorkflowLogic() {
 	}
 
 	console.log(`\n📊 Test Results: ${passedTests}/${totalTests} passed`);
-	
+
 	if (passedTests === totalTests) {
 		console.log("🎉 All workflow logic tests passed!");
 		return true;

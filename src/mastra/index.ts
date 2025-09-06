@@ -28,4 +28,7 @@ export const mastra = new Mastra({
 
 console.log("✅ [Mastra] Simple configuration loaded successfully");
 console.log("📋 [Mastra] Available agents:", Object.keys(mastra.agents || {}));
-console.log("⚙️  [Mastra] Available workflows:", Object.keys(mastra.workflows || {}));
+console.log(
+	"⚙️  [Mastra] Available workflows:",
+	Object.keys(mastra.workflows || {}),
+);

@@ -9,7 +9,7 @@ import { mastra } from "../src/mastra/index";
 
 async function testParallelProcessing() {
 	console.log("🧪 Starting Parallel Processing Integration Test");
-	console.log("=" .repeat(60));
+	console.log("=".repeat(60));
 
 	// Test cases for parallel processing
 	const testCases = [
@@ -38,7 +38,9 @@ async function testParallelProcessing() {
 	for (const testCase of testCases) {
 		console.log(`\n📋 Test: ${testCase.name}`);
 		console.log(`💬 Query: "${testCase.message}"`);
-		console.log(`🎯 Expected categories: ${testCase.expectedCategories.join(", ")}`);
+		console.log(
+			`🎯 Expected categories: ${testCase.expectedCategories.join(", ")}`,
+		);
 
 		try {
 			const startTime = Date.now();
@@ -62,13 +64,15 @@ async function testParallelProcessing() {
 
 			if (result?.status === "success") {
 				console.log("✅ Workflow executed successfully");
-				
+
 				// Check if we got the expected parallel processing
 				if (testCase.expectedCategories.length > 1) {
 					if (processingTime > 5000) {
 						console.log("⚠️  Processing took longer than expected (>5s)");
 					}
-					console.log("🔄 Multi-category query should have triggered parallel processing");
+					console.log(
+						"🔄 Multi-category query should have triggered parallel processing",
+					);
 				} else {
 					console.log("➡️  Single category query should have used normal flow");
 				}
@@ -78,7 +82,10 @@ async function testParallelProcessing() {
 					console.log("📊 Result structure:", {
 						hasData: !!result.data,
 						dataType: typeof result.data,
-						keys: typeof result.data === 'object' ? Object.keys(result.data) : 'N/A'
+						keys:
+							typeof result.data === "object"
+								? Object.keys(result.data)
+								: "N/A",
 					});
 				}
 			} else {
@@ -103,7 +110,7 @@ async function testParallelProcessing() {
 	}
 
 	console.log("\n🎯 Parallel Processing Test Complete");
-	console.log("=" .repeat(60));
+	console.log("=".repeat(60));
 }
 
 // Run the test if this file is executed directly

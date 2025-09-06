@@ -52,6 +52,20 @@ export interface CompatibilityResult {
 	recommendations: string[];
 }
 
+// SSD Brand mapping for enhanced brand recognition
+const SSD_BRAND_MAPPING: Record<string, string[]> = {
+	Samsung: ["Samsung", "SAMSUNG", "samsung", "980", "990", "970", "860", "850"],
+	"Western Digital": ["Western Digital", "WD", "WD_BLACK", "WD Blue", "WD Green", "SanDisk"],
+	Crucial: ["Crucial", "CRUCIAL", "crucial", "MX", "BX", "P1", "P2", "P3"],
+	Kingston: ["Kingston", "KINGSTON", "kingston", "KC", "NV", "A400"],
+	Intel: ["Intel", "INTEL", "intel", "660p", "670p"],
+	Adata: ["Adata", "ADATA", "adata", "XPG", "SX", "Ultimate"],
+	Seagate: ["Seagate", "SEAGATE", "seagate", "FireCuda", "BarraCuda"],
+	"SK Hynix": ["SK Hynix", "Hynix", "HYNIX"],
+	Corsair: ["Corsair", "CORSAIR", "corsair", "MP"],
+	Gigabyte: ["Gigabyte", "GIGABYTE", "gigabyte", "AORUS"],
+};
+
 // Multi-mode SSD Specialist Personality
 const SSD_SPECIALIST_PERSONALITY = `# SSD Specialist - SSTC Storage Expert
 
@@ -255,89 +269,32 @@ export class SSDSpecialist extends Agent {
 
 			const extendedContext = { ...context, sharedContext };
 
-			// Use the embedded knowledge base to search for SSDs
-			const searchResults = this.searchSSDsInternal({
-				query: message,
-				capacity: extendedContext.capacity,
-				interface: extendedContext.interface,
-				formFactor: extendedContext.formFactor,
-				budget: extendedContext.budget,
-				useCase: extendedContext.useCase,
+			// Use the ssdDatabaseTool to search for SSDs (like CPU specialist)
+			const toolResult = await ssdDatabaseTool.execute({
+				context: { query: message, ...extendedContext },
+				mastra: null, // Tool needs to be independent
 			});
 
-			// Map searchResults (SSDProductInfo[]) to StorageSpecialistData
+			if (!toolResult.specialistData?.recommendations) {
+				console.warn(
+					"⚠️ [SSD Specialist] No recommendations from database tool",
+				);
+				return null;
+			}
+
+			// Use the tool result directly (already in correct StorageSpecialistData format)
 			const specialistData: StorageSpecialistData = {
-				type: "storage",
-				recommendations: searchResults.map((product) => ({
-					productId: product.sku,
-					productName: product.name,
-					specifications: {
-						interface: product.interface as "SATA" | "NVMe",
-						capacity: product.capacity,
-						readSpeed: product.readSpeed,
-						writeSpeed: product.writeSpeed,
-						formFactor: product.formFactor,
-						endurance: product.endurance,
-						controller: product.controller,
-						nandType: product.nandType,
-					},
-					price: product.price,
-					availability: product.stockStatus as
-						| "in_stock"
-						| "low_stock"
-						| "out_of_stock",
-					recommendationScore: 0, // Score needs to be calculated based on relevance
-					keyFeatures: product.description ? [product.description] : [],
-					useCases: product.useCases as (
-						| "gaming"
-						| "content-creation"
-						| "office"
-						| "professional"
-					)[],
-					imageUrl: undefined,
-					description: product.description,
-				})),
-				technicalAnalysis: {
-					keySpecifications: {},
-					performanceMetrics: {},
-					technicalRequirements: [],
-				},
-				compatibilityCheck: {
-					isCompatible: true,
-					compatibilityIssues: [],
-					recommendations: [],
-				},
-				pricingInfo: {
-					basePrice:
-						searchResults.length > 0
-							? Math.min(...searchResults.map((p) => p.price))
-							: 0,
-					totalPrice:
-						searchResults.length > 0
-							? searchResults.reduce((sum, p) => sum + p.price, 0)
-							: 0,
-					savings: 0,
-					discountPercentage: 0,
-					currency: "VND",
-				},
-				availability: {
-					inStock: searchResults.some((p) => p.stockStatus === "in_stock"),
-					estimatedDelivery: "2-5 business days",
-					quantityAvailable: searchResults.filter(
-						(p) => p.stockStatus === "in_stock",
-					).length,
-					warehouseLocation: "Ho Chi Minh City Warehouse",
-				},
-				confidenceScore: searchResults.length > 0 ? 0.8 : 0.1, // Placeholder confidence
+				...toolResult.specialistData,
 				processingMetadata: {
 					processingTime: Date.now() - startTime,
-					dataSources: ["SSTC Product Knowledge Base"],
-					completeness: searchResults.length > 0 ? 100 : 0,
+					dataSources: ["SSTC SSD Database Tool"],
+					completeness:
+						toolResult.specialistData.recommendations.length > 0 ? 100 : 0,
 				},
 			};
 
 			console.log(
-				"✅ [SSD Specialist] Structured data retrieved from Knowledge Base",
+				"✅ [SSD Specialist] Structured data retrieved from Database Tool",
 				{
 					productsFound: specialistData.recommendations.length,
 					confidenceScore: specialistData.confidenceScore,
@@ -348,7 +305,201 @@ export class SSDSpecialist extends Agent {
 			return specialistData;
 		} catch (error: any) {
 			console.error(
-				"❌ [SSD Specialist] Failed to get structured recommendations from Knowledge Base:",
+				"❌ [SSD Specialist] Failed to get structured recommendations from Database Tool:",
+				error.message,
+			);
+			return null;
+		}
+	}
+
+	// Method for generating structured response with full error handling and timeout support
+	async generateStructuredResponse(
+		message: string,
+		context: any = {},
+		conversationId?: string,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: StorageSpecialistData;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [SSD Specialist] Generating structured response for Mai", {
+			messageLength: message.length,
+			contextKeys: context ? Object.keys(context) : [],
+			conversationId,
+		});
+
+		try {
+			// Nếu có conversationId, lấy thêm context từ shared memory
+			let sharedContext: any = null;
+			if (conversationId) {
+				sharedContext = await sharedContextManager.getContext(conversationId);
+			}
+
+			// Tạo context mở rộng với thông tin từ shared context
+			const extendedContext = {
+				...context,
+				sharedContext: sharedContext,
+			};
+
+			// Process the SSD query and get structured data
+			const structuredData = await this.getStructuredRecommendations(
+				message,
+				extendedContext,
+				conversationId,
+			);
+
+			if (!structuredData) {
+				console.warn("⚠️ [Backend SSD Specialist] No structured data returned");
+				return {
+					status: "failed",
+					error: "No structured data returned from SSD database tool",
+					processingTime: Date.now() - startTime,
+				};
+			}
+
+			console.log(
+				"✅ [Backend SSD Specialist] Structured response generated successfully",
+				{
+					recommendationsCount: structuredData.recommendations.length,
+					confidenceScore: structuredData.confidenceScore,
+					processingTime: Date.now() - startTime,
+				},
+			);
+
+			return {
+				status: "success",
+				data: structuredData,
+				processingTime: Date.now() - startTime,
+			};
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend SSD Specialist] Structured response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime: Date.now() - startTime,
+			};
+		}
+	}
+
+	// Method to generate response in parallel processing architecture
+	async generateParallelResponse(
+		messages: any[],
+		options: any = {},
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [Backend SSD Specialist] Generating parallel response", {
+			messagesCount: messages.length,
+			optionsKeys: Object.keys(options),
+		});
+
+		try {
+			// Extract the user message from the messages array
+			const userMessage =
+				messages.find((msg) => msg.role === "user")?.content || "";
+
+			// Extract conversationId from options if available
+			const conversationId =
+				options.conversationId || options.context?.conversationId;
+
+			// Generate structured response
+			const result = await this.generateStructuredResponse(
+				userMessage,
+				options.context || {},
+				conversationId,
+			);
+
+			console.log("✅ [Backend SSD Specialist] Parallel response generated", {
+				status: result.status,
+				processingTime: Date.now() - startTime,
+			});
+
+			return {
+				...result,
+				processingTime: Date.now() - startTime,
+			};
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend SSD Specialist] Parallel response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime: Date.now() - startTime,
+			};
+		}
+	}
+
+	// Method for context-aware recommendations using shared memory
+	async getContextAwareRecommendations(
+		message: string,
+		conversationId?: string,
+	): Promise<StorageSpecialistData | null> {
+		console.log(
+			"🧠 [Backend SSD Specialist] Getting context-aware recommendations",
+			{
+				messageLength: message.length,
+				conversationId,
+			},
+		);
+
+		try {
+			// Nếu có conversationId, lấy context từ shared memory
+			let sharedContext: any = null;
+			if (conversationId) {
+				sharedContext = await sharedContextManager.getContext(conversationId);
+			}
+
+			// Tạo context với thông tin user profile
+			const context: any = {
+				sharedContext: sharedContext,
+			};
+
+			// Nếu có user profile, thêm vào context
+			if (sharedContext?.userProfile) {
+				context.userProfile = sharedContext.userProfile;
+
+				// Thêm thông tin về interests và goals để cá nhân hóa recommendations
+				if (sharedContext.userProfile.interests) {
+					context.userInterests = Object.keys(
+						sharedContext.userProfile.interests,
+					);
+				}
+
+				if (sharedContext.userProfile.goals) {
+					context.userGoals = Object.keys(sharedContext.userProfile.goals);
+				}
+			}
+
+			// Process the SSD query with context
+			const structuredData = await this.getStructuredRecommendations(message, context, conversationId);
+
+			console.log(
+				"✅ [Backend SSD Specialist] Context-aware recommendations generated",
+				{
+					hasData: !!structuredData,
+					recommendationsCount: structuredData?.recommendations?.length || 0,
+				},
+			);
+
+			return structuredData;
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend SSD Specialist] Context-aware recommendations failed:",
 				error.message,
 			);
 			return null;
@@ -502,8 +653,29 @@ Em có thể giúp tìm các lựa chọn phù hợp hơn với nhu cầu cụ t
 		};
 	}
 
+	// Enhanced brand extraction using brand mapping
+	private extractBrand(productName: string): string {
+		for (const [brand, variants] of Object.entries(SSD_BRAND_MAPPING)) {
+			if (variants.some(variant => 
+				productName.toLowerCase().includes(variant.toLowerCase())
+			)) {
+				return brand;
+			}
+		}
+		// Fallback to first word if no mapping found
+		return productName.split(' ')[0];
+	}
+
+	// Enhanced SSD specification detection
+	private detectSSDInterface(ssd: SSDProductInfo): string {
+		if (ssd.interface.toLowerCase().includes('nvme')) return 'NVMe';
+		if (ssd.interface.toLowerCase().includes('sata')) return 'SATA';
+		if (ssd.interface.toLowerCase().includes('pcie')) return 'PCIe';
+		return 'Unknown';
+	}
+
 	private getStatisticsInternal(): any {
-		const brands = new Set(this.products.map((p) => p.name.split(" ")[0])); // Simple brand extraction
+		const brands = new Set(this.products.map((p) => this.extractBrand(p.name)));
 		const capacities = new Set(this.products.map((p) => p.capacity));
 		const interfaces = new Set(this.products.map((p) => p.interface));
 		const avgPrice =

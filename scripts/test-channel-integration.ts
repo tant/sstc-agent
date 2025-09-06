@@ -16,11 +16,13 @@ async function testChannelIntegration() {
 	try {
 		console.log("🔍 Checking if channelRegistry exists...");
 		console.log(`✅ Channel registry loaded: ${typeof channelRegistry}`);
-		
+
 		// Check available methods
-		const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(channelRegistry));
+		const methods = Object.getOwnPropertyNames(
+			Object.getPrototypeOf(channelRegistry),
+		);
 		console.log(`📊 Available methods: ${methods.join(", ")}`);
-		
+
 		// Try to get available channels
 		console.log("🔍 Checking available channels...");
 		// Note: Without environment setup, adapters may not be registered
@@ -42,15 +44,15 @@ async function testChannelIntegration() {
 			console.log(`🔄 Testing channel response for ${channelId}`, {
 				userId,
 				messageLength: message.length,
-				chatId
+				chatId,
 			});
-			
+
 			const adapter = channelRegistry.get(channelId);
 			if (!adapter) {
 				console.log(`⚠️ No adapter found for channel: ${channelId}`);
 				return false;
 			}
-			
+
 			switch (channelId) {
 				case "telegram":
 					console.log("📱 Telegram channel logic test");
@@ -82,28 +84,29 @@ async function testChannelIntegration() {
 
 		// Test both channels
 		const telegramResult = await testSendChannelResponse(
-			"telegram", 
-			"test-user-123", 
-			"Đang xử lý yêu cầu của bạn...", 
-			"test-chat-123"
+			"telegram",
+			"test-user-123",
+			"Đang xử lý yêu cầu của bạn...",
+			"test-chat-123",
 		);
-		
+
 		const zaloResult = await testSendChannelResponse(
-			"zalo", 
-			"test-user-456", 
+			"zalo",
+			"test-user-456",
 			"Đang xử lý yêu cầu của bạn...",
 		);
 
 		console.log(`📊 Channel response test results:`);
 		console.log(`   Telegram: ${telegramResult ? "✅ PASS" : "❌ FAIL"}`);
 		console.log(`   Zalo: ${zaloResult ? "✅ PASS" : "❌ FAIL"}`);
-		
+
 		if (telegramResult || zaloResult) {
 			console.log("✅ At least one channel adapter available");
 		} else {
-			console.log("⚠️ No channel adapters available (expected without env setup)");
+			console.log(
+				"⚠️ No channel adapters available (expected without env setup)",
+			);
 		}
-		
 	} catch (error) {
 		console.error("❌ Channel response logic test failed:", error);
 	}
@@ -116,72 +119,72 @@ async function testChannelIntegration() {
 			channelId: string,
 			userId: string,
 			chatId: string,
-			query: string
+			query: string,
 		) {
 			console.log(`🔄 Testing 2-phase response for: "${query}"`);
-			
+
 			// Phase 1: Immediate holding message
-			const holdingMessage = "🔄 Đang xử lý yêu cầu của bạn, vui lòng chờ trong giây lát...";
+			const holdingMessage =
+				"🔄 Đang xử lý yêu cầu của bạn, vui lòng chờ trong giây lát...";
 			const phase1Start = Date.now();
-			
+
 			console.log("📤 Phase 1: Sending holding message");
 			// This would call sendChannelResponse in real implementation
 			console.log(`   Holding message: "${holdingMessage}"`);
-			
+
 			const phase1Time = Date.now() - phase1Start;
 			console.log(`⏱️  Phase 1 completed in ${phase1Time}ms`);
-			
+
 			// Phase 2: Simulated parallel processing (3 seconds)
 			const phase2Start = Date.now();
 			console.log("🧠 Phase 2: Simulating parallel specialist processing");
-			
+
 			// Simulate multiple specialists working
 			const specialists = ["cpu", "ram", "ssd"];
 			console.log(`   Processing with specialists: ${specialists.join(", ")}`);
-			
+
 			// Simulate processing time (would be actual Promise.race with timeout)
-			await new Promise(resolve => setTimeout(resolve, 100)); // Quick simulation
-			
+			await new Promise((resolve) => setTimeout(resolve, 100)); // Quick simulation
+
 			const phase2Time = Date.now() - phase2Start;
 			console.log(`⏱️  Phase 2 completed in ${phase2Time}ms`);
-			
+
 			// Final response
 			const finalResponse = `✅ Dựa trên phân tích từ ${specialists.length} chuyên gia, tôi khuyến nghị...`;
 			console.log("📤 Phase 2: Sending comprehensive response");
 			console.log(`   Final response: "${finalResponse.substring(0, 50)}..."`);
-			
+
 			const totalTime = Date.now() - phase1Start;
 			console.log(`🎯 Total 2-phase response time: ${totalTime}ms`);
-			
+
 			return {
 				phase1Time,
 				phase2Time,
 				totalTime,
-				success: true
+				success: true,
 			};
 		}
-		
+
 		// Test 2-phase response
 		const result = await test2PhaseResponse(
 			"telegram",
 			"test-user-123",
-			"test-chat-123", 
-			"tôi muốn nâng cấp ram và ổ cứng"
+			"test-chat-123",
+			"tôi muốn nâng cấp ram và ổ cứng",
 		);
-		
+
 		console.log("📊 2-Phase Response Test Results:");
 		console.log(`   Phase 1 (holding): ${result.phase1Time}ms`);
 		console.log(`   Phase 2 (processing): ${result.phase2Time}ms`);
 		console.log(`   Total time: ${result.totalTime}ms`);
 		console.log(`   Success: ${result.success ? "✅ PASS" : "❌ FAIL"}`);
-		
+
 		// Validate timing expectations
 		if (result.phase1Time < 200) {
 			console.log("✅ Phase 1 under 200ms target");
 		} else {
 			console.log("⚠️ Phase 1 exceeds 200ms target");
 		}
-		
 	} catch (error) {
 		console.error("❌ 2-Phase response test failed:", error);
 	}
@@ -192,40 +195,39 @@ async function testChannelIntegration() {
 		// Simulate timeout handling
 		async function testTimeoutHandling(timeoutMs: number) {
 			console.log(`⏱️  Testing timeout handling with ${timeoutMs}ms limit`);
-			
+
 			// Simulate a slow operation
 			const slowOperation = new Promise((resolve) => {
 				setTimeout(() => resolve("Slow specialist response"), timeoutMs + 1000);
 			});
-			
+
 			// Simulate timeout promise
 			const timeoutPromise = new Promise((resolve) => {
 				setTimeout(() => resolve("TIMEOUT"), timeoutMs);
 			});
-			
+
 			const result = await Promise.race([slowOperation, timeoutPromise]);
-			
+
 			if (result === "TIMEOUT") {
 				console.log("✅ Timeout handled correctly");
 				return {
 					status: "timeout",
-					message: "Xin lỗi, hệ thống đang quá tải. Vui lòng thử lại sau."
+					message: "Xin lỗi, hệ thống đang quá tải. Vui lòng thử lại sau.",
 				};
 			} else {
 				console.log("✅ Operation completed within timeout");
 				return {
 					status: "success",
-					message: result
+					message: result,
 				};
 			}
 		}
-		
+
 		// Test different timeout scenarios
 		const quickTimeout = await testTimeoutHandling(100);
 		console.log(`📊 Quick timeout test: ${quickTimeout.status}`);
-		
+
 		console.log("✅ Timeout handling logic test passed");
-		
 	} catch (error) {
 		console.error("❌ Timeout handling test failed:", error);
 	}

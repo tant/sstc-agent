@@ -63,7 +63,7 @@ async function testTimeoutMechanisms() {
 		const failingOperation = async () => {
 			attemptCount++;
 			console.log(`   Attempt ${attemptCount}/3`);
-			
+
 			if (attemptCount < 3) {
 				throw new Error(`Attempt ${attemptCount} failed`);
 			}
@@ -72,8 +72,8 @@ async function testTimeoutMechanisms() {
 
 		const result = await TimeoutManager.progressiveRetry(
 			failingOperation,
-			3,  // maxRetries
-			50  // initialDelay
+			3, // maxRetries
+			50, // initialDelay
 		);
 
 		if (result === "Success on attempt 3") {
@@ -102,13 +102,15 @@ async function testTimeoutMechanisms() {
 				maxRetries: 5,
 				initialDelay: 10,
 				timeoutMs: 1000,
-				circuitBreakerThreshold: 3
-			}
+				circuitBreakerThreshold: 3,
+			},
 		);
 
 		if (result === null) {
 			console.log("✅ Circuit breaker triggered correctly after threshold");
-			console.log(`   Consecutive failures before break: ${consecutiveFailures}`);
+			console.log(
+				`   Consecutive failures before break: ${consecutiveFailures}`,
+			);
 		} else {
 			console.log("❌ Circuit breaker failed to trigger");
 		}
@@ -124,13 +126,13 @@ async function testTimeoutMechanisms() {
 		let attemptCount = 0;
 		const conditionalFailingOperation = async () => {
 			attemptCount++;
-			
+
 			if (attemptCount === 1) {
 				throw new Error("RETRYABLE_ERROR: Network timeout");
 			} else if (attemptCount === 2) {
 				throw new Error("NON_RETRYABLE_ERROR: Invalid authentication");
 			}
-			
+
 			return `Success after ${attemptCount} attempts`;
 		};
 
@@ -144,12 +146,14 @@ async function testTimeoutMechanisms() {
 		const result = await TimeoutManager.conditionalRetry(
 			conditionalFailingOperation,
 			shouldRetry,
-			3,  // maxRetries
-			10  // initialDelay
+			3, // maxRetries
+			10, // initialDelay
 		);
 
 		if (result === null) {
-			console.log("✅ Conditional retry stopped correctly on non-retryable error");
+			console.log(
+				"✅ Conditional retry stopped correctly on non-retryable error",
+			);
 		} else {
 			console.log("❌ Conditional retry didn't stop as expected:", result);
 		}
@@ -165,26 +169,27 @@ async function testTimeoutMechanisms() {
 		const testQueries = [
 			{
 				query: "CPU Intel",
-				expectedCategory: "simple"
+				expectedCategory: "simple",
 			},
 			{
-				query: "Tôi muốn nâng cấp ram và ổ cứng cho máy gaming với budget 20 triệu, cần tư vấn chi tiết",
-				expectedCategory: "complex"
+				query:
+					"Tôi muốn nâng cấp ram và ổ cứng cho máy gaming với budget 20 triệu, cần tư vấn chi tiết",
+				expectedCategory: "complex",
 			},
 			{
 				query: "RAM DDR5 cho desktop",
-				expectedCategory: "moderate"
+				expectedCategory: "moderate",
 			},
 			{
 				query: "So sánh RAM DDR4 và DDR5 cho nâng cấp laptop gaming",
-				expectedCategory: "complex"
-			}
+				expectedCategory: "complex",
+			},
 		];
 
-		testQueries.forEach(test => {
+		testQueries.forEach((test) => {
 			const timeout = TimeoutManager.getTimeoutForQuery(test.query);
 			const strategy = TimeoutManager.getTimeoutStrategy();
-			
+
 			let category = "simple";
 			if (timeout === strategy.extended) {
 				category = "moderate";
@@ -195,9 +200,11 @@ async function testTimeoutMechanisms() {
 			console.log(`   Query: "${test.query.substring(0, 50)}..."`);
 			console.log(`   Determined timeout: ${timeout}ms (${category})`);
 			console.log(`   Expected: ${test.expectedCategory}`);
-			
-			if (category === test.expectedCategory || 
-				(test.expectedCategory === "moderate" && category !== "simple")) {
+
+			if (
+				category === test.expectedCategory ||
+				(test.expectedCategory === "moderate" && category !== "simple")
+			) {
 				console.log("   ✅ Correct timeout categorization");
 			} else {
 				console.log("   ⚠️  Unexpected timeout categorization");
@@ -221,12 +228,12 @@ async function testTimeoutMechanisms() {
 			name: "slow-specialist",
 			generate: async () => {
 				// Simulate slow response (2000ms)
-				await new Promise(resolve => setTimeout(resolve, 2000));
-				return { 
+				await new Promise((resolve) => setTimeout(resolve, 2000));
+				return {
 					text: "Slow response from specialist",
-					status: "success"
+					status: "success",
 				};
-			}
+			},
 		} as any;
 
 		// Start parallel processing
@@ -234,7 +241,7 @@ async function testTimeoutMechanisms() {
 			specialistAgent: slowSpecialistAgent,
 			customerMessage: "Test message",
 			context: {},
-			conversationId: "test-conv-123"
+			conversationId: "test-conv-123",
 		});
 
 		console.log(`   Processing ID: ${processingId}`);
@@ -252,7 +259,6 @@ async function testTimeoutMechanisms() {
 
 		// Clean up
 		await framework.cancelProcessing(processingId);
-		
 	} catch (error) {
 		console.error("❌ Parallel processing timeout test failed:", error);
 	}
@@ -268,9 +274,9 @@ async function testTimeoutMechanisms() {
 		const fastSpecialist = {
 			name: "fast-specialist",
 			generate: async () => {
-				await new Promise(resolve => setTimeout(resolve, 100));
+				await new Promise((resolve) => setTimeout(resolve, 100));
 				return { text: "Fast response", status: "success" };
-			}
+			},
 		} as any;
 
 		// Start processing
@@ -278,7 +284,7 @@ async function testTimeoutMechanisms() {
 			specialistAgent: fastSpecialist,
 			customerMessage: "Test monitoring",
 			context: {},
-			conversationId: "test-conv-456"
+			conversationId: "test-conv-456",
 		});
 
 		// Check session info immediately
@@ -288,25 +294,24 @@ async function testTimeoutMechanisms() {
 				agentName: sessionInfo.agentName,
 				messageLength: sessionInfo.messageLength,
 				status: sessionInfo.status,
-				processingTime: `${sessionInfo.processingTime}ms`
+				processingTime: `${sessionInfo.processingTime}ms`,
 			});
 		}
 
 		// Check all active sessions
 		const activeSessions = framework.getAllActiveSessions();
 		console.log(`📋 Active sessions: ${activeSessions.length}`);
-		
+
 		if (activeSessions.length > 0) {
 			console.log("✅ Session monitoring working correctly");
 		}
 
 		// Wait for completion
 		await framework.waitForSpecialistData(processingId, 1000);
-		
+
 		// Check sessions after completion (should be empty)
 		const sessionsAfter = framework.getAllActiveSessions();
 		console.log(`📋 Sessions after completion: ${sessionsAfter.length}`);
-
 	} catch (error) {
 		console.error("❌ Session monitoring test failed:", error);
 	}
@@ -322,7 +327,9 @@ async function testTimeoutMechanisms() {
 	console.log("   ✅ Parallel processing timeout handling verified");
 	console.log("   ✅ Session monitoring capabilities tested");
 	console.log("");
-	console.log("💡 All timeout and fallback mechanisms are functioning correctly");
+	console.log(
+		"💡 All timeout and fallback mechanisms are functioning correctly",
+	);
 }
 
 // Run the test if this file is executed directly

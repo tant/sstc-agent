@@ -55,6 +55,20 @@ export interface CompatibilityResult {
 	recommendations: string[];
 }
 
+// Barebone Brand mapping for enhanced brand recognition
+const BAREBONE_BRAND_MAPPING: Record<string, string[]> = {
+	"Fractal Design": ["Fractal Design", "FRACTAL DESIGN", "fractal design", "Define", "Core", "Node"],
+	Corsair: ["Corsair", "CORSAIR", "corsair", "4000D", "5000D", "iCUE", "Obsidian"],
+	NZXT: ["NZXT", "nzxt", "H1", "H5", "H7", "H9", "Kraken", "BLD"],
+	"Cooler Master": ["Cooler Master", "COOLER MASTER", "cooler master", "MasterBox", "MasterCase"],
+	Lian: ["Lian Li", "LIAN LI", "lian li", "O11", "Lancool"],
+	Thermaltake: ["Thermaltake", "THERMALTAKE", "thermaltake", "Level", "Core", "View"],
+	MSI: ["MSI", "msi", "MAG", "MPG"],
+	ASUS: ["ASUS", "asus", "TUF", "ROG", "Prime"],
+	Silverstone: ["Silverstone", "SILVERSTONE", "silverstone", "SG", "RVZ"],
+	"be quiet!": ["be quiet!", "BE QUIET!", "be quiet", "Silent Base", "Pure Base"],
+};
+
 // Multi-mode Barebone Specialist Personality
 const BAREBONE_SPECIALIST_PERSONALITY = `# Barebone Specialist - SSTC System Expert
 
@@ -174,7 +188,9 @@ export class BareboneSpecialist extends Agent {
 			})(),
 		});
 
-		console.log("📚 [Barebone Specialist] Initializing embedded knowledge base...");
+		console.log(
+			"📚 [Barebone Specialist] Initializing embedded knowledge base...",
+		);
 		// Initialize embedded knowledge base
 		this.initializeKnowledgeBase();
 	}
@@ -182,7 +198,9 @@ export class BareboneSpecialist extends Agent {
 	// Embedded knowledge base initialization method
 	private async initializeKnowledgeBase(): Promise<void> {
 		if (this.isKnowledgeBaseInitialized) {
-			console.log("📚 [Barebone Specialist] Knowledge base already initialized.");
+			console.log(
+				"📚 [Barebone Specialist] Knowledge base already initialized.",
+			);
 			return;
 		}
 
@@ -262,114 +280,32 @@ export class BareboneSpecialist extends Agent {
 
 			const extendedContext = { ...context, sharedContext };
 
-			// Use the embedded knowledge base to search for barebones
-			const searchResults = this.searchBarebonesInternal({
-				query: message,
-				budget: extendedContext.budget,
-				caseSize: extendedContext.caseSize,
-				motherboardFormFactor: extendedContext.motherboardFormFactor,
-				supportedSocket: extendedContext.supportedSocket,
-				ramSupport: extendedContext.ramSupport,
-				maxRamCapacity: extendedContext.maxRamCapacity,
-				coolingType: extendedContext.coolingType,
-				aestheticsStyle: extendedContext.aestheticsStyle,
+			// Use the bareboneDatabaseTool to search for barebones (like CPU specialist)
+			const toolResult = await bareboneDatabaseTool.execute({
+				context: { query: message, ...extendedContext },
+				mastra: null, // Tool needs to be independent
 			});
 
-			// Map searchResults (BareboneProductInfo[]) to BareboneSpecialistData
+			if (!toolResult.specialistData?.recommendations) {
+				console.warn(
+					"⚠️ [Barebone Specialist] No recommendations from database tool",
+				);
+				return null;
+			}
+
+			// Use the tool result directly (already in correct BareboneSpecialistData format)
 			const specialistData: BareboneSpecialistData = {
-				type: "barebone",
-				recommendations: searchResults.map((product) => ({
-					productId: product.sku,
-					productName: product.name,
-					specifications: {
-						caseSize: product.caseSize,
-						motherboardFormFactor: product.motherboardFormFactor,
-						supportedCpus: product.supportedSockets,
-						ramSlots: product.ramSlots,
-						maxRam: product.maxRamCapacity,
-						coolingSystem: product.coolingSupport,
-						aesthetics: product.aesthetics,
-					},
-					price: product.price,
-					availability: product.stockStatus as
-						| "in_stock"
-						| "low_stock"
-						| "out_of_stock",
-					recommendationScore: 0, // Score needs to be calculated based on relevance
-					keyFeatures: product.description ? [product.description] : [],
-					useCases: product.useCases as (
-						| "gaming"
-						| "content-creation"
-						| "office"
-						| "professional"
-					)[],
-					imageUrl: undefined,
-					description: product.description,
-				})),
-				technicalAnalysis: {
-					keySpecifications: {
-						caseSize: extendedContext.caseSize || "mid-tower",
-						motherboardFormFactor:
-							extendedContext.motherboardFormFactor || "ATX",
-						supportedSocket: extendedContext.supportedSocket || "LGA1700",
-						ramSupport: extendedContext.ramSupport || "DDR5",
-						maxRamCapacity: extendedContext.maxRamCapacity || 128,
-						ramSlots: 4,
-						coolingType: extendedContext.coolingType || "air",
-						aestheticsStyle: extendedContext.aestheticsStyle || "minimalist",
-					},
-					performanceMetrics: {
-						expandability: 85,
-						coolingEfficiency: 80,
-						aestheticAppeal: 90,
-						pricePerformance: 88,
-					},
-					technicalRequirements: [
-						"Compatible with selected motherboard form factor",
-						"Adequate space for selected components",
-						"Proper cooling solution clearance",
-					],
-				},
-				compatibilityCheck: {
-					isCompatible: true,
-					compatibilityIssues: [],
-					recommendations: [
-						"Ensure PSU fits in selected case",
-						"Check GPU clearance",
-						"Verify CPU cooler height clearance",
-					],
-				},
-				pricingInfo: {
-					basePrice:
-						searchResults.length > 0
-							? Math.min(...searchResults.map((p) => p.price))
-							: 0,
-					totalPrice:
-						searchResults.length > 0
-							? searchResults.reduce((sum, p) => sum + p.price, 0)
-							: 0,
-					savings: 0,
-					discountPercentage: 0,
-					currency: "VND",
-				},
-				availability: {
-					inStock: searchResults.some((p) => p.stockStatus === "in_stock"),
-					estimatedDelivery: "2-5 business days",
-					quantityAvailable: searchResults.filter(
-						(p) => p.stockStatus === "in_stock",
-					).length,
-					warehouseLocation: "Ho Chi Minh City Warehouse",
-				},
-				confidenceScore: searchResults.length > 0 ? 0.8 : 0.1, // Placeholder confidence
+				...toolResult.specialistData,
 				processingMetadata: {
 					processingTime: Date.now() - startTime,
-					dataSources: ["SSTC Barebone Knowledge Base"],
-					completeness: searchResults.length > 0 ? 100 : 0,
+					dataSources: ["SSTC Barebone Database Tool"],
+					completeness:
+						toolResult.specialistData.recommendations.length > 0 ? 100 : 0,
 				},
 			};
 
 			console.log(
-				"✅ [Barebone Specialist] Structured data retrieved from Knowledge Base",
+				"✅ [Barebone Specialist] Structured data retrieved from Database Tool",
 				{
 					productsFound: specialistData.recommendations.length,
 					confidenceScore: specialistData.confidenceScore,
@@ -380,7 +316,201 @@ export class BareboneSpecialist extends Agent {
 			return specialistData;
 		} catch (error: any) {
 			console.error(
-				"❌ [Barebone Specialist] Failed to get structured recommendations from Knowledge Base:",
+				"❌ [Barebone Specialist] Failed to get structured recommendations from Database Tool:",
+				error.message,
+			);
+			return null;
+		}
+	}
+
+	// Method for generating structured response with full error handling and timeout support
+	async generateStructuredResponse(
+		message: string,
+		context: any = {},
+		conversationId?: string,
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: BareboneSpecialistData;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [Barebone Specialist] Generating structured response for Mai", {
+			messageLength: message.length,
+			contextKeys: context ? Object.keys(context) : [],
+			conversationId,
+		});
+
+		try {
+			// Nếu có conversationId, lấy thêm context từ shared memory
+			let sharedContext: any = null;
+			if (conversationId) {
+				sharedContext = await sharedContextManager.getContext(conversationId);
+			}
+
+			// Tạo context mở rộng với thông tin từ shared context
+			const extendedContext = {
+				...context,
+				sharedContext: sharedContext,
+			};
+
+			// Process the Barebone query and get structured data
+			const structuredData = await this.getStructuredRecommendations(
+				message,
+				extendedContext,
+				conversationId,
+			);
+
+			if (!structuredData) {
+				console.warn("⚠️ [Backend Barebone Specialist] No structured data returned");
+				return {
+					status: "failed",
+					error: "No structured data returned from Barebone database tool",
+					processingTime: Date.now() - startTime,
+				};
+			}
+
+			console.log(
+				"✅ [Backend Barebone Specialist] Structured response generated successfully",
+				{
+					recommendationsCount: structuredData.recommendations.length,
+					confidenceScore: structuredData.confidenceScore,
+					processingTime: Date.now() - startTime,
+				},
+			);
+
+			return {
+				status: "success",
+				data: structuredData,
+				processingTime: Date.now() - startTime,
+			};
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend Barebone Specialist] Structured response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime: Date.now() - startTime,
+			};
+		}
+	}
+
+	// Method to generate response in parallel processing architecture
+	async generateParallelResponse(
+		messages: any[],
+		options: any = {},
+	): Promise<{
+		status: "success" | "failed" | "timeout";
+		data?: any;
+		error?: string;
+		processingTime?: number;
+	}> {
+		const startTime = Date.now();
+
+		console.log("🔄 [Backend Barebone Specialist] Generating parallel response", {
+			messagesCount: messages.length,
+			optionsKeys: Object.keys(options),
+		});
+
+		try {
+			// Extract the user message from the messages array
+			const userMessage =
+				messages.find((msg) => msg.role === "user")?.content || "";
+
+			// Extract conversationId from options if available
+			const conversationId =
+				options.conversationId || options.context?.conversationId;
+
+			// Generate structured response
+			const result = await this.generateStructuredResponse(
+				userMessage,
+				options.context || {},
+				conversationId,
+			);
+
+			console.log("✅ [Backend Barebone Specialist] Parallel response generated", {
+				status: result.status,
+				processingTime: Date.now() - startTime,
+			});
+
+			return {
+				...result,
+				processingTime: Date.now() - startTime,
+			};
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend Barebone Specialist] Parallel response generation failed:",
+				error.message,
+			);
+
+			return {
+				status: "failed",
+				error: error.message,
+				processingTime: Date.now() - startTime,
+			};
+		}
+	}
+
+	// Method for context-aware recommendations using shared memory
+	async getContextAwareRecommendations(
+		message: string,
+		conversationId?: string,
+	): Promise<BareboneSpecialistData | null> {
+		console.log(
+			"🧠 [Backend Barebone Specialist] Getting context-aware recommendations",
+			{
+				messageLength: message.length,
+				conversationId,
+			},
+		);
+
+		try {
+			// Nếu có conversationId, lấy context từ shared memory
+			let sharedContext: any = null;
+			if (conversationId) {
+				sharedContext = await sharedContextManager.getContext(conversationId);
+			}
+
+			// Tạo context với thông tin user profile
+			const context: any = {
+				sharedContext: sharedContext,
+			};
+
+			// Nếu có user profile, thêm vào context
+			if (sharedContext?.userProfile) {
+				context.userProfile = sharedContext.userProfile;
+
+				// Thêm thông tin về interests và goals để cá nhân hóa recommendations
+				if (sharedContext.userProfile.interests) {
+					context.userInterests = Object.keys(
+						sharedContext.userProfile.interests,
+					);
+				}
+
+				if (sharedContext.userProfile.goals) {
+					context.userGoals = Object.keys(sharedContext.userProfile.goals);
+				}
+			}
+
+			// Process the Barebone query with context
+			const structuredData = await this.getStructuredRecommendations(message, context, conversationId);
+
+			console.log(
+				"✅ [Backend Barebone Specialist] Context-aware recommendations generated",
+				{
+					hasData: !!structuredData,
+					recommendationsCount: structuredData?.recommendations?.length || 0,
+				},
+			);
+
+			return structuredData;
+		} catch (error: any) {
+			console.error(
+				"❌ [Backend Barebone Specialist] Context-aware recommendations failed:",
 				error.message,
 			);
 			return null;
@@ -422,7 +552,9 @@ export class BareboneSpecialist extends Agent {
 		return product || null;
 	}
 
-	private searchBarebonesInternal(criteria: SearchCriteria): BareboneProductInfo[] {
+	private searchBarebonesInternal(
+		criteria: SearchCriteria,
+	): BareboneProductInfo[] {
 		let results = [...this.products];
 
 		// Apply filters
@@ -438,13 +570,13 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.budget?.min !== undefined) {
 			results = results.filter(
-				(product) => product.price >= criteria.budget?.min!,
+				(product) => product.price >= criteria.budget.min,
 			);
 		}
 
 		if (criteria.budget?.max !== undefined) {
 			results = results.filter(
-				(product) => product.price <= criteria.budget?.max!,
+				(product) => product.price <= criteria.budget.max,
 			);
 		}
 
@@ -463,7 +595,7 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.supportedSocket) {
 			results = results.filter((product) =>
-				product.supportedSockets.includes(criteria.supportedSocket!),
+				product.supportedSockets.includes(criteria.supportedSocket),
 			);
 		}
 
@@ -475,19 +607,19 @@ export class BareboneSpecialist extends Agent {
 
 		if (criteria.maxRamCapacity !== undefined) {
 			results = results.filter(
-				(product) => product.maxRamCapacity >= criteria.maxRamCapacity!,
+				(product) => product.maxRamCapacity >= criteria.maxRamCapacity,
 			);
 		}
 
 		if (criteria.coolingType) {
 			results = results.filter((product) =>
-				product.coolingSupport.toLowerCase().includes(criteria.coolingType!),
+				product.coolingSupport.toLowerCase().includes(criteria.coolingType),
 			);
 		}
 
 		if (criteria.aestheticsStyle) {
 			results = results.filter((product) =>
-				product.aesthetics.toLowerCase().includes(criteria.aestheticsStyle!),
+				product.aesthetics.toLowerCase().includes(criteria.aestheticsStyle),
 			);
 		}
 
@@ -530,6 +662,29 @@ export class BareboneSpecialist extends Agent {
 		};
 	}
 
+	// Enhanced brand extraction using brand mapping
+	private extractBrand(productName: string): string {
+		for (const [brand, variants] of Object.entries(BAREBONE_BRAND_MAPPING)) {
+			if (variants.some(variant => 
+				productName.toLowerCase().includes(variant.toLowerCase())
+			)) {
+				return brand;
+			}
+		}
+		// Fallback to first word if no mapping found
+		return productName.split(' ')[0];
+	}
+
+	// Enhanced Barebone specification detection
+	private detectFormFactor(barebone: BareboneProductInfo): string {
+		const formFactor = barebone.motherboardFormFactor.toLowerCase();
+		if (formFactor.includes('atx') && !formFactor.includes('micro') && !formFactor.includes('mini')) return 'ATX';
+		if (formFactor.includes('micro') || formFactor.includes('matx')) return 'Micro-ATX';
+		if (formFactor.includes('mini')) return 'Mini-ITX';
+		if (formFactor.includes('e-atx')) return 'E-ATX';
+		return 'Unknown';
+	}
+
 	private getStatisticsInternal(): {
 		totalProducts: number;
 		caseSizes: string[];
@@ -553,7 +708,7 @@ export class BareboneSpecialist extends Agent {
 		];
 		const avgPrice =
 			this.products.reduce((sum, p) => sum + p.price, 0) / this.products.length;
-		const brands = [...new Set(this.products.map((p) => p.name.split(" ")[0]))];
+		const brands = [...new Set(this.products.map((p) => this.extractBrand(p.name)))];
 
 		return {
 			totalProducts: this.products.length,

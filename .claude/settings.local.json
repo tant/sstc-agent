@@ -3,7 +3,10 @@
     "allow": [
       "Bash(OPENAI_API_KEY=dummy-key pnpm run dev)",
       "WebFetch(domain:mastra.ai)",
-      "WebFetch(domain:github.com)"
+      "WebFetch(domain:github.com)",
+      "Bash(pnpm run:*)",
+      "Bash(npx @biomejs/biome format:*)",
+      "Bash(npx @biomejs/biome lint:*)"
     ]
   },
   "claude": {

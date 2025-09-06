@@ -94,6 +94,12 @@ const CHIPSET_MOTHERBOARD_BRANDS: Record<string, string[]> = {
 	B650: ["ASUS", "MSI", "Gigabyte", "ASRock"],
 };
 
+// CPU Brand mapping for enhanced brand recognition
+const CPU_BRAND_MAPPING: Record<string, string[]> = {
+	Intel: ["Intel", "INTEL", "intel", "Core i3", "Core i5", "Core i7", "Core i9"],
+	AMD: ["AMD", "amd", "Advanced Micro Devices", "Ryzen 3", "Ryzen 5", "Ryzen 7", "Ryzen 9"],
+};
+
 // CPU Specialist Personality - Multi-mode operation for parallel processing
 const CPU_SPECIALIST_PERSONALITY = `# CPU Specialist - SSTC Processor Expert
 
@@ -565,8 +571,8 @@ export class CPUSpecialist extends Agent {
 		}
 
 		if (criteria.series) {
-			results = results.filter(
-				(cpu) => cpu.series.toLowerCase().includes(criteria.series!.toLowerCase()),
+			results = results.filter((cpu) =>
+				cpu.series.toLowerCase().includes(criteria.series!.toLowerCase()),
 			);
 		}
 
@@ -664,6 +670,39 @@ export class CPUSpecialist extends Agent {
 		};
 	}
 
+	// Enhanced brand extraction using brand mapping
+	private extractBrand(productName: string): string {
+		for (const [brand, variants] of Object.entries(CPU_BRAND_MAPPING)) {
+			if (variants.some(variant => 
+				productName.toLowerCase().includes(variant.toLowerCase())
+			)) {
+				return brand;
+			}
+		}
+		// Fallback to first word if no mapping found
+		return productName.split(' ')[0];
+	}
+
+	// Enhanced CPU generation detection
+	private detectCPUGeneration(cpu: CPUProductInfo): string {
+		// Intel generation detection
+		if (cpu.brand.toLowerCase().includes('intel')) {
+			if (cpu.architecture?.includes('Alder Lake') || cpu.series?.includes('12')) return '12th Gen';
+			if (cpu.architecture?.includes('Raptor Lake') || cpu.series?.match(/13th|14th/)) return '13th/14th Gen';
+			if (cpu.series?.includes('11')) return '11th Gen';
+			if (cpu.series?.includes('10')) return '10th Gen';
+		}
+		
+		// AMD generation detection  
+		if (cpu.brand.toLowerCase().includes('amd')) {
+			if (cpu.architecture?.includes('Zen 4') || cpu.socket === 'AM5') return 'Zen 4';
+			if (cpu.architecture?.includes('Zen 3') || cpu.socket === 'AM4') return 'Zen 3';
+			if (cpu.architecture?.includes('Zen 2')) return 'Zen 2';
+		}
+		
+		return 'Unknown';
+	}
+
 	private getStatisticsInternal(): any {
 		if (!this.isKnowledgeBaseReady()) {
 			return {
@@ -674,7 +713,7 @@ export class CPUSpecialist extends Agent {
 			};
 		}
 
-		const brands = [...new Set(this.products.map((p) => p.brand))];
+		const brands = [...new Set(this.products.map((p) => this.extractBrand(p.name)))];
 		const sockets = [...new Set(this.products.map((p) => p.socket))];
 		const avgPrice =
 			this.products.length > 0
@@ -744,6 +783,62 @@ export class CPUSpecialist extends Agent {
 			ready: true,
 			...this.getStatisticsInternal(),
 		};
+	}
+
+	// Method to generate a human-readable response from the data
+	generateHumanReadableResponse(data: CPUSpecialistData): string {
+		if (!data || !data.recommendations || data.recommendations.length === 0) {
+			return "Xin lỗi, tôi không tìm thấy sản phẩm CPU nào phù hợp với yêu cầu của bạn.";
+		}
+
+		const { recommendations, technicalAnalysis, confidenceScore } = data;
+
+		let response = `Dựa trên phân tích, tôi có một vài đề xuất CPU cho bạn (độ tin cậy: ${(confidenceScore * 100).toFixed(0)}%):\n\n`;
+
+		recommendations.forEach((rec, index) => {
+			response += `${index + 1}. **${rec.productName}** - ${rec.price.toLocaleString()}đ\n`;
+			response += `   - **Lý do đề xuất**: ${rec.keyFeatures.join(", ")}\n`;
+			response += `   - **Thông số**: ${rec.specifications.cores} cores/${rec.specifications.threads} threads, ${rec.specifications.baseClock} base, ${rec.specifications.boostClock} boost\n`;
+			response += `   - **Socket**: ${rec.specifications.socket} | **TDP**: ${rec.specifications.powerConsumption}\n`;
+			if (rec.recommendationScore > 8) {
+				response += `   - **Độ phù hợp**: Rất cao (${rec.recommendationScore}/10)\n`;
+			} else if (rec.recommendationScore > 5) {
+				response += `   - **Độ phù hợp**: Cao (${rec.recommendationScore}/10)\n`;
+			} else if (rec.recommendationScore > 3) {
+				response += `   - **Độ phù hợp**: Trung bình (${rec.recommendationScore}/10)\n`;
+			}
+			response += `\n`;
+		});
+
+		if (technicalAnalysis.keySpecifications) {
+			response += `**Tóm tắt thông số chính**:\n`;
+			response += ` - Socket: ${technicalAnalysis.keySpecifications.socket}\n`;
+			response += ` - Cores trung bình: ${technicalAnalysis.keySpecifications.cores}\n`;
+			response += ` - Tốc độ base: ${technicalAnalysis.keySpecifications.baseClock}\n`;
+			response += ` - Kiến trúc: ${technicalAnalysis.keySpecifications.architecture}\n`;
+		}
+
+		if (technicalAnalysis.performanceMetrics) {
+			response += `\n**Phân tích hiệu năng**:\n`;
+			response += ` - Single-core: ${technicalAnalysis.performanceMetrics.singleCorePerformance}/100\n`;
+			response += ` - Multi-core: ${technicalAnalysis.performanceMetrics.multiCorePerformance}/100\n`;
+			response += ` - Gaming: ${technicalAnalysis.performanceMetrics.gamingPerformance}/100\n`;
+			response += ` - Hiệu suất năng lượng: ${technicalAnalysis.performanceMetrics.powerEfficiency}/100\n`;
+		}
+
+		response += `\nQuý khách muốn tìm hiểu thêm về mẫu nào trong số này, hay có yêu cầu đặc biệt về socket, budget hoặc use case? `;
+		response += `Em có thể giúp tìm các lựa chọn phù hợp hơn với nhu cầu cụ thể của quý khách!`;
+
+		return response;
+	}
+
+	// Standardized method name for consistency with other specialists
+	async getStructuredRecommendations(
+		message: string,
+		context: any = {},
+		conversationId?: string,
+	): Promise<CPUSpecialistData | null> {
+		return this.processCPUQueryForMai(message, context);
 	}
 
 	// NEW: Method for generating summary responses in parallel processing

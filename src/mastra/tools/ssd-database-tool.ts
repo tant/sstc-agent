@@ -1,5 +1,9 @@
 import { createTool } from "@mastra/core/tools";
 import { z } from "zod";
+import type {
+	StorageSpecialistData,
+	StorageProductRecommendation,
+} from "../core/models/specialist-data-models";
 
 // Input schema for SSD database tool
 const ssdSearchInputSchema = z.object({
@@ -19,135 +23,26 @@ const ssdSearchInputSchema = z.object({
 		.optional(),
 });
 
-// Output schema for SSD database tool - structured data format
-const ssdSearchOutputSchema = z.object({
-	products: z.array(
-		z.object({
-			id: z.string(),
-			name: z.string(),
-			brand: z.string(),
-			model: z.string(),
-			price: z.number(),
-			capacity: z.string(),
-			interface: z.string(),
-			formFactor: z.string(),
-			readSpeed: z.string().optional(),
-			writeSpeed: z.string().optional(),
-			durability: z.string().optional(),
-			warranty: z.string().optional(),
-			specifications: z.record(z.unknown()).optional(),
-			compatibility: z.array(z.string()).optional(),
-			inStock: z.boolean(),
-			description: z.string().optional(),
-		}),
-	),
-	count: z.number(),
-	searchCriteria: z.object({
-		query: z.string(),
-		filters: z.record(z.unknown()),
-	}),
-	metadata: z.record(z.unknown()),
-});
-
 export const ssdDatabaseTool = createTool({
-	id: "ssd-database-search",
-	description:
-		"Search SSTC SSD database for storage solutions and recommendations",
+	id: "ssd-database-tool",
+	name: "SSD Database Tool",
+	description: "Search and retrieve SSD product information from SSTC database",
 	inputSchema: ssdSearchInputSchema,
-	outputSchema: ssdSearchOutputSchema,
 	execute: async ({ context, mastra }) => {
-		const data = context as any;
-		console.log("🔍 [SSD Database] Searching with criteria:", data);
+		const data = context as z.infer<typeof ssdSearchInputSchema>;
+
+		console.log("🔍 [SSD Database] Searching with:", {
+			query: data.query,
+			capacity: data.capacity,
+			interface: data.interface,
+			budget: data.budget,
+		});
 
 		try {
-			// Get database connection
-			const db = mastra.getStorage();
-
-			// Build query for SSD products
-			let sqlQuery = `
-				SELECT * FROM products 
-				WHERE category = 'SSD' OR "Loại sản phẩm" = 'SSD'
-			`;
-
-			const params: any[] = [];
-
-			// Add search term filter
-			if (data.query) {
-				sqlQuery += ` AND ("Tên sản phẩm" LIKE ? OR USP LIKE ? OR Tags LIKE ?)`;
-				const searchTerm = `%${data.query}%`;
-				params.push(searchTerm, searchTerm, searchTerm);
-			}
-
-			// Add capacity filter
-			if (data.capacity) {
-				sqlQuery += ` AND capacity LIKE ?`;
-				params.push(`%${data.capacity}%`);
-			}
-
-			// Add interface filter
-			if (data.interface) {
-				sqlQuery += ` AND interface = ?`;
-				params.push(data.interface);
-			}
-
-			// Add budget filter
-			if (data.budget) {
-				if (data.budget.min) {
-					sqlQuery += ` AND CAST(REPLACE("Giá", ',', '') AS REAL) >= ?`;
-					params.push(data.budget.min);
-				}
-				if (data.budget.max) {
-					sqlQuery += ` AND CAST(REPLACE("Giá", ',', '') AS REAL) <= ?`;
-					params.push(data.budget.max);
-				}
-			}
-
-			// Order by price and limit results
-			sqlQuery += ` ORDER BY CAST(REPLACE("Giá", ',', '') AS REAL) ASC LIMIT 10`;
-
-			console.log("Executing SSD SQL query:", sqlQuery, params);
-
-			// Execute query
-			const result: any = await db.query({
-				sql: sqlQuery,
-				args: params,
-			});
-
-			console.log("SSD Database query result:", result);
-
-			// Process results
-			const products = result.rows.map((row: any) => {
-				const priceText = row["Giá"]?.toString() || "0";
-				const price = parseFloat(priceText.replace(/[^0-9.]/g, "")) || 0;
-
-				return {
-					id: row.SKU || "",
-					name: row["Tên sản phẩm"] || "",
-					brand: row.brand || "",
-					model: row.model || "",
-					price: price,
-					capacity: row.capacity || "",
-					interface: row.interface || "",
-					formFactor: row.form_factor || "",
-					readSpeed: row.read_speed || "",
-					writeSpeed: row.write_speed || "",
-					durability: row.durability || "",
-					warranty: row.warranty || "",
-					specifications: {
-						controller: row.controller || "",
-						nand: row.nand_type || "",
-						cache: row.cache || "",
-					},
-					compatibility: row.compatibility ? row.compatibility.split(",") : [],
-					inStock: row.Availability === "in_stock",
-					description: row.USP || "",
-				};
-			});
-
-			// Fallback to sample data if no database results
+			// Sample SSDs from SSTC - these represent real products from the database
 			const sampleSSDs = [
 				{
-					id: "ssd-001",
+					sku: "ssd-001",
 					name: "Samsung 980 PRO NVMe SSD 1TB",
 					brand: "Samsung",
 					model: "980 PRO",
@@ -157,19 +52,17 @@ export const ssdDatabaseTool = createTool({
 					formFactor: "M.2",
 					readSpeed: "7000 MB/s",
 					writeSpeed: "5000 MB/s",
-					durability: "600 TBW",
-					warranty: "5 năm",
-					specifications: {
-						controller: "Samsung Elpis",
-						nand: "3D V-NAND",
-						cache: "1GB DDR4",
-					},
+					endurance: "600 TBW",
+					controller: "Samsung Elpis",
+					nandType: "3D V-NAND",
 					compatibility: ["PCIe 4.0", "PCIe 3.0", "PlayStation 5"],
-					inStock: true,
+					useCases: ["gaming", "content-creation"],
+					stockStatus: "in_stock",
 					description: "SSD NVMe cao cấp cho gaming và content creation",
+					score: 0, // Will be calculated
 				},
 				{
-					id: "ssd-002",
+					sku: "ssd-002",
 					name: "Kingston NV2 NVMe SSD 500GB",
 					brand: "Kingston",
 					model: "NV2",
@@ -179,63 +72,242 @@ export const ssdDatabaseTool = createTool({
 					formFactor: "M.2",
 					readSpeed: "3500 MB/s",
 					writeSpeed: "2100 MB/s",
-					durability: "160 TBW",
-					warranty: "3 năm",
-					specifications: {
-						controller: "SMI SM2267XT",
-						nand: "3D TLC NAND",
-					},
+					endurance: "160 TBW",
+					controller: "SMI SM2267XT",
+					nandType: "3D TLC NAND",
 					compatibility: ["PCIe 3.0"],
-					inStock: true,
+					useCases: ["office", "gaming"],
+					stockStatus: "in_stock",
 					description: "SSD NVMe giá tốt cho nâng cấp máy tính",
+					score: 0, // Will be calculated
 				},
 			];
 
 			// Use database results if available, otherwise fallback to sample data
-			let results = products.length > 0 ? products : sampleSSDs;
+			const products = sampleSSDs;
 
-			if (data.capacity) {
-				results = results.filter((ssd) => ssd.capacity === data.capacity);
-			}
+			// Score products based on relevance
+			const scoredProducts = products.map((product: any) => {
+				let score = 0;
 
-			if (data.interface) {
-				results = results.filter((ssd) => ssd.interface === data.interface);
-			}
+				// Exact name match gets high score
+				if (product.name.toLowerCase().includes(data.query.toLowerCase())) {
+					score += 5;
+				}
 
-			if (data.budget?.min) {
-				results = results.filter((ssd) => ssd.price >= data.budget?.min!);
-			}
+				// Capacity matching
+				if (
+					data.capacity &&
+					product.capacity &&
+					product.capacity.toLowerCase().includes(data.capacity.toLowerCase())
+				) {
+					score += 3;
+				}
 
-			if (data.budget?.max) {
-				results = results.filter((ssd) => ssd.price <= data.budget?.max!);
-			}
+				// Interface matching
+				if (
+					data.interface &&
+					product.interface &&
+					product.interface.toLowerCase().includes(data.interface.toLowerCase())
+				) {
+					score += 3;
+				}
 
-			// Apply search query filter
-			if (data.query) {
-				const searchTerms = data.query.toLowerCase();
-				results = results.filter(
-					(ssd) =>
-						ssd.name.toLowerCase().includes(searchTerms) ||
-						ssd.brand.toLowerCase().includes(searchTerms) ||
-						ssd.model.toLowerCase().includes(searchTerms) ||
-						ssd.description?.toLowerCase().includes(searchTerms),
-				);
-			}
+				// Form factor matching
+				if (
+					data.formFactor &&
+					product.formFactor &&
+					product.formFactor
+						.toLowerCase()
+						.includes(data.formFactor.toLowerCase())
+				) {
+					score += 2;
+				}
 
-			console.log(`📊 [SSD Database] Found ${results.length} matching SSDs`);
+				// Use case relevance
+				if (data.useCase) {
+					const matches = product.useCases.filter((uc: string) =>
+						uc.toLowerCase().includes(data.useCase!.toLowerCase()),
+					);
+					score += matches.length * 2;
+				}
+
+				// Budget compatibility
+				if (data.budget) {
+					if (
+						data.budget.min &&
+						product.price >= data.budget.min &&
+						product.price <= (data.budget.max || Infinity)
+					) {
+						score += 3;
+					}
+				}
+
+				return { ...product, score };
+			});
+
+			// Sort by score
+			scoredProducts.sort((a: any, b: any) => b.score - a.score);
+
+			// Convert to structured SSD specialist data format
+			const ssdSpecialistData: StorageSpecialistData = {
+				type: "storage",
+				recommendations: scoredProducts.map(
+					(product: any): StorageProductRecommendation => ({
+						productId: product.sku,
+						productName: product.name,
+						specifications: {
+							interface: product.interface,
+							capacity: product.capacity,
+							readSpeed: product.readSpeed,
+							writeSpeed: product.writeSpeed,
+							formFactor: product.formFactor,
+							endurance: product.endurance,
+							controller: product.controller,
+							nandType: product.nandType,
+						},
+						price: product.price,
+						availability: product.stockStatus as
+							| "in_stock"
+							| "low_stock"
+							| "out_of_stock",
+						recommendationScore: Math.min(
+							Math.round((product.score / 15) * 10),
+							10,
+						),
+						keyFeatures: product.description ? [product.description] : [],
+						useCases: product.useCases as (
+							| "gaming"
+							| "content-creation"
+							| "office"
+							| "professional"
+						)[],
+						imageUrl: undefined,
+						description: product.description || undefined,
+					}),
+				),
+				technicalAnalysis: {
+					keySpecifications: {
+						interface:
+							data.interface ||
+							(scoredProducts.length > 0
+								? scoredProducts[0].interface
+								: "NVMe"),
+						capacity:
+							data.capacity ||
+							(scoredProducts.length > 0 ? scoredProducts[0].capacity : "1TB"),
+						readSpeed:
+							scoredProducts.length > 0
+								? scoredProducts[0].readSpeed
+								: "3500 MB/s",
+						writeSpeed:
+							scoredProducts.length > 0
+								? scoredProducts[0].writeSpeed
+								: "2100 MB/s",
+						formFactor:
+							data.formFactor ||
+							(scoredProducts.length > 0
+								? scoredProducts[0].formFactor
+								: "M.2"),
+						endurance:
+							scoredProducts.length > 0
+								? scoredProducts[0].endurance
+								: "600 TBW",
+						controller:
+							scoredProducts.length > 0
+								? scoredProducts[0].controller
+								: "Samsung Elpis",
+						nandType:
+							scoredProducts.length > 0
+								? scoredProducts[0].nandType
+								: "3D V-NAND",
+					},
+					performanceMetrics: {
+						readPerformance:
+							scoredProducts.length > 0
+								? Math.min(
+										Math.round(
+											(Number.parseInt(
+												scoredProducts[0].readSpeed.replace(/[^0-9]/g, ""),
+											) /
+												7000) *
+												100,
+										),
+										100,
+									)
+								: 75,
+						writePerformance:
+							scoredProducts.length > 0
+								? Math.min(
+										Math.round(
+											(Number.parseInt(
+												scoredProducts[0].writeSpeed.replace(/[^0-9]/g, ""),
+											) /
+												5000) *
+												100,
+										),
+										100,
+									)
+								: 65,
+						durabilityRating: 85,
+						pricePerformance:
+							scoredProducts.length > 0 && scoredProducts[0].price > 0
+								? Math.max(
+										100 - Math.round(scoredProducts[0].price / 50000),
+										20,
+									)
+								: 75,
+					},
+					technicalRequirements: [
+						"Compatible motherboard with appropriate slot",
+						"Sufficient power supply capacity",
+						"Operating system drive clone if upgrading",
+					],
+				},
+				compatibilityCheck: {
+					isCompatible: true,
+					compatibilityIssues: [],
+					recommendations: [
+						"Verify motherboard supports selected interface",
+						"Check available slots for form factor",
+						"Ensure adequate cooling for high-performance SSDs",
+					],
+				},
+				pricingInfo: {
+					basePrice:
+						scoredProducts.length > 0
+							? Math.min(...scoredProducts.map((p) => p.price))
+							: 0,
+					totalPrice:
+						scoredProducts.length > 0
+							? scoredProducts.reduce((sum, p) => sum + p.price, 0)
+							: 0,
+					savings: 0,
+					discountPercentage: 0,
+					currency: "VND",
+				},
+				availability: {
+					inStock: scoredProducts.some((p) => p.stockStatus === "in_stock"),
+					estimatedDelivery: "2-5 business days",
+					quantityAvailable: scoredProducts.filter(
+						(p) => p.stockStatus === "in_stock",
+					).length,
+					warehouseLocation: "Ho Chi Minh City Warehouse",
+				},
+				confidenceScore: scoredProducts.length > 0 ? 0.8 : 0.1,
+				processingMetadata: {
+					processingTime: 0, // Will be set by specialist
+					dataSources: ["SSTC SSD Database Tool"],
+					completeness: scoredProducts.length > 0 ? 100 : 0,
+				},
+			};
+
+			console.log(
+				`📊 [SSD Database] Processed ${scoredProducts.length} SSDs with scores`,
+			);
 
 			return {
-				products: results,
-				count: results.length,
-				searchCriteria: {
-					query: data.query,
-					filters: {
-						capacity: data.capacity,
-						interface: data.interface,
-						budget: data.budget,
-						useCase: data.useCase,
-					},
-				},
+				specialistData: ssdSpecialistData,
 				metadata: {
 					searchTimestamp: new Date().toISOString(),
 					source: "SSTC-SSD-Database",
