@@ -8,7 +8,7 @@ import { chromaVector } from "../vector/chroma";
 import { mastraModelProvider } from "../llm/provider";
 import { embedder } from "../embedding/provider";
 import { userProfileSchema } from "../core/models/user-profile-schema";
-import { sharedContextManager } from "../core/memory/shared-context-manager";
+import { optimizedMemoryManager } from "../core/memory/optimized-memory-manager";
 import {
 	SPECIALIST_RESPONSE_TEMPLATES as RESPONSE_TEMPLATES,
 	validateSpecialistData,
@@ -305,6 +305,7 @@ export class MaiSale extends Agent {
 		specialistData: any,
 		_context: any,
 		conversationId?: string,
+		userId?: string,
 	): Promise<string> {
 		console.log("🔄 [Mai] Integrating specialist data", {
 			hasData: !!specialistData,
@@ -318,7 +319,7 @@ export class MaiSale extends Agent {
 			return await this.generateNormalResponse(
 				customerMessage,
 				{},
-				await this.getSharedContext(conversationId),
+				await this.getSharedContext(conversationId, userId),
 			);
 		}
 
@@ -344,11 +345,12 @@ export class MaiSale extends Agent {
 	}
 
 	// Method to get shared context if conversationId is provided
-	private async getSharedContext(conversationId?: string): Promise<any> {
-		if (!conversationId) return null;
+	private async getSharedContext(conversationId?: string, userId?: string): Promise<any> {
+		if (!conversationId || !userId) return null;
 
 		try {
-			return await sharedContextManager.getContext(conversationId);
+			const context = await optimizedMemoryManager.getUserContext(userId, conversationId);
+			return context;
 		} catch (error) {
 			console.warn("⚠️ [Mai] Failed to get shared context:", error);
 			return null;
@@ -562,6 +564,7 @@ export class MaiSale extends Agent {
 			// Extract the customer message (assuming it's the last message)
 			const customerMessage = messages[messages.length - 1]?.content || "";
 			const conversationId = options.conversationId;
+			const userId = options.userId || options.context?.userId || messages[messages.length - 1]?.senderId || "unknown";
 
 			// Coordinate with specialists behind the scenes
 			const specialistData = await this.coordinateWithSpecialists(
@@ -577,6 +580,7 @@ export class MaiSale extends Agent {
 					specialistData,
 					options.context || {},
 					conversationId,
+					userId,
 				);
 
 				return {
@@ -592,7 +596,7 @@ export class MaiSale extends Agent {
 
 			// If no specialist data, generate normal response
 			const sharedContext = conversationId
-				? await sharedContextManager.getContext(conversationId)
+				? await optimizedMemoryManager.getUserContext(userId, conversationId)
 				: null;
 
 			const normalResponse = await this.generateNormalResponse(
@@ -659,7 +663,7 @@ export class MaiSale extends Agent {
 
 			// If no specialist data, generate normal response
 			const sharedContext = conversationId
-				? await sharedContextManager.getContext(conversationId)
+				? await optimizedMemoryManager.getUserContext(userId, conversationId)
 				: null;
 
 			return await this.generateNormalResponse(message, {}, sharedContext);
@@ -720,13 +724,13 @@ export class MaiSale extends Agent {
 			template.template,
 			{},
 			conversationId
-				? await sharedContextManager.getContext(conversationId)
+				? await optimizedMemoryManager.getUserContext(userId, conversationId)
 				: null,
 		);
 
 		// Personalize if user profile is available
 		const sharedContext = conversationId
-			? await sharedContextManager.getContext(conversationId)
+			? await optimizedMemoryManager.getUserContext(userId, conversationId)
 			: null;
 		if (sharedContext?.userProfile?.name) {
 			renderedResponse = renderedResponse.replace(
@@ -768,7 +772,9 @@ export class MaiSale extends Agent {
 		// If conversationId is provided, get context from shared memory
 		let sharedContext: any = null;
 		if (conversationId) {
-			sharedContext = await sharedContextManager.getContext(conversationId);
+			sharedContext = userId && conversationId 
+				? await optimizedMemoryManager.getUserContext(userId, conversationId)
+				: null;
 		}
 
 		// Prepare data for processing

@@ -6,7 +6,12 @@
       "WebFetch(domain:github.com)",
       "Bash(pnpm run:*)",
       "Bash(npx @biomejs/biome format:*)",
-      "Bash(npx @biomejs/biome lint:*)"
+      "Bash(npx @biomejs/biome lint:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(npx:*)",
+      "Bash(timeout 10s npx -y @mastra/mcp-docs-server)",
+      "WebSearch"
     ]
   },
   "claude": {

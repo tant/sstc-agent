@@ -1,7 +1,7 @@
 import { Agent } from "@mastra/core/agent";
 import { LibSQLStore } from "@mastra/libsql";
 import { Memory } from "@mastra/memory";
-import { sharedContextManager } from "../core/memory/shared-context-manager";
+import { optimizedMemoryManager } from "../core/memory/optimized-memory-manager";
 import type { CPUSpecialistData } from "../core/models/specialist-data-models";
 import { userProfileSchema } from "../core/models/user-profile-schema";
 import { getLibSQLConfig } from "../database/libsql";
@@ -380,7 +380,7 @@ export class CPUSpecialist extends Agent {
 			// Nếu có conversationId, lấy thêm context từ shared memory
 			let sharedContext: any = null;
 			if (conversationId) {
-				sharedContext = await sharedContextManager.getContext(conversationId);
+				sharedContext = await optimizedMemoryManager.getUserContext("unknown", conversationId);
 			}
 
 			// Tạo context mở rộng với thông tin từ shared context
@@ -505,7 +505,7 @@ export class CPUSpecialist extends Agent {
 			// Nếu có conversationId, lấy context từ shared memory
 			let sharedContext: any = null;
 			if (conversationId) {
-				sharedContext = await sharedContextManager.getContext(conversationId);
+				sharedContext = await optimizedMemoryManager.getUserContext("unknown", conversationId);
 			}
 
 			// Tạo context với thông tin user profile
