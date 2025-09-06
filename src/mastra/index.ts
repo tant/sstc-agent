@@ -9,7 +9,7 @@ import { desktopSpecialist } from "./agents/desktop-specialist";
 import { maiSale } from "./agents/mai-agent";
 import { ramSpecialist } from "./agents/ram-specialist";
 import { ssdSpecialist } from "./agents/ssd-specialist";
-import { TelegramChannelAdapter } from "./channels/telegram";
+import { TelegramChannelAdapter } from "./channels/telegram/adapter";
 import { ZaloChannelAdapter } from "./channels/zalo";
 import { channelRegistry } from "./core/channels/registry";
 import { signalHandlerManager } from "./core/optimized-processing";
@@ -39,33 +39,64 @@ export const mastra = new Mastra({
 	}),
 });
 
-// Initialize Telegram channel when Mastra starts (if token is provided)
+// Initialize Telegram channel (singleton-managed)
 let telegramCleanup: (() => Promise<void>) | null = null;
+let telegramAdapter: TelegramChannelAdapter | null = null;
 
 if (process.env.TELEGRAM_BOT_TOKEN) {
-	try {
-		console.log("🔍 Attempting to initialize Telegram channel...");
-		// Check if Telegram channel is already registered
-		if (channelRegistry.has("telegram")) {
-			console.log(
-				"⚠️ Telegram channel already registered, skipping initialization",
-			);
-		} else {
-			const telegramAdapter = new TelegramChannelAdapter({
-				token: process.env.TELEGRAM_BOT_TOKEN,
-			});
-			channelRegistry.register("telegram", telegramAdapter);
-			console.log("✅ Telegram channel registered in Mastra");
+	console.log("🔍 [Mastra] Attempting to initialize Telegram channel...");
+	
+	// Clean up stale states first
+	channelRegistry.cleanupStaleStates().catch(error => {
+		console.warn("⚠️ [Mastra] Failed to cleanup stale states:", error);
+	});
 
-			// Store cleanup function for graceful shutdown
-			telegramCleanup = async () => {
-				console.log("🧹 Cleaning up Telegram channel...");
-				await telegramAdapter.shutdown();
-			};
+	// Use factory method with singleton enforcement
+	TelegramChannelAdapter.create({
+		token: process.env.TELEGRAM_BOT_TOKEN,
+		polling: true,
+		pollingInterval: 2000, // 2 second polling
+	}).then(async (adapter) => {
+		if (adapter) {
+			telegramAdapter = adapter;
+			
+			// Register with enhanced registry (with conflict detection)
+			const registrationResult = await channelRegistry.registerWithLock(
+				"telegram",
+				adapter,
+				{
+					initTime: new Date().toISOString(),
+					token: process.env.TELEGRAM_BOT_TOKEN?.substring(0, 10) + "...",
+					polling: true,
+				}
+			);
+
+			if (registrationResult.success) {
+				console.log("✅ [Mastra] Telegram channel registered successfully");
+				
+				// Store cleanup function
+				telegramCleanup = async () => {
+					console.log("🧹 [Mastra] Cleaning up Telegram channel...");
+					if (telegramAdapter) {
+						await channelRegistry.unregisterWithCleanup("telegram");
+					}
+				};
+			} else {
+				console.error("❌ [Mastra] Failed to register Telegram channel:", {
+					reason: registrationResult.reason,
+					conflictingProcess: registrationResult.conflictingProcess,
+				});
+				
+				// Shutdown the adapter since registration failed
+				await adapter.shutdown();
+				telegramAdapter = null;
+			}
+		} else {
+			console.error("❌ [Mastra] Failed to create Telegram adapter");
 		}
-	} catch (error) {
-		console.error("❌ Failed to initialize Telegram channel:", error);
-	}
+	}).catch(error => {
+		console.error("❌ [Mastra] Error initializing Telegram channel:", error);
+	});
 }
 
 // Initialize Zalo channel when Mastra starts (if credentials are provided)

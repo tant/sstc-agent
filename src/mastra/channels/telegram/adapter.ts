@@ -1,431 +1,207 @@
 /**
- * Telegram channel adapter for Mastra framework
- * INTEGRATES with existing maiSale agent and message workflows
+ * Telegram Channel Adapter with Singleton Management
+ * Single consolidated adapter với đầy đủ functionality
  */
 
-import TelegramBot from "node-telegram-bot-api";
+import type TelegramBot from "node-telegram-bot-api";
 import type { ChannelAdapter } from "../../core/channels/interface";
 import { messageProcessor } from "../../core/optimized-processing";
+import { TelegramSingletonManager } from "./singleton-manager";
 import { type TelegramConfig, validateTelegramConfig } from "./config";
 
+interface ConnectionHealth {
+	isConnected: boolean;
+	lastHealthCheck: number;
+	consecutiveFailures: number;
+	lastError?: string;
+}
+
 export class TelegramChannelAdapter implements ChannelAdapter {
-	private bot: any;
+	private static globalInstance: TelegramChannelAdapter | null = null;
+	private singletonManager: TelegramSingletonManager;
+	private bot: TelegramBot | null = null;
 	private config: TelegramConfig;
 	private _isShutdown: boolean = false;
+	private healthCheck: NodeJS.Timeout | null = null;
+	private connectionHealth: ConnectionHealth;
+	
+	// Connection settings
+	private readonly MAX_CONSECUTIVE_FAILURES = 5;
+	private readonly HEALTH_CHECK_INTERVAL = 60 * 1000; // 1 minute
 
 	channelId = "telegram";
 
 	/**
-	 * Check if adapter is shutdown
+	 * Factory method - đảm bảo singleton tuyệt đối
 	 */
-	isShutdown(): boolean {
-		return this._isShutdown;
-	}
-
-	constructor(config: Partial<TelegramConfig>) {
-		console.log("🔧 [Telegram] Initializing adapter with config", {
-			hasToken: !!config.token,
-			polling: config.polling ?? true,
-			pollingInterval: config.pollingInterval,
-		});
-
-		// Use existing validation function
-		this.config = validateTelegramConfig(config);
-
-		// Initialize Telegram bot
-		const botOptions: TelegramBot.ConstructorOptions = {
-			polling: this.config.polling ?? true,
-			// Force IPv4 only to avoid connection issues
-			request: {
-				url: "",
-				family: 4,
-			},
-		};
-
-		if (this.config.pollingInterval) {
-			botOptions.polling = {
-				interval: this.config.pollingInterval,
-			};
+	static async create(config: Partial<TelegramConfig>): Promise<TelegramChannelAdapter | null> {
+		console.log("🔍 [Telegram] Checking for existing instances across system...");
+		
+		// Kiểm tra system-wide lock trước khi làm gì khác
+		const singletonManager = TelegramSingletonManager.getInstance();
+		const canAcquireLock = await singletonManager.canAcquireLock(config);
+		
+		if (!canAcquireLock.canAcquire) {
+			console.error("❌ [Telegram] Cannot create instance - another instance exists:", {
+				reason: canAcquireLock.reason,
+				existingProcess: canAcquireLock.existingLock?.pid,
+				lockAge: canAcquireLock.lockAge,
+			});
+			return null;
 		}
 
-		console.log(
-			`🔍 [Telegram] Creating bot with token: ${this.config.token.substring(0, 5)}...`,
-		);
-		// @ts-expect-error - TelegramBot default export issue
-		this.bot = new (TelegramBot as any)(this.config.token, botOptions);
+		// Return existing healthy instance nếu có
+		if (TelegramChannelAdapter.globalInstance) {
+			const instance = TelegramChannelAdapter.globalInstance;
+			if (!instance._isShutdown && instance.isHealthy()) {
+				console.log("♻️ [Telegram] Returning existing healthy instance (same process)");
+				return instance;
+			} else {
+				console.log("🔄 [Telegram] Existing instance unhealthy, shutting down...");
+				await instance.forceShutdown();
+				TelegramChannelAdapter.globalInstance = null;
+			}
+		}
 
-		// Set up message handlers
-		this.setupMessageHandlers();
-
-		console.log("✅ [Telegram] Adapter initialized successfully");
+		// Create new instance với strict singleton enforcement
+		try {
+			const instance = new TelegramChannelAdapter(config);
+			const success = await instance.initializeWithLock();
+			
+			if (success) {
+				TelegramChannelAdapter.globalInstance = instance;
+				console.log("✅ [Telegram] Singleton instance created successfully");
+				return instance;
+			} else {
+				await instance.forceShutdown();
+				return null;
+			}
+		} catch (error) {
+			console.error("❌ [Telegram] Singleton creation failed:", error);
+			return null;
+		}
 	}
 
 	/**
-	 * Set up Telegram message handlers
+	 * Private constructor - use factory method
+	 */
+	private constructor(config: Partial<TelegramConfig>) {
+		console.log("🔧 [Telegram] Initializing adapter");
+
+		this.config = validateTelegramConfig(config);
+		this.singletonManager = TelegramSingletonManager.getInstance();
+		
+		this.connectionHealth = {
+			isConnected: false,
+			lastHealthCheck: 0,
+			consecutiveFailures: 0,
+		};
+	}
+
+	/**
+	 * Initialize with singleton lock
+	 */
+	private async initializeWithLock(): Promise<boolean> {
+		console.log("🔐 [Telegram] Acquiring singleton lock");
+
+		try {
+			// Acquire system-wide lock
+			const lockAcquired = await this.singletonManager.acquireLock(this.config);
+			if (!lockAcquired) {
+				console.error("❌ [Telegram] Failed to acquire singleton lock");
+				return false;
+			}
+
+			// Create bot instance through singleton manager
+			this.bot = await this.singletonManager.createBot(this.config);
+			if (!this.bot) {
+				console.error("❌ [Telegram] Failed to create bot instance");
+				await this.singletonManager.releaseLock();
+				return false;
+			}
+
+			// Setup message handlers
+			this.setupMessageHandlers();
+
+			// Start health monitoring
+			this.startHealthMonitoring();
+
+			// Update connection health
+			this.connectionHealth.isConnected = true;
+			this.connectionHealth.lastHealthCheck = Date.now();
+			this.connectionHealth.consecutiveFailures = 0;
+
+			console.log("✅ [Telegram] Initialization completed successfully");
+			return true;
+		} catch (error) {
+			console.error("❌ [Telegram] Initialization failed:", error);
+			this.connectionHealth.isConnected = false;
+			this.connectionHealth.lastError = error instanceof Error ? error.message : String(error);
+			return false;
+		}
+	}
+
+	/**
+	 * Setup Telegram message handlers
 	 */
 	private setupMessageHandlers(): void {
+		if (!this.bot) {
+			console.error("❌ [Telegram] No bot instance available for handlers");
+			return;
+		}
+
 		console.log("⚙️ [Telegram] Setting up message handlers");
 
-		// Text messages
+		// Main message handler
 		this.bot.on("message", this.handleTelegramMessage.bind(this));
-		console.log("📝 [Telegram] Text message handler registered");
-
+		
 		// Callback queries (button presses)
 		this.bot.on("callback_query", this.handleCallbackQuery.bind(this));
-		console.log("⌨️ [Telegram] Callback query handler registered");
-
-		// Photo messages
-		this.bot.on("photo", this.handlePhotoMessage.bind(this));
-		console.log("🖼️ [Telegram] Photo message handler registered");
-
-		// Document messages
-		this.bot.on("document", this.handleDocumentMessage.bind(this));
-		console.log("📄 [Telegram] Document message handler registered");
-
-		// Voice messages
-		this.bot.on("voice", this.handleVoiceMessage.bind(this));
-		console.log("🎤 [Telegram] Voice message handler registered");
-
-		// Audio messages
-		this.bot.on("audio", this.handleAudioMessage.bind(this));
-		console.log("🎵 [Telegram] Audio message handler registered");
-
-		// Video messages
-		this.bot.on("video", this.handleVideoMessage.bind(this));
-		console.log("🎬 [Telegram] Video message handler registered");
-
-		// Animation messages (GIFs)
-		this.bot.on("animation", this.handleAnimationMessage.bind(this));
-		console.log("🎨 [Telegram] Animation message handler registered");
-
-		// Sticker messages
-		this.bot.on("sticker", this.handleStickerMessage.bind(this));
-		console.log("張貼 [Telegram] Sticker message handler registered");
-
-		// Video note messages
-		this.bot.on("video_note", this.handleVideoNoteMessage.bind(this));
-		console.log("📹 [Telegram] Video note message handler registered");
 
 		// Error handling
 		this.bot.on("polling_error", (error: any) => {
 			console.error("❌ [Telegram] Polling error:", error);
+			this.handleConnectionError(error);
 		});
 
 		this.bot.on("webhook_error", (error: any) => {
 			console.error("❌ [Telegram] Webhook error:", error);
+			this.handleConnectionError(error);
 		});
 
-		console.log("✅ [Telegram] All message handlers set up");
+		console.log("✅ [Telegram] Message handlers configured");
 	}
 
 	/**
-	 * Normalize Telegram message to Mastra workflow format
-	 * Handles all message types according to Telegram Bot API specification
+	 * Handle Telegram message
 	 */
-	private normalizeMessage(telegramMessage: TelegramBot.Message): {
-		content: string;
-		contentType: string;
-		senderId: string;
-		timestamp: Date;
-		messageId: string;
-		chatId: string;
-		attachments?: Array<{
-			type: string;
-			url: string;
-			filename?: string;
-			fileId?: string;
-		}>;
-	} {
-		console.log("📝 [Telegram] Normalizing message", {
-			messageId: telegramMessage.message_id,
-			messageType: this.getMessageType(telegramMessage),
-			hasText: !!telegramMessage.text,
-			hasCaption: !!telegramMessage.caption,
-			hasPhoto: !!telegramMessage.photo,
-			hasDocument: !!telegramMessage.document,
-			hasAudio: !!telegramMessage.audio,
-			hasVideo: !!telegramMessage.video,
-			hasVoice: !!telegramMessage.voice,
-			hasSticker: !!telegramMessage.sticker,
-			hasContact: !!telegramMessage.contact,
-			hasLocation: !!telegramMessage.location,
-		});
-
-		// Determine content type and content text
-		let contentType = "text";
-		let content = "";
-
-		// Use caption for media messages if no text
-		const messageText = telegramMessage.text || telegramMessage.caption || "";
-
-		// Determine primary content type based on message content
-		if (telegramMessage.text) {
-			contentType = "text";
-			content = telegramMessage.text;
-		} else if (telegramMessage.photo) {
-			contentType = "image";
-			content = messageText || "[Image message]";
-		} else if (telegramMessage.document) {
-			contentType = "document";
-			content = messageText || "[Document message]";
-		} else if (telegramMessage.audio) {
-			contentType = "audio";
-			content = messageText || "[Audio message]";
-		} else if (telegramMessage.video) {
-			contentType = "video";
-			content = messageText || "[Video message]";
-		} else if (telegramMessage.animation) {
-			contentType = "animation";
-			content = messageText || "[Animation message]";
-		} else if (telegramMessage.voice) {
-			contentType = "voice";
-			content = messageText || "[Voice message]";
-		} else if (telegramMessage.video_note) {
-			contentType = "video_note";
-			content = "[Video note message]";
-		} else if (telegramMessage.sticker) {
-			contentType = "sticker";
-			content = messageText || "[Sticker message]";
-		} else if (telegramMessage.contact) {
-			contentType = "contact";
-			content = "[Contact message]";
-		} else if (telegramMessage.location) {
-			contentType = "location";
-			content = "[Location message]";
-		} else if (telegramMessage.venue) {
-			contentType = "venue";
-			content = "[Venue message]";
-		} else if (telegramMessage.poll) {
-			contentType = "poll";
-			content = "[Poll message]";
-		} else if (telegramMessage.dice) {
-			contentType = "dice";
-			content = "[Dice message]";
-		} else {
-			contentType = "unknown";
-			content = "[Unsupported message type]";
-		}
-
-		// Prepare attachments
-		let attachments:
-			| Array<{
-					type: string;
-					url: string;
-					filename?: string;
-					fileId?: string;
-			  }>
-			| undefined;
-
-		try {
-			// Note: We can't directly access bot token, so we'll use Telegram's file ID
-			// The actual file URL needs to be obtained through getFile API call
-			if (telegramMessage.photo) {
-				// Get the largest photo (last in array)
-				const photo = telegramMessage.photo[telegramMessage.photo.length - 1];
-				attachments = [
-					{
-						type: "photo",
-						// We'll need to get the actual file URL through bot.getFileLink(fileId)
-						url: photo.file_id, // Placeholder - will resolve actual URL when needed
-						filename: `telegram_photo_${photo.file_id}.jpg`,
-						fileId: photo.file_id,
-					},
-				];
-			} else if (telegramMessage.document) {
-				attachments = [
-					{
-						type: "document",
-						url: telegramMessage.document.file_id, // Placeholder
-						filename:
-							telegramMessage.document.file_name ||
-							`document_${telegramMessage.document.file_id}`,
-						fileId: telegramMessage.document.file_id,
-					},
-				];
-			} else if (telegramMessage.audio) {
-				attachments = [
-					{
-						type: "audio",
-						url: telegramMessage.audio.file_id, // Placeholder
-						filename: `audio_${telegramMessage.audio.file_id}`, // Audio doesn't have file_name
-						fileId: telegramMessage.audio.file_id,
-					},
-				];
-			} else if (telegramMessage.video) {
-				attachments = [
-					{
-						type: "video",
-						url: telegramMessage.video.file_id, // Placeholder
-						filename: `video_${telegramMessage.video.file_id}`, // Video doesn't have file_name
-						fileId: telegramMessage.video.file_id,
-					},
-				];
-			} else if (telegramMessage.animation) {
-				attachments = [
-					{
-						type: "animation",
-						url: telegramMessage.animation.file_id, // Placeholder
-						filename:
-							telegramMessage.animation.file_name ||
-							`animation_${telegramMessage.animation.file_id}`,
-						fileId: telegramMessage.animation.file_id,
-					},
-				];
-			} else if (telegramMessage.voice) {
-				attachments = [
-					{
-						type: "voice",
-						url: telegramMessage.voice.file_id, // Placeholder
-						fileId: telegramMessage.voice.file_id,
-					},
-				];
-			} else if (telegramMessage.video_note) {
-				attachments = [
-					{
-						type: "video_note",
-						url: telegramMessage.video_note.file_id, // Placeholder
-						fileId: telegramMessage.video_note.file_id,
-					},
-				];
-			} else if (telegramMessage.sticker) {
-				attachments = [
-					{
-						type: "sticker",
-						url: telegramMessage.sticker.file_id, // Placeholder
-						filename: `sticker_${telegramMessage.sticker.file_id}.webp`,
-						fileId: telegramMessage.sticker.file_id,
-					},
-				];
-			}
-		} catch (error) {
-			console.error("❌ [Telegram] Error preparing attachments:", error);
-		}
-
-		const normalized = {
-			content,
-			contentType,
-			senderId: telegramMessage.from?.id.toString() || "unknown",
-			timestamp: new Date(telegramMessage.date * 1000),
-			messageId: telegramMessage.message_id.toString(),
-			chatId: telegramMessage.chat.id.toString(),
-			attachments,
-		};
-
-		console.log("✅ [Telegram] Message normalized", {
-			contentType: normalized.contentType,
-			contentLength: normalized.content.length,
-			hasAttachments: !!normalized.attachments,
-			attachmentTypes: normalized.attachments?.map((a) => a.type) || [],
-		});
-
-		return normalized;
-	}
-
-	/**
-	 * Get actual file URL from Telegram file ID
-	 * @param fileId Telegram file ID
-	 * @returns Actual file URL
-	 */
-	private async getFileUrl(fileId: string): Promise<string> {
-		try {
-			// If it's already a full URL, return it as is
-			if (fileId.startsWith("http")) {
-				return fileId;
-			}
-
-			// Otherwise, it's a file ID, get the actual file path
-			const file = await this.bot.getFile(fileId);
-			if (!file.file_path) {
-				throw new Error("File path not available");
-			}
-
-			// Construct the full URL
-			return `https://api.telegram.org/file/bot${this.config.token}/${file.file_path}`;
-		} catch (error) {
-			console.error("❌ [Telegram] Error getting file URL:", error);
-			throw error;
-		}
-	}
-
-	/**
-	 * Helper method to determine message type
-	 */
-	private getMessageType(message: TelegramBot.Message): string {
-		if (message.text) return "text";
-		if (message.photo) return "photo";
-		if (message.document) return "document";
-		if (message.audio) return "audio";
-		if (message.video) return "video";
-		if (message.animation) return "animation";
-		if (message.voice) return "voice";
-		if (message.video_note) return "video_note";
-		if (message.sticker) return "sticker";
-		if (message.contact) return "contact";
-		if (message.location) return "location";
-		if (message.venue) return "venue";
-		if (message.poll) return "poll";
-		if (message.dice) return "dice";
-		return "unknown";
-	}
-
-	/**
-	 * Handle Telegram message through Mastra Workflow
-	 */
-	private async handleTelegramMessage(
-		telegramMessage: TelegramBot.Message,
-	): Promise<void> {
-		console.log("📥 [Telegram] Received message:", {
+	private async handleTelegramMessage(telegramMessage: TelegramBot.Message): Promise<void> {
+		console.log("📥 [Telegram] Processing message:", {
 			messageId: telegramMessage.message_id,
 			chatId: telegramMessage.chat.id,
-			from: {
-				id: telegramMessage.from?.id,
-				username: telegramMessage.from?.username,
-				firstName: telegramMessage.from?.first_name,
-			},
-			text: `${telegramMessage.text?.substring(0, 50)}...`,
-			timestamp: new Date(telegramMessage.date * 1000).toISOString(),
+			from: telegramMessage.from?.username || telegramMessage.from?.first_name,
 		});
 
-		// Ignore messages from bots
+		// Ignore bot messages
 		if (telegramMessage.from?.is_bot) {
 			console.log("🤖 [Telegram] Ignoring bot message");
 			return;
 		}
 
-		// Check if chat type is allowed
-		if (
-			this.config.allowedChatTypes &&
-			!this.config.allowedChatTypes.includes(telegramMessage.chat.type as any)
-		) {
-			console.log(
-				`🚫 [Telegram] Ignoring message from disallowed chat type: ${telegramMessage.chat.type}`,
-			);
-			return;
-		}
-
 		try {
-			// Normalize message using shared types
+			// Normalize message
 			const normalizedMessage = this.normalizeMessage(telegramMessage);
-			console.log("📝 [Telegram] Normalized message:", {
-				id: normalizedMessage.messageId,
-				senderId: normalizedMessage.senderId,
-				contentLength: normalizedMessage.content.length,
-				hasAttachments: !!normalizedMessage.attachments,
-			});
-
-			// Validate the message
+			
+			// Validate message
 			if (!this.validateMessage(normalizedMessage)) {
-				console.log("❌ [Telegram] Message validation failed");
-				await this.sendResponseViaBot(
+				await this.sendErrorMessage(
 					"Xin lỗi, tôi không thể xử lý tin nhắn của bạn. Vui lòng thử lại.",
-					telegramMessage,
+					telegramMessage
 				);
 				return;
 			}
 
-			console.log("✅ [Telegram] Message validation passed");
-
-			// Create standardized message format
+			// Create standardized message
 			const standardizedMessage = {
 				id: normalizedMessage.messageId,
 				content: normalizedMessage.content,
@@ -433,10 +209,9 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 				sender: {
 					id: normalizedMessage.senderId,
 					username: telegramMessage.from?.username,
-					displayName:
-						telegramMessage.from?.first_name ||
-						telegramMessage.from?.username ||
-						"Unknown User",
+					displayName: telegramMessage.from?.first_name || 
+					              telegramMessage.from?.username || 
+					              "Unknown User",
 				},
 				timestamp: normalizedMessage.timestamp,
 				channel: {
@@ -450,298 +225,159 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 				attachments: normalizedMessage.attachments,
 			};
 
-			console.log("🔄 [Telegram] Sending to central processor:", {
-				messageId: standardizedMessage.id,
-				channelId: standardizedMessage.channel.channelId,
-			});
+			// Process through message processor
+			const response = await messageProcessor.processMessage(standardizedMessage);
 
-			// Process through central message processor
-			const response =
-				await messageProcessor.processMessage(standardizedMessage);
-
-			console.log("📤 [Telegram] Received response from processor:", {
-				contentType: response.contentType,
-				contentLength: response.content.length,
-			});
-
-			// Transform response for Telegram
-			const telegramResponse = {
-				response: response.content,
-				contentType: response.contentType,
-				metadata: response.metadata,
-			};
-
-			await this.sendResponse(telegramResponse, telegramMessage);
-			console.log(`✅ [Telegram] Message processed and response sent`);
+			// Send response
+			await this.sendResponse(response, telegramMessage);
+			
+			// Update health on successful processing
+			this.updateHealthStatus(true);
+			
+			console.log("✅ [Telegram] Message processed successfully");
 		} catch (error) {
-			console.error(`❌ [Telegram] Error processing message:`, error);
-			await this.sendErrorResponse(error, telegramMessage);
+			console.error("❌ [Telegram] Message processing error:", error);
+			this.updateHealthStatus(false);
+			await this.sendErrorMessage(
+				"Xin lỗi, đã có lỗi xảy ra. Vui lòng thử lại sau.",
+				telegramMessage
+			);
 		}
 	}
 
 	/**
-	 * Send response back through Telegram
-	 * Handles various response types according to Telegram Bot API
+	 * Normalize Telegram message
 	 */
-	private async sendResponse(
-		response: any,
-		originalMessage: TelegramBot.Message,
-	): Promise<void> {
-		const chatId = originalMessage.chat.id.toString();
+	private normalizeMessage(telegramMessage: TelegramBot.Message): {
+		content: string;
+		contentType: string;
+		senderId: string;
+		timestamp: Date;
+		messageId: string;
+		chatId: string;
+		attachments?: any[];
+	} {
+		// Determine content type and content text
+		let contentType = "text";
+		let content = "";
 
-		if (!chatId) {
-			throw new Error("No chat ID found for Telegram response");
+		if (telegramMessage.text) {
+			contentType = "text";
+			content = telegramMessage.text;
+		} else if (telegramMessage.photo) {
+			contentType = "image";
+			content = telegramMessage.caption || "[Image message]";
+		} else if (telegramMessage.document) {
+			contentType = "document";
+			content = telegramMessage.caption || "[Document message]";
+		} else if (telegramMessage.audio) {
+			contentType = "audio";
+			content = telegramMessage.caption || "[Audio message]";
+		} else if (telegramMessage.video) {
+			contentType = "video";
+			content = telegramMessage.caption || "[Video message]";
+		} else if (telegramMessage.voice) {
+			contentType = "voice";
+			content = "[Voice message]";
+		} else if (telegramMessage.sticker) {
+			contentType = "sticker";
+			content = "[Sticker message]";
+		} else {
+			contentType = "unknown";
+			content = "[Unsupported message type]";
+		}
+		
+		return {
+			content,
+			contentType,
+			senderId: telegramMessage.from?.id.toString() || "unknown",
+			timestamp: new Date(telegramMessage.date * 1000),
+			messageId: telegramMessage.message_id.toString(),
+			chatId: telegramMessage.chat.id.toString(),
+		};
+	}
+
+	/**
+	 * Get message type
+	 */
+	private getMessageType(message: TelegramBot.Message): string {
+		if (message.text) return "text";
+		if (message.photo) return "photo";
+		if (message.document) return "document";
+		if (message.audio) return "audio";
+		if (message.video) return "video";
+		if (message.voice) return "voice";
+		if (message.sticker) return "sticker";
+		return "unknown";
+	}
+
+	/**
+	 * Validate message
+	 */
+	private validateMessage(message: any): boolean {
+		return message.content && 
+		       message.content.trim().length > 0 && 
+		       message.senderId !== "unknown" &&
+		       message.content.length <= 4096;
+	}
+
+	/**
+	 * Send response back to Telegram
+	 */
+	private async sendResponse(response: any, originalMessage: TelegramBot.Message): Promise<void> {
+		if (!this.bot) {
+			throw new Error("No bot instance available");
 		}
 
-		console.log("📤 [Telegram] Sending response to chat", {
-			chatId,
-			contentType: response.contentType,
-			contentLength: response.response?.length || response.text?.length,
-		});
+		const chatId = originalMessage.chat.id.toString();
+		const messageText = response.response || response.text || "Sorry, no response available.";
 
 		try {
-			// Handle different response types
-			if (
-				response.contentType === "quick_reply" &&
-				response.quickReplies &&
-				response.quickReplies.length > 0
-			) {
-				console.log("⌨️ [Telegram] Sending quick reply buttons");
-				// Send message with quick replies (inline keyboard)
-				const keyboard = {
-					inline_keyboard: response.quickReplies.map((reply: any) => [
-						{ text: reply.title, callback_data: reply.payload },
-					]),
-				};
-
-				await this.bot.sendMessage(chatId, response.response || response.text, {
-					reply_markup: keyboard,
+			// Try Markdown first, fallback to plain text
+			try {
+				await this.bot.sendMessage(chatId, messageText, {
+					parse_mode: "Markdown",
+					reply_to_message_id: originalMessage.message_id,
 				});
-			} else if (
-				response.contentType === "image" &&
-				response.attachments &&
-				response.attachments.length > 0
-			) {
-				console.log("🖼️ [Telegram] Sending image response");
-				// Send image with caption
-				const fileIdOrUrl = response.attachments[0].url;
-				try {
-					// Try to get actual file link if it's a file ID
-					const actualUrl = await this.getFileUrl(fileIdOrUrl);
-					await this.bot.sendPhoto(chatId, actualUrl, {
-						caption: response.response || response.text,
-					});
-				} catch (_error) {
-					// If it's already a URL, send it directly
-					await this.bot.sendPhoto(chatId, fileIdOrUrl, {
-						caption: response.response || response.text,
-					});
-				}
-			} else if (
-				response.contentType === "document" &&
-				response.attachments &&
-				response.attachments.length > 0
-			) {
-				console.log("📄 [Telegram] Sending document response");
-				// Send document with caption
-				const fileIdOrUrl = response.attachments[0].url;
-				try {
-					// Try to get actual file link if it's a file ID
-					const actualUrl = await this.getFileUrl(fileIdOrUrl);
-					await this.bot.sendDocument(chatId, actualUrl, {
-						caption: response.response || response.text,
-					});
-				} catch (_error) {
-					// If it's already a URL, send it directly
-					await this.bot.sendDocument(chatId, fileIdOrUrl, {
-						caption: response.response || response.text,
-					});
-				}
-			} else if (
-				response.contentType === "audio" &&
-				response.attachments &&
-				response.attachments.length > 0
-			) {
-				console.log("🎵 [Telegram] Sending audio response");
-				// Send audio with caption
-				const fileIdOrUrl = response.attachments[0].url;
-				try {
-					// Try to get actual file link if it's a file ID
-					const actualUrl = await this.getFileUrl(fileIdOrUrl);
-					await this.bot.sendAudio(chatId, actualUrl, {
-						caption: response.response || response.text,
-					});
-				} catch (_error) {
-					// If it's already a URL, send it directly
-					await this.bot.sendAudio(chatId, fileIdOrUrl, {
-						caption: response.response || response.text,
-					});
-				}
-			} else if (
-				response.contentType === "video" &&
-				response.attachments &&
-				response.attachments.length > 0
-			) {
-				console.log("🎬 [Telegram] Sending video response");
-				// Send video with caption
-				const fileIdOrUrl = response.attachments[0].url;
-				try {
-					// Try to get actual file link if it's a file ID
-					const actualUrl = await this.getFileUrl(fileIdOrUrl);
-					await this.bot.sendVideo(chatId, actualUrl, {
-						caption: response.response || response.text,
-					});
-				} catch (_error) {
-					// If it's already a URL, send it directly
-					await this.bot.sendVideo(chatId, fileIdOrUrl, {
-						caption: response.response || response.text,
-					});
-				}
-			} else {
-				// Default text message
-				const messageText =
-					response.response ||
-					response.text ||
-					"Xin lỗi, tôi không thể xử lý yêu cầu của bạn.";
-				console.log("💬 [Telegram] Sending text response", {
-					textLength: messageText.length,
+			} catch (_markdownError) {
+				await this.bot.sendMessage(chatId, messageText, {
+					reply_to_message_id: originalMessage.message_id,
 				});
-
-				// Try to send as Markdown first, fallback to plain text if it fails
-				try {
-					await this.bot.sendMessage(chatId, messageText, {
-						parse_mode: "Markdown",
-						reply_to_message_id: originalMessage.message_id,
-					});
-				} catch (_markdownError) {
-					console.log(
-						"⚠️ [Telegram] Markdown parsing failed, sending as plain text",
-					);
-					await this.bot.sendMessage(chatId, messageText, {
-						reply_to_message_id: originalMessage.message_id,
-					});
-				}
 			}
 
-			console.log(`✅ [Telegram] Response sent successfully to chat ${chatId}`);
+			console.log("📤 [Telegram] Response sent successfully");
 		} catch (error) {
-			console.error(
-				`❌ [Telegram] Error sending response to chat ${chatId}:`,
-				error,
-			);
+			console.error("❌ [Telegram] Failed to send response:", error);
 			throw error;
 		}
 	}
 
 	/**
-	 * Send response via Telegram bot (simplified)
+	 * Send error message
 	 */
-	private async sendResponseViaBot(
-		message: string,
-		originalMessage: TelegramBot.Message,
-	): Promise<void> {
-		const chatId = originalMessage.chat.id.toString();
+	private async sendErrorMessage(message: string, originalMessage: TelegramBot.Message): Promise<void> {
+		if (!this.bot) {
+			return;
+		}
+
 		try {
-			await this.bot.sendMessage(chatId, message, {
-				parse_mode: "Markdown",
-				reply_to_message_id: originalMessage.message_id,
-			});
+			await this.bot.sendMessage(originalMessage.chat.id, message);
 		} catch (error) {
-			console.error("❌ Failed to send Telegram response:", error);
+			console.error("❌ [Telegram] Failed to send error message:", error);
 		}
 	}
 
 	/**
-	 * Handle photo messages
+	 * Handle callback queries
 	 */
-	private async handlePhotoMessage(photo: TelegramBot.Message): Promise<void> {
-		console.log("📸 [Telegram] Received photo message");
-		// Process photo message directly
-		await this.handleTelegramMessage(photo);
-	}
-
-	/**
-	 * Handle document messages
-	 */
-	private async handleDocumentMessage(
-		document: TelegramBot.Message,
-	): Promise<void> {
-		console.log("📄 [Telegram] Received document message");
-		// Process document message directly
-		await this.handleTelegramMessage(document);
-	}
-
-	/**
-	 * Handle voice messages
-	 */
-	private async handleVoiceMessage(voice: TelegramBot.Message): Promise<void> {
-		console.log("🎤 [Telegram] Received voice message");
-		// Process voice message directly
-		await this.handleTelegramMessage(voice);
-	}
-
-	/**
-	 * Handle audio messages
-	 */
-	private async handleAudioMessage(audio: TelegramBot.Message): Promise<void> {
-		console.log("🎵 [Telegram] Received audio message");
-		// Process audio message directly
-		await this.handleTelegramMessage(audio);
-	}
-
-	/**
-	 * Handle video messages
-	 */
-	private async handleVideoMessage(video: TelegramBot.Message): Promise<void> {
-		console.log("🎬 [Telegram] Received video message");
-		// Process video message directly
-		await this.handleTelegramMessage(video);
-	}
-
-	/**
-	 * Handle animation messages (GIFs)
-	 */
-	private async handleAnimationMessage(
-		animation: TelegramBot.Message,
-	): Promise<void> {
-		console.log("🎨 [Telegram] Received animation message");
-		// Process animation message directly
-		await this.handleTelegramMessage(animation);
-	}
-
-	/**
-	 * Handle sticker messages
-	 */
-	private async handleStickerMessage(
-		sticker: TelegramBot.Message,
-	): Promise<void> {
-		console.log("張貼 [Telegram] Received sticker message");
-		// Process sticker message directly
-		await this.handleTelegramMessage(sticker);
-	}
-
-	/**
-	 * Handle video note messages
-	 */
-	private async handleVideoNoteMessage(
-		videoNote: TelegramBot.Message,
-	): Promise<void> {
-		console.log("📹 [Telegram] Received video note message");
-		// Process video note message directly
-		await this.handleTelegramMessage(videoNote);
-	}
-
-	/**
-	 * Handle callback queries (button presses)
-	 */
-	private async handleCallbackQuery(
-		callbackQuery: TelegramBot.CallbackQuery,
-	): Promise<void> {
+	private async handleCallbackQuery(callbackQuery: TelegramBot.CallbackQuery): Promise<void> {
 		try {
-			// Acknowledge the callback
-			await this.bot.answerCallbackQuery(callbackQuery.id);
+			// Acknowledge callback
+			if (this.bot) {
+				await this.bot.answerCallbackQuery(callbackQuery.id);
+			}
 
-			// Create a synthetic message for the callback
+			// Create synthetic message if needed
 			if (callbackQuery.message) {
 				const syntheticMessage: TelegramBot.Message = {
 					...callbackQuery.message,
@@ -752,147 +388,234 @@ export class TelegramChannelAdapter implements ChannelAdapter {
 				await this.handleTelegramMessage(syntheticMessage);
 			}
 		} catch (error) {
-			console.error("❌ Error handling Telegram callback query:", error);
+			console.error("❌ [Telegram] Callback query error:", error);
 		}
 	}
 
 	/**
-	 * Send error response
+	 * Start health monitoring
 	 */
-	private async sendErrorResponse(
-		error: any,
-		originalMessage: TelegramBot.Message,
-	): Promise<void> {
+	private startHealthMonitoring(): void {
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+		}
+
+		this.healthCheck = setInterval(async () => {
+			await this.performHealthCheck();
+		}, this.HEALTH_CHECK_INTERVAL);
+
+		console.log("💓 [Telegram] Health monitoring started");
+	}
+
+	/**
+	 * Perform health check
+	 */
+	private async performHealthCheck(): Promise<void> {
 		try {
-			const chatId = originalMessage.chat.id.toString();
-			await this.bot.sendMessage(
-				chatId,
-				`Sorry, I encountered an error: ${error instanceof Error ? error.message : String(error)}`,
-			);
-		} catch (sendError) {
-			console.error("❌ Failed to send error response:", sendError);
-		}
-	}
+			if (!this.bot || this._isShutdown) {
+				return;
+			}
 
-	/**
-	 * Validate message before processing
-	 */
-	private validateMessage(message: {
-		content: string;
-		senderId: string;
-		timestamp: Date;
-		messageId: string;
-		chatId: string;
-	}): boolean {
-		console.log("🔍 [Telegram] Validating message", {
-			messageId: message.messageId,
-			senderId: message.senderId,
-			contentLength: message.content.length,
-		});
-
-		// Check if message content is not empty
-		if (!message.content || message.content.trim().length === 0) {
-			console.log("❌ [Telegram] Message validation failed: Empty content");
-			return false;
-		}
-
-		// Check if sender information is present
-		if (!message.senderId || message.senderId === "unknown") {
-			console.log("❌ [Telegram] Message validation failed: Missing sender ID");
-			return false;
-		}
-
-		// Check message length against channel limits (Telegram limit: 4096)
-		if (message.content.length > 4096) {
-			console.log("❌ [Telegram] Message validation failed: Message too long", {
-				length: message.content.length,
-				limit: 4096,
-			});
-			return false;
-		}
-
-		console.log("✅ [Telegram] Message validation passed");
-		return true;
-	}
-
-	/**
-	 * Cleanup method for graceful shutdown
-	 */
-	async shutdown(): Promise<void> {
-		// Check if already shutdown
-		if (this._isShutdown) {
-			console.log("⚠️ [Telegram] Adapter already shut down, skipping...");
-			return;
-		}
-
-		console.log("🛑 [Telegram] Shutting down adapter...");
-		try {
-			// Stop polling
-			this.bot.stopPolling();
-
-			// Delete webhook if exists
-			await this.bot.deleteWebHook();
-
-			// Mark as shutdown
-			this._isShutdown = true;
-
-			console.log("✅ [Telegram] Adapter shut down successfully");
+			// Test connection
+			await this.bot.getMe();
+			
+			// Update health status
+			this.updateHealthStatus(true);
+			
+			console.log("💓 [Telegram] Health check passed");
 		} catch (error) {
-			console.error("❌ [Telegram] Error shutting down adapter:", error);
-			// Still mark as shutdown to prevent repeated attempts
-			this._isShutdown = true;
+			console.error("❌ [Telegram] Health check failed:", error);
+			this.updateHealthStatus(false);
+			
+			// Trigger reconnection if too many failures
+			if (this.connectionHealth.consecutiveFailures >= this.MAX_CONSECUTIVE_FAILURES) {
+				console.error("🚨 [Telegram] Too many failures, attempting reconnection");
+				await this.attemptReconnection();
+			}
 		}
 	}
 
 	/**
-	 * Handle incoming message - implements ChannelAdapter interface
+	 * Update health status
+	 */
+	private updateHealthStatus(success: boolean): void {
+		this.connectionHealth.lastHealthCheck = Date.now();
+		
+		if (success) {
+			this.connectionHealth.isConnected = true;
+			this.connectionHealth.consecutiveFailures = 0;
+			delete this.connectionHealth.lastError;
+		} else {
+			this.connectionHealth.isConnected = false;
+			this.connectionHealth.consecutiveFailures++;
+		}
+	}
+
+	/**
+	 * Handle connection errors
+	 */
+	private handleConnectionError(error: any): void {
+		console.error("🚨 [Telegram] Connection error:", error);
+		
+		this.connectionHealth.lastError = error instanceof Error ? error.message : String(error);
+		this.updateHealthStatus(false);
+
+		// Critical error - shutdown
+		if (error?.code === "EFATAL" || error?.message?.includes("401")) {
+			console.error("💥 [Telegram] Critical error - shutting down");
+			this.shutdown().catch(console.error);
+		}
+	}
+
+	/**
+	 * Attempt reconnection
+	 */
+	private async attemptReconnection(): Promise<void> {
+		console.log("🔄 [Telegram] Attempting reconnection");
+
+		try {
+			// Wait before reconnection
+			await new Promise(resolve => setTimeout(resolve, 30000)); // 30 seconds
+
+			// Shutdown current bot
+			if (this.bot) {
+				try {
+					this.bot.stopPolling();
+					await this.bot.deleteWebHook();
+				} catch (error) {
+					console.warn("⚠️ [Telegram] Error during bot cleanup:", error);
+				}
+			}
+
+			// Create new bot through singleton manager
+			this.bot = await this.singletonManager.createBot(this.config);
+			
+			if (this.bot) {
+				this.setupMessageHandlers();
+				this.updateHealthStatus(true);
+				console.log("✅ [Telegram] Reconnection successful");
+			} else {
+				throw new Error("Failed to create new bot instance");
+			}
+		} catch (error) {
+			console.error("❌ [Telegram] Reconnection failed:", error);
+			this.updateHealthStatus(false);
+		}
+	}
+
+	/**
+	 * Check if adapter is healthy
+	 */
+	isHealthy(): boolean {
+		return this.connectionHealth.isConnected && 
+		       this.connectionHealth.consecutiveFailures < this.MAX_CONSECUTIVE_FAILURES;
+	}
+
+	/**
+	 * Check if adapter is shutdown
+	 */
+	isShutdown(): boolean {
+		return this._isShutdown;
+	}
+
+	/**
+	 * Get health status
+	 */
+	getHealthStatus(): ConnectionHealth {
+		return { ...this.connectionHealth };
+	}
+
+	/**
+	 * Handle incoming message (interface implementation)
 	 */
 	async handleMessage(rawMessage: any): Promise<void> {
-		// This method would be called by the registry or webhook handler
-		// For polling-based Telegram, messages are handled automatically
-		// But we implement it for consistency with the interface
-		console.log("📥 Handling Telegram message:", rawMessage);
-
 		if (rawMessage && typeof rawMessage === "object" && rawMessage.message_id) {
 			await this.handleTelegramMessage(rawMessage);
 		}
 	}
 
 	/**
-	 * Get bot information
+	 * Direct message sending (for holding messages)
 	 */
-	async getBotInfo(): Promise<TelegramBot.User> {
-		return await this.bot.getMe();
-	}
+	async sendMessage(chatId: string, message: string): Promise<boolean> {
+		if (!this.bot) {
+			return false;
+		}
 
-	/**
-	 * Set webhook (if using webhooks instead of polling)
-	 */
-	async setWebhook(url: string): Promise<boolean> {
-		return await this.bot.setWebHook(url);
-	}
-
-	/**
-	 * Delete webhook
-	 */
-	async deleteWebhook(): Promise<boolean> {
-		return await this.bot.deleteWebHook();
-	}
-
-	/**
-	 * Send message directly to Telegram chat
-	 * For holding messages during parallel processing
-	 */
-	public async sendMessage(chatId: string, message: string): Promise<boolean> {
 		try {
 			await this.bot.sendMessage(chatId, message, {
 				parse_mode: "Markdown",
 			});
-			console.log(`✅ [Telegram] Direct message sent to ${chatId}`);
 			return true;
 		} catch (error) {
-			console.error(`❌ [Telegram] Failed to send direct message:`, error);
+			console.error("❌ [Telegram] Direct send failed:", error);
 			return false;
 		}
+	}
+
+	/**
+	 * Force shutdown (immediate cleanup)
+	 */
+	async forceShutdown(): Promise<void> {
+		console.log("💥 [Telegram] Force shutdown initiated");
+		this._isShutdown = true;
+		
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+			this.healthCheck = null;
+		}
+		
+		if (this.bot) {
+			try {
+				this.bot.stopPolling();
+			} catch (error) {
+				console.warn("⚠️ [Telegram] Force stop polling error:", error);
+			}
+		}
+		
+		await this.singletonManager.releaseLock();
+		
+		if (TelegramChannelAdapter.globalInstance === this) {
+			TelegramChannelAdapter.globalInstance = null;
+		}
+		
+		this.bot = null;
+		this.connectionHealth.isConnected = false;
+	}
+
+	/**
+	 * Graceful shutdown
+	 */
+	async shutdown(): Promise<void> {
+		if (this._isShutdown) {
+			return;
+		}
+
+		console.log("🛑 [Telegram] Graceful shutdown");
+		this._isShutdown = true;
+
+		if (this.healthCheck) {
+			clearInterval(this.healthCheck);
+			this.healthCheck = null;
+		}
+
+		if (this.bot) {
+			try {
+				this.bot.stopPolling();
+				await this.bot.deleteWebHook();
+			} catch (error) {
+				console.warn("⚠️ [Telegram] Shutdown cleanup error:", error);
+			}
+		}
+
+		await this.singletonManager.releaseLock();
+
+		if (TelegramChannelAdapter.globalInstance === this) {
+			TelegramChannelAdapter.globalInstance = null;
+		}
+
+		this.bot = null;
+		this.connectionHealth.isConnected = false;
+		console.log("✅ [Telegram] Shutdown completed");
 	}
 }
