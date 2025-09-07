@@ -1,0 +1,458 @@
+{
+  "products": {
+    "barebones": [
+      {
+        "sku": "H6312",
+        "name": "Barebone H6312",
+        "price": 6500000,
+        "warranty": "1 year",
+        "description": "Barebone cơ bản, lý tưởng cho các tác vụ văn phòng, học tập và giải trí nhẹ. Một khởi đầu tuyệt vời để xây dựng chiếc PC của riêng bạn.",
+        "tags": ["entry-level", "office", "learning", "entertainment"],
+        "components": {
+          "motherboard": {
+            "chipset": "H610",
+            "socket": "LGA 1700"
+          },
+          "powerSupply": {
+            "wattage": 300
+          }
+        },
+        "connectivity": {
+          "displayOutput": ["HDMI", "VGA", "Display Port"],
+          "usb": [
+            { "version": "3.2", "location": "Rear", "count": 2 },
+            { "version": "2.0", "location": "Rear", "count": 2 },
+            { "version": "3.1", "location": "Front", "count": 2 },
+            { "version": "2.0", "location": "Front", "count": 2 }
+          ],
+          "audio": { "channels": "6 kênh", "ports": "3 x 3.5\" Audio (Rear)" },
+          "network": { "speedMbps": 1000 }
+        },
+        "compatibility": {
+          "cpu": ["12100", "12100F"],
+          "ram": {
+            "type": "DDR4",
+            "formFactor": "UDIMM",
+            "slots": 2,
+            "maxCapacityGB": 64
+          },
+          "ssd": ["SATA", "M.2 NVMe PCIe 3.0"]
+        }
+      },
+      {
+        "sku": "H6512",
+        "name": "Barebone H6512",
+        "price": 7500000,
+        "warranty": "2 years",
+        "description": "Barebone tầm trung với nhiều cổng kết nối hơn, phù hợp cho đa nhiệm và giải trí.",
+        "tags": ["mid-range", "office", "learning", "entertainment", "multitasking"],
+        "components": {
+          "motherboard": {
+            "chipset": "H610",
+            "socket": "LGA 1700"
+          },
+          "powerSupply": {
+            "wattage": 400
+          }
+        },
+        "connectivity": {
+          "displayOutput": ["HDMI", "VGA", "Display Port"],
+          "usb": [
+            { "version": "3.2", "location": "Rear", "count": 4 },
+            { "version": "2.0", "location": "Rear", "count": 2 },
+            { "version": "3.1", "location": "Front", "count": 2 },
+            { "version": "2.0", "location": "Front", "count": 2 }
+          ],
+          "audio": { "channels": "6 kênh", "ports": "3 x 3.5\" Audio (Rear)" },
+          "network": { "speedMbps": 1000 }
+        },
+        "compatibility": {
+          "cpu": ["12400", "12400F"],
+          "ram": {
+            "type": "DDR4",
+            "formFactor": "UDIMM",
+            "slots": 2,
+            "maxCapacityGB": 64
+          },
+          "ssd": ["SATA", "M.2 NVMe PCIe 3.0"]
+        }
+      },
+      {
+        "sku": "B7312",
+        "name": "Barebone B7312",
+        "price": 7000000,
+        "warranty": "1 year",
+        "description": "Barebone linh hoạt với nhiều cổng kết nối, phù hợp cho mọi nhu cầu hàng ngày.",
+        "tags": ["entry-level", "office", "learning", "entertainment", "versatile"],
+        "components": {
+          "motherboard": {
+            "chipset": "B760",
+            "socket": "LGA 1700"
+          },
+          "powerSupply": {
+            "wattage": 300
+          }
+        },
+        "connectivity": {
+            "displayOutput": ["HDMI", "VGA", "Display Port"],
+            "usb": [
+              { "version": "3.2", "location": "Rear", "count": 4 },
+              { "version": "2.0", "location": "Rear", "count": 2 },
+              { "version": "3.1", "location": "Front", "count": 2 },
+              { "version": "2.0", "location": "Front", "count": 2 }
+            ],
+            "audio": { "channels": "6 kênh", "ports": "3 x 3.5\" Audio (Rear)" },
+            "network": { "speedMbps": 1000 }
+        },
+        "compatibility": {
+            "cpu": ["12100", "12100F"],
+            "ram": {
+              "type": "DDR4",
+              "formFactor": "UDIMM",
+              "slots": 4,
+              "maxCapacityGB": 128
+            },
+            "ssd": ["SATA", "M.2 NVMe PCIe 3.0", "M.2 NVMe PCIe 4.0"]
+        }
+      },
+      {
+        "sku": "B7512",
+        "name": "Barebone B7512",
+        "price": 8000000,
+        "warranty": "2 years",
+        "description": "Barebone cao cấp, lý tưởng cho gaming và công việc chuyên nghiệp.",
+        "tags": ["high-end", "office", "learning", "entertainment", "gaming", "professional"],
+        "components": {
+          "motherboard": {
+            "chipset": "B760",
+            "socket": "LGA 1700"
+          },
+          "powerSupply": {
+            "wattage": 400
+          }
+        },
+        "connectivity": {
+          "displayOutput": ["HDMI", "VGA", "Display Port"],
+          "usb": [
+            { "version": "3.2", "location": "Rear", "count": 4 },
+            { "version": "2.0", "location": "Rear", "count": 2 },
+            { "version": "3.1", "location": "Front", "count": 2 },
+            { "version": "2.0", "location": "Front", "count": 2 }
+          ],
+          "audio": { "channels": "6 kênh", "ports": "3 x 3.5\" Audio (Rear)" },
+          "network": { "speedMbps": 1000 }
+        },
+        "compatibility": {
+          "cpu": ["12400", "12400F", "12700", "12700F"],
+          "ram": {
+            "type": "DDR4",
+            "formFactor": "UDIMM",
+            "slots": 4,
+            "maxCapacityGB": 128
+          },
+          "ssd": ["SATA", "M.2 NVMe PCIe 3.0", "M.2 NVMe PCIe 4.0"]
+        }
+      },
+      {
+        "sku": "B7712",
+        "name": "Barebone B7712",
+        "price": 10000000,
+        "warranty": "3 years",
+        "description": "Barebone đầu bảng, hiệu năng vượt trội, hoàn hảo cho sáng tạo và gaming chuyên nghiệp.",
+        "tags": ["flagship", "office", "learning", "entertainment", "gaming", "professional", "creators"],
+        "components": {
+          "motherboard": {
+            "chipset": "B760",
+            "socket": "LGA 1700"
+          },
+          "powerSupply": {
+            "wattage": 500
+          }
+        },
+        "connectivity": {
+          "displayOutput": ["HDMI", "VGA", "Display Port"],
+          "usb": [
+            { "version": "3.2", "location": "Rear", "count": 4 },
+            { "version": "2.0", "location": "Rear", "count": 2 },
+            { "version": "3.1", "location": "Front", "count": 2 },
+            { "version": "2.0", "location": "Front", "count": 2 }
+          ],
+          "audio": { "channels": "6 kênh", "ports": "3 x 3.5\" Audio (Rear)" },
+          "network": { "speedMbps": 1000 }
+        },
+        "compatibility": {
+          "cpu": ["12700", "12700F"],
+          "ram": {
+            "type": "DDR5",
+            "formFactor": "UDIMM",
+            "slots": 4,
+            "maxCapacityGB": 128
+          },
+          "ssd": ["SATA", "M.2 NVMe PCIe 3.0", "M.2 NVMe PCIe 4.0"]
+        }
+      }
+    ],
+    "cpus": [
+      {
+        "sku": "12100",
+        "name": "Intel Core i3 12100",
+        "price": 3000000,
+        "warranty": "3 years",
+        "tags": ["office", "light-gaming", "web-browsing"],
+        "specs": {
+          "baseClockGHz": 3.3,
+          "boostClockGHz": 4.3,
+          "cores": 4,
+          "threads": 8,
+          "integratedGraphics": true,
+          "tdpWatts": 58,
+          "socket": "LGA 1700",
+          "cacheMB": 12
+        }
+      },
+      {
+        "sku": "12100F",
+        "name": "Intel Core i3 12100F",
+        "price": 2500000,
+        "warranty": "3 years",
+        "tags": ["budget-gaming", "requires-gpu"],
+        "specs": {
+          "baseClockGHz": 3.3,
+          "boostClockGHz": 4.3,
+          "cores": 4,
+          "threads": 8,
+          "integratedGraphics": false,
+          "tdpWatts": 58,
+          "socket": "LGA 1700",
+          "cacheMB": 12
+        }
+      },
+      {
+        "sku": "12400",
+        "name": "Intel Core i5 12400",
+        "price": 4900000,
+        "warranty": "3 years",
+        "tags": ["gaming-1080p", "multitasking", "content-creation"],
+        "specs": {
+          "baseClockGHz": 2.5,
+          "boostClockGHz": 4.4,
+          "cores": 6,
+          "threads": 12,
+          "integratedGraphics": true,
+          "tdpWatts": 65,
+          "socket": "LGA 1700",
+          "cacheMB": 18
+        }
+      },
+      {
+        "sku": "12400F",
+        "name": "Intel Core i5 12400F",
+        "price": 4200000,
+        "warranty": "3 years",
+        "tags": ["gaming-1080p", "multitasking", "requires-gpu"],
+        "specs": {
+          "baseClockGHz": 2.5,
+          "boostClockGHz": 4.4,
+          "cores": 6,
+          "threads": 12,
+          "integratedGraphics": false,
+          "tdpWatts": 65,
+          "socket": "LGA 1700",
+          "cacheMB": 18
+        }
+      },
+      {
+        "sku": "12700",
+        "name": "Intel Core i7 12700",
+        "price": 7000000,
+        "warranty": "3 years",
+        "tags": ["gaming-1440p", "heavy-multitasking", "professional-work"],
+        "specs": {
+          "baseClockGHz": 2.1,
+          "boostClockGHz": 4.9,
+          "cores": 12,
+          "threads": 20,
+          "integratedGraphics": true,
+          "tdpWatts": 65,
+          "socket": "LGA 1700",
+          "cacheMB": 25
+        }
+      },
+      {
+        "sku": "12700F",
+        "name": "Intel Core i7 12700F",
+        "price": 6000000,
+        "warranty": "3 years",
+        "tags": ["gaming-1440p", "heavy-multitasking", "requires-gpu"],
+        "specs": {
+          "baseClockGHz": 2.1,
+          "boostClockGHz": 4.9,
+          "cores": 12,
+          "threads": 20,
+          "integratedGraphics": false,
+          "tdpWatts": 65,
+          "socket": "LGA 1700",
+          "cacheMB": 25
+        }
+      }
+    ],
+    "rams": [
+      {
+        "model": "U3200I-C22",
+        "name": "RAM DDR4 3200MHz UDIMM (Intel)",
+        "warranty": "1 year",
+        "tags": ["desktop", "intel-optimized"],
+        "specs": {
+          "type": "DDR4",
+          "speedMHz": 3200,
+          "formFactor": "UDIMM",
+          "latency": "CL22",
+          "voltage": "1.2V"
+        },
+        "variants": [
+          { "sku": "U3200I-C22-8G", "capacityGB": 8, "modules": 1, "price": 450000 },
+          { "sku": "U3200I-C22-8GX2", "capacityGB": 16, "modules": 2, "price": 900000 },
+          { "sku": "U3200I-C22-16G", "capacityGB": 16, "modules": 1, "price": 800000 },
+          { "sku": "U3200I-C22-16GX2", "capacityGB": 32, "modules": 2, "price": 1600000 },
+          { "sku": "U3200I-C22-32G", "capacityGB": 32, "modules": 1, "price": 1700000 },
+          { "sku": "U3200I-C22-32GX2", "capacityGB": 64, "modules": 2, "price": 3400000 }
+        ]
+      },
+      {
+        "model": "U5600-C40",
+        "name": "RAM DDR5 5600MHz UDIMM",
+        "warranty": "3 years",
+        "tags": ["desktop", "next-gen", "high-performance"],
+        "specs": {
+          "type": "DDR5",
+          "speedMHz": 5600,
+          "formFactor": "UDIMM",
+          "latency": "CL40",
+          "voltage": "1.1V"
+        },
+        "variants": [
+           { "sku": "U5600-C40-8G", "capacityGB": 8, "modules": 1, "price": 450000 },
+           { "sku": "U5600-C40-16G", "capacityGB": 16, "modules": 1, "price": 800000 },
+           { "sku": "U5600-C40-32G", "capacityGB": 32, "modules": 1, "price": 1700000 }
+        ]
+      }
+    ],
+    "ssds": [
+      {
+        "model": "M110",
+        "name": "SSD M110 SATA III",
+        "warranty": "3 years",
+        "tags": ["budget", "sata", "storage"],
+        "specs": {
+          "formFactor": "2.5 inch",
+          "interface": "SATA"
+        },
+        "variants": [
+          { "sku": "M110-256Q", "capacityGB": 256, "price": 450000, "readSpeedMBs": 550, "writeSpeedMBs": 530 },
+          { "sku": "M110-512Q", "capacityGB": 512, "price": 800000, "readSpeedMBs": 550, "writeSpeedMBs": 530 }
+        ]
+      },
+      {
+        "model": "E130",
+        "name": "SSD E130 M.2 NVMe PCIe 3.0",
+        "warranty": "5 years",
+        "tags": ["gaming", "nvme", "pcie3"],
+        "specs": {
+          "formFactor": "M.2 2280",
+          "interface": "M.2 NVMe PCIe 3.0"
+        },
+        "variants": [
+          { "sku": "E130-256T", "capacityGB": 256, "price": 550000, "readSpeedMBs": 3000, "writeSpeedMBs": 2200 },
+          { "sku": "E130-512Q", "capacityGB": 512, "price": 900000, "readSpeedMBs": 3200, "writeSpeedMBs": 1200 }
+        ]
+      },
+      {
+        "model": "E130 Plus",
+        "name": "SSD E130 Plus M.2 NVMe PCIe 3.0",
+        "warranty": "5 years",
+        "tags": ["high-performance", "nvme", "pcie3", "content-creation"],
+        "specs": {
+          "formFactor": "M.2 2280",
+          "interface": "M.2 NVMe PCIe 3.0"
+        },
+        "variants": [
+           { "sku": "E130P-256T", "capacityGB": 256, "price": 600000, "readSpeedMBs": 3200, "writeSpeedMBs": 2600 },
+           { "sku": "E130P-512T", "capacityGB": 512, "price": 1000000, "readSpeedMBs": 3500, "writeSpeedMBs": 2800 }
+        ]
+      },
+      {
+        "model": "MAX IV",
+        "name": "SSD MAX IV M.2 NVMe PCIe 4.0",
+        "warranty": "5 years",
+        "tags": ["ultra-fast", "nvme", "pcie4", "4k-gaming", "professional"],
+        "specs": {
+          "formFactor": "M.2 2280",
+          "interface": "M.2 NVMe PCIe 4.0"
+        },
+        "variants": [
+          { "sku": "MAX IV-1T", "capacityGB": 1024, "price": 1600000, "readSpeedMBs": 6000, "writeSpeedMBs": 6000 },
+          { "sku": "MAX IV-2T", "capacityGB": 2048, "price": 2900000, "readSpeedMBs": 7000, "writeSpeedMBs": 6000 }
+        ]
+      }
+    ]
+  },
+  "desktopBuilds": [
+    {
+      "sku": "PC-H6312-DEFAULT",
+      "name": "Desktop PC Văn phòng Cơ bản",
+      "description": "Cấu hình được tối ưu cho các tác vụ văn phòng, học tập và giải trí nhẹ nhàng với chi phí hợp lý.",
+      "level": "Cơ bản",
+      "totalPrice": 8250000,
+      "useCase": ["Văn phòng", "Học tập", "Giải trí nhẹ"],
+      "components": {
+        "barebone": "H6312",
+        "cpu": "12100",
+        "ram": "U3200I-C22-16G",
+        "ssd": "M110-512Q"
+      }
+    },
+    {
+      "sku": "PC-H6512-DEFAULT",
+      "name": "Desktop PC Đa nhiệm",
+      "description": "Cấu hình mạnh mẽ hơn với CPU Core i5, phù hợp cho làm việc đa nhiệm, lập trình và giải trí.",
+      "level": "Tầm trung",
+      "totalPrice": 10800000,
+      "useCase": ["Đa nhiệm", "Lập trình", "Giải trí"],
+      "components": {
+        "barebone": "H6512",
+        "cpu": "12400",
+        "ram": "U3200I-C22-8GX2",
+        "ssd": "E130-512Q"
+      }
+    },
+    {
+      "sku": "PC-B7512-GAMING",
+      "name": "Desktop PC Gaming Tầm trung",
+      "description": "Cấu hình gaming cân bằng giữa hiệu năng và chi phí, sẵn sàng cho các tựa game eSports và AAA ở độ phân giải Full HD.",
+      "level": "Tầm trung",
+      "totalPrice": 14800000,
+      "useCase": ["Gaming", "Streaming", "Sáng tạo nội dung"],
+      "components": {
+        "barebone": "B7512",
+        "cpu": "12400F",
+        "ram": "U3200I-C22-16GX2",
+        "ssd": "E130P-512T"
+      }
+    },
+    {
+      "sku": "PC-B7712-PRO",
+      "name": "Desktop PC Đồ họa & Sáng tạo",
+      "description": "Cấu hình cao cấp dành cho công việc chuyên nghiệp, xử lý đồ họa, render video và các tác vụ nặng.",
+      "level": "Cao cấp",
+      "totalPrice": 19300000,
+      "useCase": ["Đồ họa 3D", "Render Video", "Lập trình chuyên sâu"],
+      "components": {
+        "barebone": "B7712",
+        "cpu": "12700",
+        "ram": "U5600-C40-32G",
+        "ssd": "MAX IV-1T"
+      }
+    }
+  ]
+}
+
