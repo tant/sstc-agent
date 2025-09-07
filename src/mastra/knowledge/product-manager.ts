@@ -170,6 +170,8 @@ export class ProductManager {
   }
 
   searchByNameOrTag(query: string): Product[] {
+    console.log('🔍 SEARCHING BY NAME/TAG:', query);
+
     const results = new Set<Product>();
     const q = query.toLowerCase();
 
@@ -177,7 +179,7 @@ export class ProductManager {
     const specialHandlers = {
       ram: {
         keywords: ['ram', 'memory'],
-        representativeSkus: ['U3200I-C22-16G', 'U5600-C40-16G', 'U3200I-C22-32G'],
+        representativeSkus: ['U3200I-C22-8G', 'U5600-C40-8G', 'U3200I-C22-16G'],
         moreOptions: {
           sku: 'more-ram-options',
           name: 'Nhiều tùy chọn RAM khác',
@@ -188,7 +190,7 @@ export class ProductManager {
       },
       ssd: {
         keywords: ['ssd', 'storage', 'drive'],
-        representativeSkus: ['M110-512Q', 'E130-512Q', 'MAX IV-1T'],
+        representativeSkus: ['M110-256Q', 'E130-256T', 'E130-512Q'],
         moreOptions: {
           sku: 'more-ssd-options',
           name: 'Nhiều tùy chọn SSD khác',
@@ -199,7 +201,7 @@ export class ProductManager {
       },
       barebone: {
         keywords: ['barebone', 'case', 'motherboard'],
-        representativeSkus: ['H6312', 'H6512', 'B7512'],
+        representativeSkus: ['H6312', 'H6512', 'B7312'],
         moreOptions: {
           sku: 'more-barebone-options',
           name: 'Nhiều tùy chọn barebone khác',
@@ -235,16 +237,22 @@ export class ProductManager {
     // Check for special handling
     for (const [key, config] of Object.entries(specialHandlers)) {
       if (config.keywords.some(keyword => q.includes(keyword))) {
+        console.log('🎯 SPECIAL HANDLING TRIGGERED for:', key.toUpperCase());
+
         let representativeProducts: Product[] = [];
 
         if (config.type === 'rams' || config.type === 'ssds') {
+          console.log('🔄 GETTING VARIANT PRODUCTS for', config.type);
           representativeProducts = this.getRepresentativeVariants(config.type, config.representativeSkus);
         } else if (config.type === 'barebones' || config.type === 'cpus') {
+          console.log('🔄 GETTING PRODUCT RECOMMENDATIONS for', config.type);
           representativeProducts = this.getRepresentativeProducts(config.type, config.representativeSkus);
         } else if (config.type === 'desktops') {
+          console.log('🔄 GETTING DESKTOP RECOMMENDATIONS');
           representativeProducts = this.getRepresentativeDesktops(config.representativeSkus);
         }
 
+        console.log('📦 REPRESENTATIVE PRODUCTS:', representativeProducts.length, 'items');
         representativeProducts.forEach(product => results.add(product));
         results.add(this.createMoreOptionsProduct(
           config.moreOptions.sku,
@@ -253,14 +261,18 @@ export class ProductManager {
           config.moreOptions.warranty
         ));
 
+        console.log('🎯 SPECIAL SEARCH RESULT:', Array.from(results).length, 'items');
         return Array.from(results);
       }
     }
 
     // General search for other queries
+    console.log('📝 GENERAL SEARCH MODE');
+
     // Search by name
     for (const [name, products] of this.nameIndex) {
       if (name.includes(q)) {
+        console.log('📋 NAME MATCH:', name, '→', products.length, 'products');
         products.forEach(p => results.add(p));
       }
     }
@@ -268,10 +280,12 @@ export class ProductManager {
     // Search by tag
     for (const [tag, products] of this.tagIndex) {
       if (tag.includes(q)) {
+        console.log('🏷️ TAG MATCH:', tag, '→', products.length, 'products');
         products.forEach(p => results.add(p));
       }
     }
 
+    console.log('🎯 GENERAL SEARCH RESULT:', Array.from(results).length, 'items');
     return Array.from(results);
   }
 
@@ -296,31 +310,56 @@ export class ProductManager {
   }
 
   buildQuote(items: { sku: string; variantSku?: string; quantity: number }[], policies: { taxPercent: number; shipping: { freeOver: number; standard: number } }): { subtotal: number; tax: number; shipping: number; total: number; currency: string } {
+    console.log('💰 BUILDING QUOTE for', items.length, 'items');
+
     let subtotal = 0;
 
-    items.forEach(item => {
+    items.forEach((item, index) => {
+      console.log(`📦 ITEM ${index + 1}:`, item);
       let price = 0;
       if (item.variantSku) {
         const variant = this.findByVariantSku(item.variantSku);
-        if (variant) price = variant.price;
+        if (variant) {
+          price = variant.price;
+          console.log(`✅ VARIANT PRICE: ${variant.sku} = ${price} VND`);
+        } else {
+          console.log(`❌ VARIANT NOT FOUND: ${item.variantSku}`);
+        }
       } else {
         const product = this.findBySku(item.sku);
-        if (product) price = product.price;
+        if (product) {
+          price = product.price;
+          console.log(`✅ PRODUCT PRICE: ${product.sku} = ${price} VND`);
+        } else {
+          console.log(`❌ PRODUCT NOT FOUND: ${item.sku}`);
+        }
       }
-      subtotal += price * item.quantity;
+      const itemTotal = price * item.quantity;
+      subtotal += itemTotal;
+      console.log(`💵 ITEM TOTAL: ${price} x ${item.quantity} = ${itemTotal} VND`);
     });
 
     const tax = (subtotal * policies.taxPercent) / 100;
     const shipping = subtotal >= policies.shipping.freeOver ? 0 : policies.shipping.standard;
     const total = subtotal + tax + shipping;
 
-    return {
+    const quote = {
       subtotal: Math.round(subtotal),
       tax: Math.round(tax),
       shipping: Math.round(shipping),
       total: Math.round(total),
       currency: 'VND'
     };
+
+    console.log('🧾 QUOTE SUMMARY:', {
+      subtotal: quote.subtotal,
+      tax: quote.tax,
+      shipping: quote.shipping,
+      total: quote.total,
+      currency: quote.currency
+    });
+
+    return quote;
   }
 
   getDesktopBuildById(id: string): any {
@@ -345,12 +384,23 @@ export class ProductManager {
   }
 
   findRamBySpecs(capacityGB: number, modules: number): { variant: Variant, parentProduct: ProductWithVariants } | null {
+    console.log('🔍 FINDING RAM BY SPECS:', { capacityGB, modules });
+
     for (const ram of this.products?.products.rams || []) {
       const variant = ram.variants?.find(v => v.capacityGB === capacityGB && v.modules === modules);
       if (variant) {
+        console.log('✅ FOUND RAM VARIANT:', {
+          ramName: ram.name,
+          variantSku: variant.sku,
+          capacityGB: variant.capacityGB,
+          modules: variant.modules,
+          price: variant.price
+        });
         return { variant, parentProduct: ram };
       }
     }
+
+    console.log('❌ NO RAM FOUND for specs:', { capacityGB, modules });
     return null;
   }
 
@@ -384,6 +434,14 @@ export class ProductManager {
   }
 
   getRamRecommendations(formFactor: 'desktop' | 'laptop', ddrGen: 4 | 5, quantity: 1 | 2, capacityPerModule: number, useCase?: string): Product[] {
+    console.log('🎯 GETTING RAM RECOMMENDATIONS:', {
+      formFactor,
+      ddrGen,
+      quantity,
+      capacityPerModule,
+      useCase
+    });
+
     const recommendations: Product[] = [];
 
     // Find RAMs matching criteria
@@ -404,11 +462,13 @@ export class ProductManager {
       return isFormFactorMatch && isDdrMatch && hasMatchingVariant;
     }) || [];
 
+    console.log('🔍 FOUND MATCHING RAMS:', matchingRams.length, 'products');
+
     // Convert to Product format
     matchingRams.forEach(ram => {
       ram.variants?.forEach(variant => {
         if (variant.capacityGB === capacityPerModule && variant.modules === 1) {
-          recommendations.push({
+          const product: Product = {
             sku: variant.sku,
             name: `${ram.name} - ${variant.capacityGB}GB${quantity > 1 ? ` (${quantity} thanh)` : ''}`,
             price: variant.price * quantity,
@@ -417,6 +477,13 @@ export class ProductManager {
               ? `${quantity} thanh RAM ${variant.capacityGB}GB, tổng dung lượng ${variant.capacityGB * quantity}GB`
               : `${ram.description} - Tốc độ: ${variant.speedMHz || ram.specs?.speedMHz}MHz`,
             tags: [...(ram.tags || []), 'ram']
+          };
+
+          recommendations.push(product);
+          console.log('✅ ADDED RECOMMENDATION:', {
+            name: product.name,
+            price: product.price,
+            description: product.description
           });
         }
       });
@@ -424,18 +491,27 @@ export class ProductManager {
 
     // If no exact matches, add alternatives
     if (recommendations.length === 0) {
+      console.log('🔄 NO EXACT MATCHES, GETTING ALTERNATIVES...');
       const alternatives = this.getRamAlternatives(capacityPerModule, quantity);
       recommendations.push(...alternatives);
+      console.log('🔄 ADDED ALTERNATIVES:', alternatives.length, 'items');
     }
 
+    console.log('🎯 FINAL RECOMMENDATIONS:', recommendations.length, 'items');
     return recommendations.slice(0, 5); // Limit to 5 recommendations
   }
 
   getRamAlternatives(targetCapacity: number, targetModules: number): Product[] {
+    console.log('🔄 GETTING RAM ALTERNATIVES for:', {
+      targetCapacity,
+      targetModules
+    });
+
     const alternatives: Product[] = [];
 
     // If customer wants 2x8GB but doesn't exist, suggest buying 2 individual 8GB modules
     if (targetCapacity === 8 && targetModules === 2) {
+      console.log('🎯 ALTERNATIVE: 2x8GB → 2 individual 8GB modules');
       // Look for 8GB single module
       const single8GB = this.findRamBySpecs(8, 1);
       if (single8GB) {
@@ -447,11 +523,15 @@ export class ProductManager {
           description: `2 thanh RAM 8GB riêng lẻ, tổng dung lượng 16GB`,
           tags: ['ram', 'alternative']
         });
+        console.log('✅ FOUND ALTERNATIVE: 2x8GB modules');
+      } else {
+        console.log('❌ NO 8GB SINGLE MODULE FOUND');
       }
     }
 
     // If customer wants 1x16GB but doesn't exist, suggest 2x8GB
     if (targetCapacity === 16 && targetModules === 1) {
+      console.log('🎯 ALTERNATIVE: 1x16GB → 2x8GB modules');
       // Look for 8GB modules
       const dual8GB = this.findRamBySpecs(8, 1);
       if (dual8GB) {
@@ -463,9 +543,13 @@ export class ProductManager {
           description: `Thay thế cho 1 thanh 16GB: 2 thanh 8GB với tổng dung lượng 16GB`,
           tags: ['ram', 'alternative']
         });
+        console.log('✅ FOUND ALTERNATIVE: 2x8GB for 16GB total');
+      } else {
+        console.log('❌ NO 8GB MODULE FOUND FOR ALTERNATIVE');
       }
     }
 
+    console.log('🔄 ALTERNATIVES RESULT:', alternatives.length, 'items');
     return alternatives;
   }
 
@@ -476,28 +560,36 @@ export class ProductManager {
     capacityPerModule?: number;
     useCase?: string;
   } {
+    console.log('🔍 DETECTING RAM REQUIREMENTS for query:', query);
+
     const result: any = {};
     const q = query.toLowerCase();
 
     // Detect form factor
     if (q.includes('laptop')) {
       result.formFactor = 'laptop';
+      console.log('💻 DETECTED: Laptop form factor');
     } else if (q.includes('desktop') || q.includes('pc') || q.includes('main')) {
       result.formFactor = 'desktop';
+      console.log('🖥️ DETECTED: Desktop form factor');
     }
 
     // Detect DDR generation
     if (q.includes('ddr5')) {
       result.ddrGen = 5;
+      console.log('🆕 DETECTED: DDR5 generation');
     } else if (q.includes('ddr4')) {
       result.ddrGen = 4;
+      console.log('📊 DETECTED: DDR4 generation');
     }
 
     // Detect quantity - improved logic
     if (q.includes('hai thanh') || q.includes('2 thanh') || q.includes('hai cái') || q.includes('2 cái')) {
       result.quantity = 2;
+      console.log('🔢 DETECTED: Quantity = 2');
     } else if (q.includes('một thanh') || q.includes('1 thanh') || q.includes('một cái') || q.includes('1 cái')) {
       result.quantity = 1;
+      console.log('🔢 DETECTED: Quantity = 1');
     }
 
     // Detect capacity - improved pattern matching
@@ -511,6 +603,7 @@ export class ProductManager {
       const match = q.match(pattern);
       if (match) {
         result.capacityPerModule = parseInt(match[1]);
+        console.log('💾 DETECTED: Capacity per module =', result.capacityPerModule, 'GB');
         break;
       }
     }
@@ -519,17 +612,22 @@ export class ProductManager {
     if (q.includes('2 thanh') && q.includes('8gb')) {
       result.quantity = 2;
       result.capacityPerModule = 8;
+      console.log('🎯 SPECIAL PATTERN: 2 thanh 8GB detected');
     }
 
     // Detect use case
     if (q.includes('gaming') || q.includes('game') || q.includes('chơi game')) {
       result.useCase = 'gaming';
+      console.log('🎮 DETECTED: Gaming use case');
     } else if (q.includes('văn phòng') || q.includes('office') || q.includes('work') || q.includes('làm việc')) {
       result.useCase = 'office';
+      console.log('💼 DETECTED: Office use case');
     } else if (q.includes('sáng tạo') || q.includes('design') || q.includes('creative') || q.includes('đồ họa')) {
       result.useCase = 'creative';
+      console.log('🎨 DETECTED: Creative use case');
     }
 
+    console.log('📋 FINAL DETECTION RESULT:', result);
     return result;
   }
 }

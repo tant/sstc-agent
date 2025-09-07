@@ -39,6 +39,8 @@ export const salesTool = createTool({
     }).optional(),
   }),
   execute: async ({ context }) => {
+    console.log('🔧 SALES-TOOL EXECUTING:', context);
+
     const {
       query,
       sku,
@@ -51,11 +53,24 @@ export const salesTool = createTool({
       useCase
     } = context as any;
 
+    console.log('📋 SALES-TOOL PARAMS:', {
+      query,
+      sku,
+      variantSku,
+      quantity,
+      ramFormFactor,
+      ramDdrGen,
+      ramQuantity,
+      ramCapacityPerModule,
+      useCase
+    });
+
     let results: any[] = [];
     let quote: any = null;
 
     // RAM-specific recommendations
     if (ramFormFactor && ramDdrGen && ramQuantity && ramCapacityPerModule) {
+      console.log('🧠 RAM RECOMMENDATIONS MODE');
       const ddrGen = parseInt(ramDdrGen) as 4 | 5;
       results = productManager.getRamRecommendations(
         ramFormFactor,
@@ -64,7 +79,9 @@ export const salesTool = createTool({
         ramCapacityPerModule,
         useCase
       );
+      console.log('💡 RAM RECOMMENDATIONS RESULTS:', results.length, 'items');
     } else if (sku) {
+      console.log('🔍 SKU LOOKUP MODE:', sku);
       // Exact SKU lookup
       const product = productManager.findBySku(sku);
       if (product) {
@@ -75,8 +92,12 @@ export const salesTool = createTool({
           description: product.description,
           tags: product.tags
         }];
+        console.log('✅ SKU FOUND:', product.name);
+      } else {
+        console.log('❌ SKU NOT FOUND:', sku);
       }
     } else if (variantSku) {
+      console.log('🔍 VARIANT SKU LOOKUP MODE:', variantSku);
       // Variant SKU lookup
       const variant = productManager.findByVariantSku(variantSku);
       if (variant) {
@@ -93,46 +114,22 @@ export const salesTool = createTool({
           description: `Dung lượng: ${variant.capacityGB}GB, Số module: ${variant.modules}`,
           tags: parentProduct?.tags || []
         }];
+        console.log('✅ VARIANT FOUND:', variantName);
+      } else {
+        console.log('❌ VARIANT NOT FOUND:', variantSku);
       }
     } else if (query) {
-      // Fuzzy search
-      const products = productManager.searchByNameOrTag(query);
-
-      // Special handling for RAM alternatives
-      if (query.toLowerCase().includes('ram') || query.toLowerCase().includes('memory')) {
-        // Check if customer specified specific requirements
-        const capacityMatch = query.match(/(\d+)\s*gb/i);
-        const modulesMatch = query.match(/(\d+)\s*thanh/i) || query.match(/hai\s*thanh/i) || query.match(/một\s*thanh/i);
-
-        if (capacityMatch && modulesMatch) {
-          const targetCapacity = parseInt(capacityMatch[1]);
-          const targetModules = modulesMatch[0].includes('hai') || modulesMatch[0].includes('2') ? 2 : 1;
-
-          // Try to find exact match first
-          const exactMatch = productManager.findRamBySpecs(targetCapacity, targetModules);
-          if (!exactMatch) {
-            // Add alternatives if no exact match
-            const alternatives = productManager.getRamAlternatives(targetCapacity, targetModules);
-            products.push(...alternatives);
-          }
-        }
-
-        // If query contains DDR generation, filter by it
-        if (query.toLowerCase().includes('ddr4')) {
-          const ddr4Rams = productManager.findRamByFormFactor('desktop', 4);
-          ddr4Rams.forEach(ram => products.unshift(ram)); // Add to beginning
-        } else if (query.toLowerCase().includes('ddr5')) {
-          const ddr5Rams = productManager.findRamByFormFactor('desktop', 5);
-          ddr5Rams.forEach(ram => products.unshift(ram)); // Add to beginning
-        }
-      }
+      console.log('🔍 FUZZY SEARCH MODE:', query);
 
       // Smart context detection for RAM
       if (query.toLowerCase().includes('ram') || query.toLowerCase().includes('memory')) {
+        console.log('🧠 DETECTING RAM REQUIREMENTS...');
         const detected = productManager.detectRamRequirements(query);
+        console.log('🔎 DETECTED REQUIREMENTS:', detected);
 
         // If we have enough info, get smart recommendations
         if (detected.formFactor && detected.ddrGen && detected.quantity && detected.capacityPerModule) {
+          console.log('🎯 GETTING SMART RAM RECOMMENDATIONS');
           results = productManager.getRamRecommendations(
             detected.formFactor,
             detected.ddrGen,
@@ -140,7 +137,9 @@ export const salesTool = createTool({
             detected.capacityPerModule,
             detected.useCase
           );
+          console.log('💡 SMART RAM RESULTS:', results.length, 'items');
         } else {
+          console.log('📝 FALLBACK TO GENERAL SEARCH');
           // Fallback to general search
           const searchResults = productManager.searchByNameOrTag(query);
           results = searchResults.slice(0, 10).map(p => ({
@@ -151,26 +150,39 @@ export const salesTool = createTool({
             tags: p.tags
           }));
         }
+      } else {
+        console.log('📝 GENERAL SEARCH');
+        // General search
+        const searchResults = productManager.searchByNameOrTag(query);
+        results = searchResults.slice(0, 10).map(p => ({
+          sku: p.sku,
+          name: p.name,
+          price: p.price,
+          description: p.description,
+          tags: p.tags
+        }));
       }
-
-      results = products.slice(0, 10).map(p => ({
-        sku: p.sku,
-        name: p.name,
-        price: p.price,
-        description: p.description,
-        tags: p.tags
-      }));
     }
 
     // Build quote if we have results and quantity > 0
     if (results.length > 0 && quantity > 0) {
+      console.log('💰 BUILDING QUOTE for', results.length, 'items');
       const items = results.map(r => ({
         sku: r.sku,
         variantSku: variantSku || undefined,
         quantity
       }));
       quote = productManager.buildQuote(items, companyPolicies);
+      console.log('✅ QUOTE BUILT:', quote);
+    } else {
+      console.log('❌ NO QUOTE BUILT - no results or quantity = 0');
     }
+
+    console.log('🎯 SALES-TOOL FINAL RESULT:', {
+      resultsCount: results.length,
+      hasQuote: !!quote,
+      totalValue: quote?.total || 0
+    });
 
     return { results, quote };
   },
