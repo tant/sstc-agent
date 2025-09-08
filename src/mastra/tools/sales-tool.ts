@@ -21,6 +21,7 @@ export const salesTool = createTool({
     ramCapacityPerModule: z.number().optional(), // GB per module
     useCase: z.string().optional(),
     speedPriority: z.enum(['highest', 'high', 'medium', 'low']).optional(),
+    budget: z.number().optional(),
   }),
   outputSchema: z.object({
     results: z.array(
@@ -53,7 +54,8 @@ export const salesTool = createTool({
       ramQuantity,
       ramCapacityPerModule,
       useCase,
-      speedPriority
+      speedPriority,
+      budget
     } = context as any;
 
     console.log('📋 SALES-TOOL PARAMS:', {
@@ -66,23 +68,25 @@ export const salesTool = createTool({
       ramQuantity,
       ramCapacityPerModule,
       useCase,
-      speedPriority
+      speedPriority,
+      budget
     });
 
     let results: any[] = [];
     let quote: any = null;
 
     // RAM-specific recommendations
-    if (ramFormFactor && ramDdrGen && ramQuantity && ramCapacityPerModule) {
+    if (ramFormFactor || ramDdrGen || ramQuantity || ramCapacityPerModule || budget) {
       console.log('🧠 RAM RECOMMENDATIONS MODE');
-      const ddrGen = parseInt(ramDdrGen) as 4 | 5;
+      const ddrGen = ramDdrGen ? parseInt(ramDdrGen) as 4 | 5 : undefined;
       results = productManager.ram!.getRamRecommendations(
         ramFormFactor,
         ddrGen,
         ramQuantity,
         ramCapacityPerModule,
         useCase,
-        speedPriority
+        speedPriority,
+        budget
       );
       console.log('💡 RAM RECOMMENDATIONS RESULTS:', results.length, 'items');
     } else if (sku) {
@@ -127,35 +131,23 @@ export const salesTool = createTool({
       console.log('🔍 FUZZY SEARCH MODE:', query);
 
       // Smart context detection for RAM
-      if (query.toLowerCase().includes('ram') || query.toLowerCase().includes('memory')) {
+      if (query.toLowerCase().includes('ram') || query.toLowerCase().includes('memory') || productManager.ram!.detectRamRequirements(query).budget) {
         console.log('🧠 DETECTING RAM REQUIREMENTS...');
         const detected = productManager.ram!.detectRamRequirements(query);
         console.log('🔎 DETECTED REQUIREMENTS:', detected);
 
-        // If we have enough info, get smart recommendations
-        if (detected.formFactor && detected.ddrGen && detected.quantity && detected.capacityPerModule) {
-          console.log('🎯 GETTING SMART RAM RECOMMENDATIONS');
-          results = productManager.ram!.getRamRecommendations(
-            detected.formFactor,
-            detected.ddrGen,
-            detected.quantity,
-            detected.capacityPerModule,
-            detected.useCase,
-            detected.speedPriority
-          );
-          console.log('💡 SMART RAM RESULTS:', results.length, 'items');
-        } else {
-          console.log('📝 FALLBACK TO GENERAL SEARCH');
-          // Fallback to general search
-          const searchResults = productManager.searchByNameOrTag(query);
-          results = searchResults.slice(0, 10).map(p => ({
-            sku: p.sku,
-            name: p.name,
-            price: p.price,
-            description: p.description,
-            tags: p.tags
-          }));
-        }
+        // Get smart recommendations based on whatever was detected
+        console.log('🎯 GETTING SMART RAM RECOMMENDATIONS');
+        results = productManager.ram!.getRamRecommendations(
+          detected.formFactor,
+          detected.ddrGen,
+          detected.quantity,
+          detected.capacityPerModule,
+          detected.useCase,
+          detected.speedPriority,
+          detected.budget
+        );
+        console.log('💡 SMART RAM RESULTS:', results.length, 'items');
       } else {
         console.log('📝 GENERAL SEARCH');
         // General search
