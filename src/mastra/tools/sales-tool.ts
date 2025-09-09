@@ -14,13 +14,13 @@ export const salesTool = createTool({
     sku: z.string().optional(),
     variantSku: z.string().optional(),
     quantity: z.number().optional().default(1),
-    // RAM-specific parameters
-    ramFormFactor: z.enum(['desktop', 'laptop']).optional(),
-    ramDdrGen: z.enum(['4', '5']).optional(),
+    // RAM-specific parameters (accept flexible strings, will normalize)
+    ramFormFactor: z.string().optional(),
+    ramDdrGen: z.string().optional(),
     ramQuantity: z.number().optional(), // 1 or 2 modules
     ramCapacityPerModule: z.number().optional(), // GB per module
     useCase: z.string().optional(),
-    speedPriority: z.enum(['highest', 'high', 'medium', 'low']).optional(),
+    speedPriority: z.string().optional(),
     budget: z.number().optional(),
   }),
   outputSchema: z.object({
@@ -72,20 +72,57 @@ export const salesTool = createTool({
       budget
     });
 
+    // --- Normalize RAM inputs ---
+    function normalizeFormFactor(raw?: string): 'desktop' | 'laptop' | undefined {
+      if (!raw) return undefined;
+      const s = String(raw).toLowerCase();
+      if (s.includes('lap') || s.includes('sodimm') || s.includes('so-dimm')) return 'laptop';
+      if (s.includes('dim') || s.includes('desktop') || s.includes('pc') || s.includes('main')) return 'desktop';
+      return undefined;
+    }
+
+    function normalizeDdr(raw?: string): '4' | '5' | undefined {
+      if (!raw) return undefined;
+      const s = String(raw).toLowerCase();
+      if (s.includes('ddr5') || s === '5') return '5';
+      if (s.includes('ddr4') || s === '4') return '4';
+      const num = parseInt(s, 10);
+      if (num === 4 || num === 5) return String(num) as '4' | '5';
+      return undefined;
+    }
+
+    function normalizeSpeedPriority(raw?: string): 'highest' | 'high' | 'medium' | 'low' | undefined {
+      if (!raw) return undefined;
+      const s = String(raw).toLowerCase().trim();
+      if (!s) return undefined;
+      if (s.includes('highest') || s.includes('nhanh nhất') || s.includes('max')) return 'highest';
+      if (s.includes('high') || s.includes('nhanh') || s.includes('gaming')) return 'high';
+      if (s.includes('medium') || s.includes('văn phòng') || s.includes('office')) return 'medium';
+      if (s.includes('low') || s.includes('tiết kiệm') || s.includes('budget')) return 'low';
+      return undefined;
+    }
+
+    const normalizedRamFormFactor = normalizeFormFactor(ramFormFactor);
+    const normalizedRamDdr = normalizeDdr(ramDdrGen);
+    const normalizedSpeedPriority = normalizeSpeedPriority(speedPriority);
+
+    console.log('🔧 NORMALIZED RAM PARAMS:', { normalizedRamFormFactor, normalizedRamDdr, normalizedSpeedPriority });
+
     let results: any[] = [];
     let quote: any = null;
 
     // RAM-specific recommendations
-    if (ramFormFactor || ramDdrGen || ramQuantity || ramCapacityPerModule || budget) {
+    if (normalizedRamFormFactor || normalizedRamDdr || ramQuantity || ramCapacityPerModule || budget) {
       console.log('🧠 RAM RECOMMENDATIONS MODE');
       const ddrGen = ramDdrGen ? parseInt(ramDdrGen) as 4 | 5 : undefined;
+      const ddrNum = normalizedRamDdr ? (parseInt(normalizedRamDdr) as 4 | 5) : undefined;
       results = productManager.ram!.getRamRecommendations(
-        ramFormFactor,
-        ddrGen,
+        normalizedRamFormFactor,
+        ddrNum,
         ramQuantity,
         ramCapacityPerModule,
         useCase,
-        speedPriority,
+        normalizedSpeedPriority,
         budget
       );
       console.log('💡 RAM RECOMMENDATIONS RESULTS:', results.length, 'items');

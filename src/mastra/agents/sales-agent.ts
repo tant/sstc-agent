@@ -1,4 +1,5 @@
 import { openai } from '@ai-sdk/openai';
+import { openaiProvider } from '../providers';
 import { Agent } from '@mastra/core/agent';
 import { Memory } from '@mastra/memory';
 import { LibSQLStore } from '@mastra/libsql';
@@ -163,7 +164,7 @@ export const salesAgent = new Agent({
     For assembly requests, use the assembly-tool to calculate total cost (components only, assembly is free).
     Be concise and helpful. Always mention what we sell and our services when asked.
   `,
-  model: openai(CONFIG.DEFAULT_MODEL),
+  model: openaiProvider(CONFIG.DEFAULT_MODEL),
   tools: { salesTool, assemblyTool },
   memory: new Memory({
     storage: new LibSQLStore({ url: CONFIG.MEMORY_URL }),
